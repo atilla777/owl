@@ -65,7 +65,7 @@ module Owl
           end
 
           def layout_files(root:, project_id:)
-            [
+            base = [
               { path: "#{root}/.owl/config.yaml",
                 contents: Owl::Config::Api.default_template(project_id: project_id) },
               { path: "#{root}/.owl/workflows.yaml",
@@ -77,6 +77,15 @@ module Owl
               { path: "#{root}/docs/.keep",
                 contents: '' }
             ]
+
+            base + seeded_files(root: root, sources: Owl::Workflows::Api.seeded_sources) \
+                 + seeded_files(root: root, sources: Owl::Artifacts::Api.seeded_sources)
+          end
+
+          def seeded_files(root:, sources:)
+            sources.map do |file|
+              { path: "#{root}/.owl/#{file[:relative_path]}", contents: file[:contents] }
+            end
           end
 
           def tasks_index_template

@@ -70,6 +70,10 @@ module Owl
         Internal::DefaultTemplate.render
       end
 
+      def seeded_sources
+        Internal::DefaultTemplate.source_files
+      end
+
       def graph(root:, workflow_key:)
         lookup = find(root: root, key: workflow_key)
         return lookup if lookup.err?

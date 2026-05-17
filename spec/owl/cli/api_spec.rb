@@ -74,20 +74,24 @@ RSpec.describe Owl::Cli::Api do
   end
 
   describe 'owl init' do
-    it 'creates exactly the default Stage 1 layout in an empty directory' do
+    it 'creates the default layout plus seeded workflow and artifact templates' do
       with_tmp_project do |root|
         exit_code, stdout, _stderr = run(['init', '--root', root.to_s], cwd: root)
         expect(exit_code).to eq(0)
         body = JSON.parse(stdout)
         expect(body['ok']).to be(true)
 
-        expected = %w[
+        base = %w[
           .owl/config.yaml
           .owl/workflows.yaml
           .owl/artifacts.yaml
           tasks/index.yaml
           docs/.keep
         ]
+        workflow_sources = Owl::Workflows::Api.seeded_sources.map { |f| ".owl/#{f[:relative_path]}" }
+        artifact_sources = Owl::Artifacts::Api.seeded_sources.map { |f| ".owl/#{f[:relative_path]}" }
+        expected = base + workflow_sources + artifact_sources
+
         expected.each do |rel|
           expect((root + rel).exist?).to be(true), "missing #{rel}"
         end
@@ -131,14 +135,17 @@ RSpec.describe Owl::Cli::Api do
   end
 
   describe 'owl workflow list --json' do
-    it 'returns an empty workflows array on a freshly initialized project' do
+    it 'returns the six seeded workflows on a freshly initialized project' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
         exit_code, stdout, _stderr = run(['workflow', 'list', '--root', root.to_s, '--json'], cwd: root)
         expect(exit_code).to eq(0)
         body = JSON.parse(stdout)
         expect(body['ok']).to be(true)
-        expect(body['workflows']).to eq([])
+        expect(body['workflows'].map { |w| w['key'] }).to contain_exactly(
+          'feature', 'composite_feature', 'feature_slice', 'hotfix', 'research', 'refactor'
+        )
+        expect(body['workflows']).to all(include('source_present' => true))
       end
     end
 
@@ -174,8 +181,8 @@ RSpec.describe Owl::Cli::Api do
         expect(body['schema_version']).to eq(1)
         expect(body.dig('storage', 'active_profile')).to eq('default')
         expect(body.dig('storage', 'roles_present')).to include(*Owl::Storage::Api::STANDARD_ROLES)
-        expect(body.dig('workflows', 'count')).to eq(0)
-        expect(body.dig('artifacts', 'count')).to eq(0)
+        expect(body.dig('workflows', 'count')).to eq(6)
+        expect(body.dig('artifacts', 'count')).to eq(10)
         expect(body['errors']).to eq([])
       end
     end

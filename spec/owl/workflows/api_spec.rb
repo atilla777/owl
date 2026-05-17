@@ -4,12 +4,14 @@ require 'owl/workflows/api'
 
 RSpec.describe Owl::Workflows::Api do
   describe '.registry' do
-    it 'returns Ok with empty entries on a fresh project' do
+    it 'returns Ok with the six seeded workflow entries on a fresh project' do
       with_tmp_project do |root|
         write("#{root}/.owl/workflows.yaml", described_class.default_template)
         result = described_class.registry(root: root)
         expect(result).to be_ok
-        expect(result.value[:entries]).to eq([])
+        expect(result.value[:entries].map { |e| e[:key] }).to contain_exactly(
+          'feature', 'composite_feature', 'feature_slice', 'hotfix', 'research', 'refactor'
+        )
         expect(result.value[:schema_version]).to eq(1)
       end
     end
@@ -42,12 +44,15 @@ RSpec.describe Owl::Workflows::Api do
   end
 
   describe '.list' do
-    it 'returns an empty array on a fresh project' do
+    it 'returns the six seeded workflows (without source files until init writes them)' do
       with_tmp_project do |root|
         write("#{root}/.owl/workflows.yaml", described_class.default_template)
         result = described_class.list(root: root)
         expect(result).to be_ok
-        expect(result.value).to eq([])
+        expect(result.value.map { |e| e[:key] }).to contain_exactly(
+          'feature', 'composite_feature', 'feature_slice', 'hotfix', 'research', 'refactor'
+        )
+        expect(result.value).to all(include(source_present: false))
       end
     end
 
@@ -165,11 +170,40 @@ RSpec.describe Owl::Workflows::Api do
   end
 
   describe '.default_template' do
-    it 'creates a parseable YAML with empty workflows map' do
+    it 'creates a parseable YAML with the six seeded workflow entries' do
       template = described_class.default_template
       parsed = YAML.safe_load(template)
-      expect(parsed['workflows']).to eq({})
+      expect(parsed['workflows'].keys).to contain_exactly(
+        'feature', 'composite_feature', 'feature_slice', 'hotfix', 'research', 'refactor'
+      )
+      expect(parsed['default_workflow']).to eq('feature')
       expect(parsed['schema_version']).to eq(1)
+      parsed['workflows'].each_value do |entry|
+        expect(entry['source']).to be_a(String)
+        expect(entry['enabled']).to be(true)
+      end
+    end
+  end
+
+  describe '.seeded_sources' do
+    it 'returns six workflow source YAMLs (relative_path + contents)' do
+      sources = described_class.seeded_sources
+      expect(sources.size).to eq(6)
+      expect(sources.map { |f| f[:relative_path] }).to contain_exactly(
+        'workflows/feature/workflow.yaml',
+        'workflows/composite_feature/workflow.yaml',
+        'workflows/feature_slice/workflow.yaml',
+        'workflows/hotfix/workflow.yaml',
+        'workflows/research/workflow.yaml',
+        'workflows/refactor/workflow.yaml'
+      )
+      sources.each do |file|
+        parsed = YAML.safe_load(file[:contents])
+        expect(parsed).to be_a(Hash)
+        expect(parsed['id']).to be_a(String)
+        expect(parsed['kind']).to be_a(String)
+        expect(parsed['steps']).to be_an(Array)
+      end
     end
   end
 end

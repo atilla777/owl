@@ -63,6 +63,10 @@ module Owl
       def default_template
         Internal::DefaultTemplate.render
       end
+
+      def seeded_sources
+        Internal::DefaultTemplate.source_files
+      end
     end
   end
 end
