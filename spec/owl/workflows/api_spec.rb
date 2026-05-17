@@ -114,6 +114,56 @@ RSpec.describe Owl::Workflows::Api do
     end
   end
 
+  describe '.find' do
+    it 'returns Ok with entry and source body when the key is registered and source exists' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/workflows.yaml", <<~YAML)
+          schema_version: 1
+          workflows:
+            feature:
+              enabled: true
+              source: "workflows/feature/workflow.yaml"
+              version: "1.0"
+        YAML
+        write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+          id: feature
+          kind: feature
+          steps:
+            - id: noop
+        YAML
+
+        result = described_class.find(root: root, key: 'feature')
+        expect(result).to be_ok
+        expect(result.value[:entry][:key]).to eq('feature')
+        expect(result.value[:source][:body]['kind']).to eq('feature')
+        expect(result.value[:source][:body]['steps']).to be_an(Array)
+      end
+    end
+
+    it 'returns Err(:unknown_workflow) when the key is missing and lists known keys' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/workflows.yaml", <<~YAML)
+          schema_version: 1
+          workflows:
+            feature:
+              source: "workflows/feature.yaml"
+        YAML
+        result = described_class.find(root: root, key: 'nope')
+        expect(result).to be_err
+        expect(result.code).to eq(:unknown_workflow)
+        expect(result.details[:available]).to eq(['feature'])
+      end
+    end
+
+    it 'propagates registry errors' do
+      with_tmp_project do |root|
+        result = described_class.find(root: root, key: 'feature')
+        expect(result).to be_err
+        expect(result.code).to eq(:workflows_registry_missing)
+      end
+    end
+  end
+
   describe '.default_template' do
     it 'creates a parseable YAML with empty workflows map' do
       template = described_class.default_template

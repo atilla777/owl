@@ -83,10 +83,7 @@ module Owl
             <<~YAML
               schema_version: 1
 
-              ready: []
-              in_progress: []
-              blocked: []
-              current_candidates: []
+              tasks: []
             YAML
           end
         end

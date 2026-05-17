@@ -42,6 +42,25 @@ module Owl
         Result.ok(workflows)
       end
 
+      def find(root:, key:)
+        registry_result = registry(root: root)
+        return registry_result if registry_result.err?
+
+        entries = registry_result.value[:entries]
+        entry = entries.find { |e| e[:key] == key.to_s }
+
+        unless entry
+          return Result.err(
+            code: :unknown_workflow,
+            message: "Workflow '#{key}' is not defined in the registry",
+            details: { key: key.to_s, available: entries.map { |e| e[:key] } }
+          )
+        end
+
+        source_info = Internal::SourceLoader.load(root: root, source: entry[:source])
+        Result.ok(entry: entry, source: source_info)
+      end
+
       def default_template
         Internal::DefaultTemplate.render
       end

@@ -6,6 +6,7 @@ require_relative 'owl/storage/api'
 require_relative 'owl/config/api'
 require_relative 'owl/workflows/api'
 require_relative 'owl/artifacts/api'
+require_relative 'owl/tasks/api'
 require_relative 'owl/cli/api'
 
 module Owl

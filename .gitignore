@@ -9,3 +9,6 @@ tmp/
 
 # Test coverage
 coverage/
+
+# Owl local state (per-clone pointer files, not shared)
+.owl/local/

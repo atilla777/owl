@@ -3,6 +3,12 @@
 require_relative '../version'
 require_relative 'internal/commands/config_validate'
 require_relative 'internal/commands/init'
+require_relative 'internal/commands/task_create'
+require_relative 'internal/commands/task_current'
+require_relative 'internal/commands/task_index_rebuild'
+require_relative 'internal/commands/task_inspect'
+require_relative 'internal/commands/task_list'
+require_relative 'internal/commands/task_use'
 require_relative 'internal/commands/workflow_list'
 require_relative 'internal/json_printer'
 
@@ -16,6 +22,12 @@ module Owl
           init                    Initialize a new Owl project layout in the target directory.
           workflow list           List declared workflows (JSON output).
           config validate         Validate .owl/config.yaml (JSON output).
+          task create             Create a new task from a registered workflow.
+          task list               List tasks from tasks/index.yaml.
+          task inspect            Show full task.yaml payload for a TASK-ID.
+          task use                Set the current task pointer (.owl/local/current.yaml).
+          task current            Show the current task payload.
+          task index rebuild      Rebuild tasks/index.yaml from task.yaml files.
 
         Global options:
           --help, -h              Show this help message.
@@ -42,23 +54,58 @@ module Owl
         when 'init'
           Internal::Commands::Init.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
         when 'workflow'
-          subcommand = args.shift
-          case subcommand
-          when 'list'
-            Internal::Commands::WorkflowList.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
-          else
-            unknown_command(stderr, "workflow #{subcommand}".strip)
-          end
+          dispatch_workflow(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
         when 'config'
-          subcommand = args.shift
-          case subcommand
-          when 'validate'
-            Internal::Commands::ConfigValidate.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
-          else
-            unknown_command(stderr, "config #{subcommand}".strip)
-          end
+          dispatch_config(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        when 'task'
+          dispatch_task(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
         else
           unknown_command(stderr, command)
+        end
+      end
+
+      def dispatch_workflow(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        case subcommand
+        when 'list'
+          Internal::Commands::WorkflowList.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        else
+          unknown_command(stderr, "workflow #{subcommand}".strip)
+        end
+      end
+
+      def dispatch_config(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        case subcommand
+        when 'validate'
+          Internal::Commands::ConfigValidate.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        else
+          unknown_command(stderr, "config #{subcommand}".strip)
+        end
+      end
+
+      def dispatch_task(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
+        case subcommand
+        when 'create'  then Internal::Commands::TaskCreate.run(**kwargs)
+        when 'list'    then Internal::Commands::TaskList.run(**kwargs)
+        when 'inspect' then Internal::Commands::TaskInspect.run(**kwargs)
+        when 'use'     then Internal::Commands::TaskUse.run(**kwargs)
+        when 'current' then Internal::Commands::TaskCurrent.run(**kwargs)
+        when 'index'   then dispatch_task_index(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        else
+          unknown_command(stderr, "task #{subcommand}".strip)
+        end
+      end
+
+      def dispatch_task_index(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        case subcommand
+        when 'rebuild'
+          Internal::Commands::TaskIndexRebuild.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        else
+          unknown_command(stderr, "task index #{subcommand}".strip)
         end
       end
 
