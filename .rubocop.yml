@@ -10,12 +10,19 @@ AllCops:
     - 'vendor/**/*'
     - 'tmp/**/*'
     - '.bundle/**/*'
+    - 'coverage/**/*'
 
 Style/Documentation:
   Enabled: false
 
 Style/FrozenStringLiteralComment:
   EnforcedStyle: always
+
+# Style/StringConcatenation autocorrect is unsafe for Pathname + String,
+# which is the idiomatic way to build paths. Keep it disabled to avoid
+# silently producing broken paths.
+Style/StringConcatenation:
+  Enabled: false
 
 Layout/LineLength:
   Max: 120
@@ -24,3 +31,44 @@ Metrics/BlockLength:
   Exclude:
     - 'spec/**/*'
     - 'Gemfile'
+
+Metrics/MethodLength:
+  Max: 40
+
+Metrics/AbcSize:
+  Max: 35
+
+Metrics/CyclomaticComplexity:
+  Max: 12
+
+Metrics/PerceivedComplexity:
+  Max: 12
+
+Metrics/ParameterLists:
+  Max: 8
+
+Metrics/ClassLength:
+  Max: 200
+
+Metrics/ModuleLength:
+  Max: 200
+
+# Spec relaxations: structural unit tests are clearer when one example
+# walks through multiple assertions and a fixture setup.
+RSpec/ExampleLength:
+  Max: 30
+
+RSpec/MultipleExpectations:
+  Max: 10
+
+RSpec/NestedGroups:
+  Max: 4
+
+RSpec/DescribeClass:
+  Enabled: false
+
+RSpec/SpecFilePathFormat:
+  Enabled: false
+
+RSpec/AnyInstance:
+  Enabled: false

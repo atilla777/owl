@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+$LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
+
 require 'simplecov'
 
 SimpleCov.start do
@@ -28,6 +30,8 @@ SimpleCov.at_exit do
   end
   exit 1
 end
+
+require_relative 'support/tmp_project'
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
