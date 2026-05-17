@@ -13,12 +13,18 @@ require_relative 'internal/commands/step_complete'
 require_relative 'internal/commands/step_invocation'
 require_relative 'internal/commands/step_skip'
 require_relative 'internal/commands/step_start'
+require_relative 'internal/commands/task_aggregate_status'
+require_relative 'internal/commands/task_child_create'
+require_relative 'internal/commands/task_children'
 require_relative 'internal/commands/task_create'
 require_relative 'internal/commands/task_current'
 require_relative 'internal/commands/task_index_rebuild'
 require_relative 'internal/commands/task_inspect'
 require_relative 'internal/commands/task_list'
+require_relative 'internal/commands/task_parent'
 require_relative 'internal/commands/task_ready_steps'
+require_relative 'internal/commands/task_split'
+require_relative 'internal/commands/task_tree'
 require_relative 'internal/commands/task_use'
 require_relative 'internal/commands/workflow_list'
 require_relative 'internal/json_printer'
@@ -40,6 +46,12 @@ module Owl
           task current            Show the current task payload.
           task ready-steps        Compute ready steps for a TASK-ID (workflow graph).
           task index rebuild      Rebuild tasks/index.yaml from task.yaml files.
+          task tree               Print the full parent → child task tree (JSON).
+          task children           List child tasks of a composite parent (JSON).
+          task parent             Show parent task (or null) for a TASK-ID.
+          task aggregate-status   Aggregate state for a composite task (JSON).
+          task child create       Create a child task under a composite parent.
+          task split              Convert a task into a composite_task (kind change).
           step start              Mark a ready step as running.
           step complete           Mark a running step as done.
           step skip               Mark a step as skipped (--reason required).
@@ -124,19 +136,41 @@ module Owl
         end
       end
 
+      TASK_SUBCOMMANDS = {
+        'create' => Internal::Commands::TaskCreate,
+        'list' => Internal::Commands::TaskList,
+        'inspect' => Internal::Commands::TaskInspect,
+        'use' => Internal::Commands::TaskUse,
+        'current' => Internal::Commands::TaskCurrent,
+        'ready-steps' => Internal::Commands::TaskReadySteps,
+        'tree' => Internal::Commands::TaskTree,
+        'children' => Internal::Commands::TaskChildren,
+        'parent' => Internal::Commands::TaskParent,
+        'aggregate-status' => Internal::Commands::TaskAggregateStatus,
+        'split' => Internal::Commands::TaskSplit
+      }.freeze
+
       def dispatch_task(args, stdout:, stderr:, cwd:, env:)
         subcommand = args.shift
-        kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
+        nested_kwargs = { stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case subcommand
-        when 'create'       then Internal::Commands::TaskCreate.run(**kwargs)
-        when 'list'         then Internal::Commands::TaskList.run(**kwargs)
-        when 'inspect'      then Internal::Commands::TaskInspect.run(**kwargs)
-        when 'use'          then Internal::Commands::TaskUse.run(**kwargs)
-        when 'current'      then Internal::Commands::TaskCurrent.run(**kwargs)
-        when 'ready-steps'  then Internal::Commands::TaskReadySteps.run(**kwargs)
-        when 'index'        then dispatch_task_index(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        when 'child' then dispatch_task_child(args, **nested_kwargs)
+        when 'index' then dispatch_task_index(args, **nested_kwargs)
         else
-          unknown_command(stderr, "task #{subcommand}".strip)
+          command_module = TASK_SUBCOMMANDS[subcommand]
+          return unknown_command(stderr, "task #{subcommand}".strip) unless command_module
+
+          command_module.run(argv: args, **nested_kwargs)
+        end
+      end
+
+      def dispatch_task_child(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        case subcommand
+        when 'create'
+          Internal::Commands::TaskChildCreate.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        else
+          unknown_command(stderr, "task child #{subcommand}".strip)
         end
       end
 

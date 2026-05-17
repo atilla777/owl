@@ -47,16 +47,53 @@ module Owl
 
         def assemble(root:, task_id:, step_id:, task_payload:, workflow_key:, definition:)
           step = definition[:steps][step_id.to_s] || { 'id' => step_id.to_s }
-          inputs = build_artifacts(root: root, task_id: task_id, keys: input_keys(step, definition))
-          outputs = build_artifacts(root: root, task_id: task_id, keys: step['creates'] || [])
+          inputs = { artifacts: build_artifacts(root: root, task_id: task_id, keys: input_keys(step, definition)) }
+          outputs = { artifacts: build_artifacts(root: root, task_id: task_id, keys: step['creates'] || []) }
+
+          decorate_composite_blocks!(
+            step_id: step_id.to_s,
+            inputs: inputs,
+            outputs: outputs,
+            root: root,
+            task_id: task_id
+          )
 
           Result.ok(
             schema_version: SCHEMA_VERSION,
             task: task_descriptor(task_payload, root: root, workflow_key: workflow_key),
             step: step_descriptor(step),
-            inputs: { artifacts: inputs },
-            outputs: { artifacts: outputs }
+            inputs: inputs,
+            outputs: outputs
           )
+        end
+
+        def decorate_composite_blocks!(step_id:, inputs:, outputs:, root:, task_id:)
+          case step_id
+          when 'decompose'
+            outputs[:children_target_paths] = []
+          when 'coordinate'
+            inputs[:children] = composite_children(root: root, task_id: task_id)
+          when 'aggregate_verify'
+            inputs[:children_verification_paths] = children_verification_paths(root: root, task_id: task_id)
+          end
+        end
+
+        def composite_children(root:, task_id:)
+          result = Owl::Tasks::Api.children(root: root, parent_id: task_id)
+          result.ok? ? result.value[:children] : []
+        end
+
+        def children_verification_paths(root:, task_id:)
+          children = composite_children(root: root, task_id: task_id)
+          children.filter_map do |child|
+            descriptor = Owl::Artifacts::Api.resolve(root: root, task_id: child[:id], artifact_key: 'verification')
+            next unless descriptor.ok?
+
+            path = descriptor.value[:path] || descriptor.value['path']
+            next unless path && File.exist?(path)
+
+            { child_id: child[:id], path: path }
+          end
         end
 
         def input_keys(step, definition_value)

@@ -1,13 +1,19 @@
 # frozen_string_literal: true
 
 require_relative '../result'
+require_relative 'internal/aggregate_status'
+require_relative 'internal/child_creator'
+require_relative 'internal/children_lister'
 require_relative 'internal/current_pointer'
 require_relative 'internal/id_generator'
 require_relative 'internal/index_reader'
 require_relative 'internal/index_rebuilder'
+require_relative 'internal/parent_resolver'
 require_relative 'internal/paths'
+require_relative 'internal/splitter'
 require_relative 'internal/task_reader'
 require_relative 'internal/task_writer'
+require_relative 'internal/tree_builder'
 require_relative 'internal/workflow_snapshot'
 
 module Owl
@@ -123,6 +129,36 @@ module Owl
           tasks_root: paths_result.value[:tasks],
           index_path: paths_result.value[:index]
         )
+      end
+
+      def children(root:, parent_id:)
+        Internal::ChildrenLister.call(root: root, parent_id: parent_id)
+      end
+
+      def parent(root:, task_id:)
+        Internal::ParentResolver.call(root: root, task_id: task_id)
+      end
+
+      def tree(root:)
+        Internal::TreeBuilder.call(root: root)
+      end
+
+      def aggregate_status(root:, task_id:)
+        Internal::AggregateStatus.call(root: root, task_id: task_id)
+      end
+
+      def child_create(root:, parent_id:, workflow:, title:)
+        Internal::ChildCreator.call(
+          root: root,
+          parent_id: parent_id,
+          workflow: workflow,
+          title: title,
+          creator: method(:create)
+        )
+      end
+
+      def split(root:, task_id:, kind: 'composite_task')
+        Internal::Splitter.call(root: root, task_id: task_id, kind: kind)
       end
     end
   end
