@@ -6,7 +6,9 @@ require_relative 'internal/commands/artifact_resolve'
 require_relative 'internal/commands/artifact_validate'
 require_relative 'internal/commands/config_validate'
 require_relative 'internal/commands/init'
+require_relative 'internal/commands/instructions'
 require_relative 'internal/commands/publish'
+require_relative 'internal/commands/status'
 require_relative 'internal/commands/step_complete'
 require_relative 'internal/commands/step_invocation'
 require_relative 'internal/commands/step_skip'
@@ -46,6 +48,8 @@ module Owl
           artifact validate       Validate a task artifact (existence, sections, patterns, front matter).
           publish                 Publish task artifacts to the docs storage role per workflow `publishes` rules.
           archive                 Move a completed task into the archive storage role.
+          instructions            Show the next ready step packaged with its SKILL.md summary (JSON).
+          status                  Show workflow progress for a task (steps, progress, blockers, children).
 
         Global options:
           --help, -h              Show this help message.
@@ -80,8 +84,10 @@ module Owl
         when 'task'     then dispatch_task(args, **kwargs)
         when 'step'     then dispatch_step(args, **kwargs)
         when 'artifact' then dispatch_artifact(args, **kwargs)
-        when 'publish'  then Internal::Commands::Publish.run(argv: args, **kwargs)
-        when 'archive'  then Internal::Commands::Archive.run(argv: args, **kwargs)
+        when 'publish'      then Internal::Commands::Publish.run(argv: args, **kwargs)
+        when 'archive'      then Internal::Commands::Archive.run(argv: args, **kwargs)
+        when 'instructions' then Internal::Commands::Instructions.run(argv: args, **kwargs)
+        when 'status'       then Internal::Commands::Status.run(argv: args, **kwargs)
         else
           unknown_command(stderr, command)
         end

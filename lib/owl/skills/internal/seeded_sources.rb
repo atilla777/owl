@@ -307,9 +307,9 @@ module Owl
           ## Workflow
 
           1. Identify the task: `owl task current --json`. If the user named a different one, switch with `owl task use TASK-ID`.
-          2. Inspect progress: `owl task inspect TASK-ID --json` (Stage 4 adds the friendlier `owl status TASK-ID --json` summary).
+          2. Inspect progress: `owl status TASK-ID --json` for the agent-friendly summary (steps, progress, blockers, children for composite tasks). Fall back to `owl task inspect TASK-ID --json` when you need the raw task.yaml payload.
           3. Pick the next ready step: `owl task ready-steps TASK-ID --json`. Take the first ready step unless the user named one.
-          4. Resolve the step skill: `owl step invocation TASK-ID STEP --json` returns the step id, skill id (`owl-step-<step.id>`), artifact paths, template URIs, and validation rules. Stage 4 adds `owl instructions TASK-ID --step-id STEP --json` which packages this with a human-readable summary.
+          4. Resolve the step skill: `owl instructions TASK-ID --step-id STEP --json` packages the step invocation with the matching SKILL.md path, slash-command path, and a one-paragraph summary. Use `owl step invocation TASK-ID STEP --json` when you only want the raw invocation block.
           5. Delegate to the matching `owl-step-<step.id>` skill. Its SKILL.md describes the specific work for that step.
           6. After the step:
              - Validate the artifact: `owl artifact validate TASK-ID <artifact_type> --json`.
@@ -341,10 +341,9 @@ module Owl
             Resolve the current task and report progress.
 
             1. `owl task current --json` to get TASK-ID (or use $ARGUMENTS if a TASK-ID is supplied).
-            2. `owl task inspect TASK-ID --json` for the full payload (steps, statuses).
-            3. `owl task ready-steps TASK-ID --json` for what is ready to do next.
+            2. `owl status TASK-ID --json` for the agent-friendly summary (steps with `ready` flag, progress done/total/pct, blockers, `children` for composite tasks).
 
-            Stage 4 (Subtask #105) adds `owl status TASK-ID --json` that combines all three into a single agent-friendly payload — switch to that once available.
+            Fall back to `owl task inspect TASK-ID --json` + `owl task ready-steps TASK-ID --json` only when you need the raw underlying payload.
 
             $ARGUMENTS
           MD
