@@ -98,6 +98,64 @@ RSpec.describe 'owl artifact / owl step invocation CLI' do
     end
   end
 
+  describe 'artifact validate' do
+    it 'returns valid: false JSON for a missing artifact file' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        exit_code, stdout, = run(['artifact', 'validate', task_id, 'brief', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body['ok']).to be(true)
+        expect(body['valid']).to be(false)
+        expect(body['violations'].first['type']).to eq('missing_artifact')
+        expect(body.dig('artifact', 'key')).to eq('brief')
+      end
+    end
+
+    it 'returns valid: true for a satisfied artifact' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        write("#{root}/tasks/#{task_id}/brief.md", "# Brief\n")
+        exit_code, stdout, = run(['artifact', 'validate', task_id, 'brief', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body['valid']).to be(true)
+        expect(body['violations']).to eq([])
+      end
+    end
+
+    it 'aggregates results for the whole task when ARTIFACT-KEY is omitted' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        exit_code, stdout, = run(['artifact', 'validate', task_id, '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body['ok']).to be(true)
+        expect(body['all_valid']).to be(false)
+        keys = body['results'].map { |r| r['artifact_key'] }
+        expect(keys).to include('brief')
+      end
+    end
+
+    it 'returns unknown_workflow_artifact for an unknown key' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        exit_code, _, stderr = run(['artifact', 'validate', task_id, 'nope', '--root', root.to_s], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('unknown_workflow_artifact')
+      end
+    end
+
+    it 'returns invalid_arguments when TASK-ID is missing' do
+      with_tmp_project do |root|
+        setup_project(root)
+        exit_code, _, stderr = run(['artifact', 'validate', '--root', root.to_s], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+      end
+    end
+  end
+
   describe 'step invocation' do
     it 'prints a StepInvocation JSON with task, step, inputs, outputs' do
       with_tmp_project do |root|

@@ -5,6 +5,7 @@ require_relative '../tasks/internal/paths'
 require_relative '../tasks/internal/task_reader'
 require_relative '../workflows/api'
 require_relative 'internal/invocation_builder'
+require_relative 'internal/output_validator'
 require_relative 'internal/statuses'
 require_relative 'internal/status_writer'
 
@@ -62,6 +63,9 @@ module Owl
             details: { task_id: task_id, step_id: step_id, current_status: current }
           )
         end
+
+        validation = Internal::OutputValidator.call(root: root, task_id: task_id, step_id: step_id)
+        return validation if validation.err?
 
         Internal::StatusWriter.update(
           tasks_root: paths.value[:tasks],

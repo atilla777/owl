@@ -2,6 +2,7 @@
 
 require_relative '../version'
 require_relative 'internal/commands/artifact_resolve'
+require_relative 'internal/commands/artifact_validate'
 require_relative 'internal/commands/config_validate'
 require_relative 'internal/commands/init'
 require_relative 'internal/commands/step_complete'
@@ -40,6 +41,7 @@ module Owl
           step skip               Mark a step as skipped (--reason required).
           step invocation         Print full StepInvocation for a ready step (JSON).
           artifact resolve        Resolve task-scoped artifact path + template + validation rules.
+          artifact validate       Validate a task artifact (existence, sections, patterns, front matter).
 
         Global options:
           --help, -h              Show this help message.
@@ -85,6 +87,7 @@ module Owl
         kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case subcommand
         when 'resolve' then Internal::Commands::ArtifactResolve.run(**kwargs)
+        when 'validate' then Internal::Commands::ArtifactValidate.run(**kwargs)
         else
           unknown_command(stderr, "artifact #{subcommand}".strip)
         end

@@ -104,6 +104,71 @@ RSpec.describe 'owl step ... and owl task ready-steps CLI subcommands' do
       end
     end
 
+    it 'blocks complete and keeps the step running when an output artifact is invalid' do
+      with_tmp_project do |root|
+        task_id = setup_project_with_output_artifact(root)
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        exit_code, _stdout, stderr = run(['step', 'complete', task_id, 'a', '--root', root.to_s], cwd: root)
+        expect(exit_code).to eq(1)
+        body = JSON.parse(stderr)
+        expect(body.dig('error', 'code')).to eq('step_outputs_invalid')
+
+        _inspect_exit, inspect_stdout, = run(['task', 'inspect', task_id, '--root', root.to_s, '--json'], cwd: root)
+        steps = JSON.parse(inspect_stdout).dig('task', 'steps')
+        expect(steps.find { |s| s['id'] == 'a' }['status']).to eq('running')
+      end
+    end
+
+    it 'completes a step with a valid output artifact' do
+      with_tmp_project do |root|
+        task_id = setup_project_with_output_artifact(root)
+        write("#{root}/tasks/#{task_id}/notes.md", "## Summary\n")
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        exit_code, stdout, = run(['step', 'complete', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        expect(JSON.parse(stdout).dig('step', 'status')).to eq('done')
+      end
+    end
+
+    def setup_project_with_output_artifact(root)
+      run(['init', '--root', root.to_s], cwd: root)
+      write("#{root}/.owl/workflows.yaml", <<~YAML)
+        schema_version: 1
+        workflows:
+          feature:
+            enabled: true
+            source: "workflows/feature/workflow.yaml"
+      YAML
+      write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+        id: feature
+        kind: feature
+        artifacts:
+          notes:
+            type: notes
+            storage:
+              role: tasks
+              path: "{{task.id}}/notes.md"
+        steps:
+          - id: a
+            creates: [notes]
+      YAML
+      write("#{root}/.owl/artifacts.yaml", <<~YAML)
+        schema_version: 1
+        artifacts:
+          notes:
+            source: "artifacts/notes/artifact.yaml"
+      YAML
+      write("#{root}/.owl/artifacts/notes/artifact.yaml", <<~YAML)
+        id: notes
+        kind: markdown
+        validation:
+          required_sections:
+            - Summary
+      YAML
+      run(['task', 'create', '--workflow', 'feature', '--title', 't', '--root', root.to_s], cwd: root)
+      'TASK-0001'
+    end
+
     it 'records skip_reason and returns ok' do
       with_tmp_project do |root|
         task_id = setup_project(root)

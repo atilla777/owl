@@ -84,6 +84,7 @@ RSpec.describe Owl::Steps::Api, '.invocation' do
   end
 
   def complete_step(root, task_id, step_id)
+    write("#{root}/tasks/#{task_id}/brief.md", "# Brief\n") if step_id == 'brief'
     run_cli(['step', 'start', task_id, step_id, '--root', root.to_s], cwd: root)
     run_cli(['step', 'complete', task_id, step_id, '--root', root.to_s], cwd: root)
   end
