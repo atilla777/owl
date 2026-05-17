@@ -1,3 +1,11 @@
 # Claude Code local-only settings
 .claude/settings.local.json
 .claude/**/*.local.*
+
+# Ruby / bundler
+.bundle/
+vendor/bundle/
+tmp/
+
+# Test coverage
+coverage/
