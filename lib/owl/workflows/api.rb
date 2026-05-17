@@ -8,6 +8,7 @@ require_relative 'internal/graph_builder'
 require_relative 'internal/ready_resolver'
 require_relative 'internal/registry_loader'
 require_relative 'internal/source_loader'
+require_relative 'internal/step_lookup'
 
 module Owl
   module Workflows
@@ -85,6 +86,33 @@ module Owl
         body = source[:body]
         steps = body.is_a?(Hash) ? (body['steps'] || body[:steps] || []) : []
         Internal::GraphBuilder.build(steps)
+      end
+
+      def definition(root:, workflow_key:)
+        lookup = find(root: root, key: workflow_key)
+        return lookup if lookup.err?
+
+        source = lookup.value[:source]
+        unless source[:present]
+          return Result.err(
+            code: :workflow_source_missing,
+            message: "Workflow source for '#{workflow_key}' is not present.",
+            details: { key: workflow_key.to_s, source_path: source[:source_path] }
+          )
+        end
+
+        body = source[:body].is_a?(Hash) ? source[:body] : {}
+        steps = body['steps'] || body[:steps] || []
+        graph_result = Internal::GraphBuilder.build(steps)
+        return graph_result if graph_result.err?
+
+        Result.ok(
+          key: workflow_key.to_s,
+          body: body,
+          steps: Internal::StepLookup.build(steps),
+          graph: graph_result.value,
+          artifacts: body['artifacts'].is_a?(Hash) ? body['artifacts'] : {}
+        )
       end
 
       def ready_steps(root:, task_id:)

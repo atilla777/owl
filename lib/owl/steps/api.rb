@@ -4,6 +4,7 @@ require_relative '../result'
 require_relative '../tasks/internal/paths'
 require_relative '../tasks/internal/task_reader'
 require_relative '../workflows/api'
+require_relative 'internal/invocation_builder'
 require_relative 'internal/statuses'
 require_relative 'internal/status_writer'
 
@@ -11,6 +12,10 @@ module Owl
   module Steps
     module Api
       module_function
+
+      def invocation(root:, task_id:, step_id:)
+        Internal::InvocationBuilder.call(root: root, task_id: task_id, step_id: step_id)
+      end
 
       def start(root:, task_id:, step_id:)
         paths = Owl::Tasks::Internal::Paths.resolve(root: root)
