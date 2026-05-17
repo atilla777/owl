@@ -59,25 +59,33 @@ module Owl
 
           steps:
             - id: brief
+              skill: owl-step-brief
               creates: [brief]
             - id: specify
+              skill: owl-step-specify
               requires: [brief]
               creates: [spec]
             - id: design
+              skill: owl-step-design
               # Optional step — может быть пропущен через `owl step skip`.
               requires: [specify]
               creates: [design]
             - id: plan
+              skill: owl-step-plan
               requires: [specify]
               creates: [tasks]
             - id: apply
+              skill: owl-step-apply
               requires: [plan]
             - id: verify
+              skill: owl-step-verify
               requires: [apply]
               creates: [verification]
             - id: publish
+              skill: owl-step-publish
               requires: [verify]
             - id: archive
+              skill: owl-step-archive
               requires: [publish]
         YAML
 
@@ -121,28 +129,33 @@ module Owl
 
           steps:
             - id: brief
+              skill: owl-step-brief
               creates: [brief]
             - id: specify
+              skill: owl-step-specify
               requires: [brief]
               creates: [spec]
             - id: design
+              skill: owl-step-design
               # Optional step.
               requires: [specify]
               creates: [design]
             - id: decompose
-              # Skill bindings — Stage 7, out of MVP.
+              skill: owl-step-decompose
               requires: [specify]
               creates: [decomposition]
             - id: coordinate
-              # Skill bindings — Stage 7, out of MVP.
+              skill: owl-step-coordinate
               requires: [decompose]
             - id: aggregate_verify
-              # Skill bindings — Stage 7, out of MVP.
+              skill: owl-step-aggregate_verify
               requires: [coordinate]
               creates: [verification]
             - id: publish
+              skill: owl-step-publish
               requires: [aggregate_verify]
             - id: archive
+              skill: owl-step-archive
               requires: [publish]
         YAML
 
@@ -166,10 +179,13 @@ module Owl
 
           steps:
             - id: plan
+              skill: owl-step-plan
               creates: [tasks]
             - id: apply
+              skill: owl-step-apply
               requires: [plan]
             - id: verify
+              skill: owl-step-verify
               requires: [apply]
               creates: [verification]
         YAML
@@ -204,19 +220,25 @@ module Owl
 
           steps:
             - id: issue
+              skill: owl-step-issue
               creates: [issue]
             - id: patch_plan
+              skill: owl-step-patch_plan
               requires: [issue]
               creates: [patch_plan]
             - id: tasks
+              skill: owl-step-tasks
               requires: [patch_plan]
               creates: [tasks]
             - id: apply
+              skill: owl-step-apply
               requires: [tasks]
             - id: verify
+              skill: owl-step-verify
               requires: [apply]
               creates: [verification]
             - id: archive
+              skill: owl-step-archive
               requires: [verify]
         YAML
 
@@ -240,12 +262,16 @@ module Owl
 
           steps:
             - id: question
+              skill: owl-step-question
             - id: findings
+              skill: owl-step-findings
               requires: [question]
               creates: [research_findings]
             - id: options
+              skill: owl-step-options
               requires: [findings]
             - id: recommendation
+              skill: owl-step-recommendation
               requires: [options]
               creates: [recommendation]
         YAML
@@ -278,13 +304,17 @@ module Owl
 
           steps:
             - id: specify
+              skill: owl-step-specify
               creates: [spec]
             - id: plan
+              skill: owl-step-plan
               requires: [specify]
               creates: [tasks]
             - id: apply
+              skill: owl-step-apply
               requires: [plan]
             - id: verify
+              skill: owl-step-verify
               requires: [apply]
               creates: [verification]
         YAML

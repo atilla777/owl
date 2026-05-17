@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://owl.dev/schemas/workflow/v1.json",
   "title": "Workflow",
-  "description": "Owl workflow source body. Stage 8 fixes the contract for the optional `publishes` field; the rest of the workflow body is intentionally left open (additionalProperties: true) until a later stage tightens the full schema.",
+  "description": "Owl workflow source body. Stages 8 and post-MVP Stage 1 fix the contracts for the optional `publishes` field and for `steps[*]` item shape (including the `skill:` binding consumed by `step invocation`); the rest of the workflow body is intentionally left open (additionalProperties: true) until a later stage tightens the full schema.",
   "type": "object",
   "additionalProperties": true,
   "properties": {
@@ -11,13 +11,47 @@
     "title": { "type": "string" },
     "description": { "type": "string" },
     "artifacts": { "type": "object" },
-    "steps": { "type": "array" },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/step" }
+    },
     "publishes": {
       "type": "array",
       "items": { "$ref": "#/$defs/publish_rule" }
     }
   },
   "$defs": {
+    "step": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Step identifier, unique within a workflow."
+        },
+        "skill": {
+          "type": "string",
+          "pattern": "^owl-step-[a-z_]+$",
+          "description": "Skill id matching the step. By convention the value is `owl-step-<step.id>`; consumed verbatim by `owl step invocation` so agents can locate the matching SKILL.md on disk."
+        },
+        "requires": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Ids of steps that must be completed (or skipped) before this step becomes ready."
+        },
+        "creates": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Artifact type keys this step is expected to produce; validated by `owl artifact validate` at step completion."
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "When true, the step may be skipped via `owl step skip --reason ...` without blocking downstream steps."
+        }
+      }
+    },
     "publish_rule": {
       "type": "object",
       "required": ["from", "to"],
