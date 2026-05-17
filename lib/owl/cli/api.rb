@@ -5,6 +5,7 @@ require_relative 'internal/commands/artifact_resolve'
 require_relative 'internal/commands/artifact_validate'
 require_relative 'internal/commands/config_validate'
 require_relative 'internal/commands/init'
+require_relative 'internal/commands/publish'
 require_relative 'internal/commands/step_complete'
 require_relative 'internal/commands/step_invocation'
 require_relative 'internal/commands/step_skip'
@@ -42,6 +43,7 @@ module Owl
           step invocation         Print full StepInvocation for a ready step (JSON).
           artifact resolve        Resolve task-scoped artifact path + template + validation rules.
           artifact validate       Validate a task artifact (existence, sections, patterns, front matter).
+          publish                 Publish task artifacts to the docs storage role per workflow `publishes` rules.
 
         Global options:
           --help, -h              Show this help message.
@@ -64,19 +66,19 @@ module Owl
         end
 
         command = args.shift
+        dispatch_command(command, args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+      end
+
+      def dispatch_command(command, args, stdout:, stderr:, cwd:, env:)
+        kwargs = { stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case command
-        when 'init'
-          Internal::Commands::Init.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
-        when 'workflow'
-          dispatch_workflow(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
-        when 'config'
-          dispatch_config(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
-        when 'task'
-          dispatch_task(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
-        when 'step'
-          dispatch_step(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
-        when 'artifact'
-          dispatch_artifact(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        when 'init'     then Internal::Commands::Init.run(argv: args, **kwargs)
+        when 'workflow' then dispatch_workflow(args, **kwargs)
+        when 'config'   then dispatch_config(args, **kwargs)
+        when 'task'     then dispatch_task(args, **kwargs)
+        when 'step'     then dispatch_step(args, **kwargs)
+        when 'artifact' then dispatch_artifact(args, **kwargs)
+        when 'publish'  then Internal::Commands::Publish.run(argv: args, **kwargs)
         else
           unknown_command(stderr, command)
         end

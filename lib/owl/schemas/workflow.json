@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://owl.dev/schemas/workflow/v1.json",
+  "title": "Workflow",
+  "description": "Owl workflow source body. Stage 8 fixes the contract for the optional `publishes` field; the rest of the workflow body is intentionally left open (additionalProperties: true) until a later stage tightens the full schema.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "enum": ["task", "composite_task"] },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "artifacts": { "type": "object" },
+    "steps": { "type": "array" },
+    "publishes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/publish_rule" }
+    }
+  },
+  "$defs": {
+    "publish_rule": {
+      "type": "object",
+      "required": ["from", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Source path template, relative to the `tasks` storage role. Supports {{task.id}} and {{task.slug}}."
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Destination path template, relative to the `docs` storage role. Supports {{task.id}} and {{task.slug}}."
+        }
+      }
+    }
+  }
+}

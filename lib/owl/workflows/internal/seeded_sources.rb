@@ -53,6 +53,10 @@ module Owl
                 role: tasks
                 path: "{{task.id}}/verification.md"
 
+          publishes:
+            - from: "{{task.id}}/spec.md"
+              to: "{{task.id}}/spec.md"
+
           steps:
             - id: brief
               creates: [brief]
@@ -110,6 +114,10 @@ module Owl
               storage:
                 role: tasks
                 path: "{{task.id}}/verification.md"
+
+          publishes:
+            - from: "{{task.id}}/spec.md"
+              to: "{{task.id}}/spec.md"
 
           steps:
             - id: brief
