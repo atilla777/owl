@@ -24,7 +24,7 @@ module Owl
               'source' => entry[:source]
             },
             kind: extract_kind(body),
-            steps: extract_array(body, 'steps'),
+            steps: extract_steps(body),
             artifacts: extract_array(body, 'artifacts')
           )
         end
@@ -34,6 +34,16 @@ module Owl
 
           value = body[key] || body[key.to_sym]
           value.is_a?(Array) ? value : []
+        end
+
+        def extract_steps(body)
+          extract_array(body, 'steps').map do |step|
+            next step unless step.is_a?(Hash)
+
+            entry = step.transform_keys(&:to_s)
+            entry['status'] = 'pending' unless entry.key?('status')
+            entry
+          end
         end
 
         def extract_kind(body)

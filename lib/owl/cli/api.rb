@@ -3,11 +3,15 @@
 require_relative '../version'
 require_relative 'internal/commands/config_validate'
 require_relative 'internal/commands/init'
+require_relative 'internal/commands/step_complete'
+require_relative 'internal/commands/step_skip'
+require_relative 'internal/commands/step_start'
 require_relative 'internal/commands/task_create'
 require_relative 'internal/commands/task_current'
 require_relative 'internal/commands/task_index_rebuild'
 require_relative 'internal/commands/task_inspect'
 require_relative 'internal/commands/task_list'
+require_relative 'internal/commands/task_ready_steps'
 require_relative 'internal/commands/task_use'
 require_relative 'internal/commands/workflow_list'
 require_relative 'internal/json_printer'
@@ -27,7 +31,11 @@ module Owl
           task inspect            Show full task.yaml payload for a TASK-ID.
           task use                Set the current task pointer (.owl/local/current.yaml).
           task current            Show the current task payload.
+          task ready-steps        Compute ready steps for a TASK-ID (workflow graph).
           task index rebuild      Rebuild tasks/index.yaml from task.yaml files.
+          step start              Mark a ready step as running.
+          step complete           Mark a running step as done.
+          step skip               Mark a step as skipped (--reason required).
 
         Global options:
           --help, -h              Show this help message.
@@ -59,6 +67,8 @@ module Owl
           dispatch_config(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
         when 'task'
           dispatch_task(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        when 'step'
+          dispatch_step(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
         else
           unknown_command(stderr, command)
         end
@@ -88,14 +98,27 @@ module Owl
         subcommand = args.shift
         kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case subcommand
-        when 'create'  then Internal::Commands::TaskCreate.run(**kwargs)
-        when 'list'    then Internal::Commands::TaskList.run(**kwargs)
-        when 'inspect' then Internal::Commands::TaskInspect.run(**kwargs)
-        when 'use'     then Internal::Commands::TaskUse.run(**kwargs)
-        when 'current' then Internal::Commands::TaskCurrent.run(**kwargs)
-        when 'index'   then dispatch_task_index(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        when 'create'       then Internal::Commands::TaskCreate.run(**kwargs)
+        when 'list'         then Internal::Commands::TaskList.run(**kwargs)
+        when 'inspect'      then Internal::Commands::TaskInspect.run(**kwargs)
+        when 'use'          then Internal::Commands::TaskUse.run(**kwargs)
+        when 'current'      then Internal::Commands::TaskCurrent.run(**kwargs)
+        when 'ready-steps'  then Internal::Commands::TaskReadySteps.run(**kwargs)
+        when 'index'        then dispatch_task_index(args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
         else
           unknown_command(stderr, "task #{subcommand}".strip)
+        end
+      end
+
+      def dispatch_step(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
+        case subcommand
+        when 'start'    then Internal::Commands::StepStart.run(**kwargs)
+        when 'complete' then Internal::Commands::StepComplete.run(**kwargs)
+        when 'skip'     then Internal::Commands::StepSkip.run(**kwargs)
+        else
+          unknown_command(stderr, "step #{subcommand}".strip)
         end
       end
 

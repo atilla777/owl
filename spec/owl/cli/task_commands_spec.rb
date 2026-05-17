@@ -43,6 +43,10 @@ RSpec.describe 'owl task ... CLI subcommands' do
         expect(stderr).to include('task create')
         expect(stderr).to include('task list')
         expect(stderr).to include('task index rebuild')
+        expect(stderr).to include('task ready-steps')
+        expect(stderr).to include('step start')
+        expect(stderr).to include('step complete')
+        expect(stderr).to include('step skip')
       end
     end
   end

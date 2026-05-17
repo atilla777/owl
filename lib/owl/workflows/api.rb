@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
 require_relative '../result'
+require_relative '../tasks/internal/paths'
+require_relative '../tasks/internal/task_reader'
 require_relative 'internal/default_template'
+require_relative 'internal/graph_builder'
+require_relative 'internal/ready_resolver'
 require_relative 'internal/registry_loader'
 require_relative 'internal/source_loader'
 
@@ -63,6 +67,59 @@ module Owl
 
       def default_template
         Internal::DefaultTemplate.render
+      end
+
+      def graph(root:, workflow_key:)
+        lookup = find(root: root, key: workflow_key)
+        return lookup if lookup.err?
+
+        source = lookup.value[:source]
+        unless source[:present]
+          return Result.err(
+            code: :workflow_source_missing,
+            message: "Workflow source for '#{workflow_key}' is not present.",
+            details: { key: workflow_key.to_s, source_path: source[:source_path] }
+          )
+        end
+
+        body = source[:body]
+        steps = body.is_a?(Hash) ? (body['steps'] || body[:steps] || []) : []
+        Internal::GraphBuilder.build(steps)
+      end
+
+      def ready_steps(root:, task_id:)
+        paths = Owl::Tasks::Internal::Paths.resolve(root: root)
+        return paths if paths.err?
+
+        task_read = Owl::Tasks::Internal::TaskReader.read(
+          tasks_root: paths.value[:tasks],
+          task_id: task_id
+        )
+        return task_read if task_read.err?
+
+        payload = task_read.value[:payload]
+        workflow_key = payload.dig('workflow', 'key')
+        unless workflow_key
+          return Result.err(
+            code: :task_workflow_missing,
+            message: "Task '#{task_id}' has no workflow key in task.yaml.",
+            details: { task_id: task_id.to_s }
+          )
+        end
+
+        graph_result = graph(root: root, workflow_key: workflow_key)
+        return graph_result if graph_result.err?
+
+        ready = Internal::ReadyResolver.resolve(
+          graph: graph_result.value,
+          task_steps: payload['steps'] || []
+        )
+
+        Result.ok(
+          task_id: task_id.to_s,
+          workflow_key: workflow_key,
+          ready: ready
+        )
       end
     end
   end
