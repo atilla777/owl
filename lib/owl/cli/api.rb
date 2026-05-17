@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../version'
+require_relative 'internal/commands/archive'
 require_relative 'internal/commands/artifact_resolve'
 require_relative 'internal/commands/artifact_validate'
 require_relative 'internal/commands/config_validate'
@@ -44,6 +45,7 @@ module Owl
           artifact resolve        Resolve task-scoped artifact path + template + validation rules.
           artifact validate       Validate a task artifact (existence, sections, patterns, front matter).
           publish                 Publish task artifacts to the docs storage role per workflow `publishes` rules.
+          archive                 Move a completed task into the archive storage role.
 
         Global options:
           --help, -h              Show this help message.
@@ -79,6 +81,7 @@ module Owl
         when 'step'     then dispatch_step(args, **kwargs)
         when 'artifact' then dispatch_artifact(args, **kwargs)
         when 'publish'  then Internal::Commands::Publish.run(argv: args, **kwargs)
+        when 'archive'  then Internal::Commands::Archive.run(argv: args, **kwargs)
         else
           unknown_command(stderr, command)
         end
