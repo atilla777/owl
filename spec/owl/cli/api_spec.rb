@@ -88,9 +88,10 @@ RSpec.describe Owl::Cli::Api do
           tasks/index.yaml
           docs/.keep
         ]
-        workflow_sources = Owl::Workflows::Api.seeded_sources.map { |f| ".owl/#{f[:relative_path]}" }
-        artifact_sources = Owl::Artifacts::Api.seeded_sources.map { |f| ".owl/#{f[:relative_path]}" }
-        expected = base + workflow_sources + artifact_sources
+        workflow_sources = Owl::Workflows::Api.seeded_sources.map { |f| f[:relative_path] }
+        artifact_sources = Owl::Artifacts::Api.seeded_sources.map { |f| f[:relative_path] }
+        skill_sources = Owl::Skills::Api.seeded_sources.map { |f| f[:relative_path] }
+        expected = base + workflow_sources + artifact_sources + skill_sources
 
         expected.each do |rel|
           expect((root + rel).exist?).to be(true), "missing #{rel}"

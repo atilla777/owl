@@ -14,11 +14,11 @@ module Owl
           SOURCES.flat_map do |key, payload|
             [
               {
-                relative_path: "artifacts/#{key}/artifact.yaml",
+                relative_path: ".owl/artifacts/#{key}/artifact.yaml",
                 contents: payload[:artifact_yaml]
               },
               {
-                relative_path: "artifacts/#{key}/templates/default.md",
+                relative_path: ".owl/artifacts/#{key}/templates/default.md",
                 contents: payload[:default_template]
               }
             ]

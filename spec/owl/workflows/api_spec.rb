@@ -190,12 +190,12 @@ RSpec.describe Owl::Workflows::Api do
       sources = described_class.seeded_sources
       expect(sources.size).to eq(6)
       expect(sources.map { |f| f[:relative_path] }).to contain_exactly(
-        'workflows/feature/workflow.yaml',
-        'workflows/composite_feature/workflow.yaml',
-        'workflows/feature_slice/workflow.yaml',
-        'workflows/hotfix/workflow.yaml',
-        'workflows/research/workflow.yaml',
-        'workflows/refactor/workflow.yaml'
+        '.owl/workflows/feature/workflow.yaml',
+        '.owl/workflows/composite_feature/workflow.yaml',
+        '.owl/workflows/feature_slice/workflow.yaml',
+        '.owl/workflows/hotfix/workflow.yaml',
+        '.owl/workflows/research/workflow.yaml',
+        '.owl/workflows/refactor/workflow.yaml'
       )
       sources.each do |file|
         parsed = YAML.safe_load(file[:contents])

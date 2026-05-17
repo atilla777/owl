@@ -5,6 +5,7 @@ require 'pathname'
 
 require_relative '../../../artifacts/api'
 require_relative '../../../config/api'
+require_relative '../../../skills/api'
 require_relative '../../../storage/api'
 require_relative '../../../workflows/api'
 require_relative '../json_printer'
@@ -79,12 +80,13 @@ module Owl
             ]
 
             base + seeded_files(root: root, sources: Owl::Workflows::Api.seeded_sources) \
-                 + seeded_files(root: root, sources: Owl::Artifacts::Api.seeded_sources)
+                 + seeded_files(root: root, sources: Owl::Artifacts::Api.seeded_sources) \
+                 + seeded_files(root: root, sources: Owl::Skills::Api.seeded_sources)
           end
 
           def seeded_files(root:, sources:)
             sources.map do |file|
-              { path: "#{root}/.owl/#{file[:relative_path]}", contents: file[:contents] }
+              { path: "#{root}/#{file[:relative_path]}", contents: file[:contents] }
             end
           end
 

@@ -13,7 +13,7 @@ module Owl
         def files
           SOURCES.map do |key, contents|
             {
-              relative_path: "workflows/#{key}/workflow.yaml",
+              relative_path: ".owl/workflows/#{key}/workflow.yaml",
               contents: contents
             }
           end

@@ -14,12 +14,12 @@ RSpec.describe Owl::Workflows::Internal::SeededSources do
 
   it 'ships six seeded workflows' do
     expect(parsed_workflows.keys).to contain_exactly(
-      'workflows/feature/workflow.yaml',
-      'workflows/composite_feature/workflow.yaml',
-      'workflows/feature_slice/workflow.yaml',
-      'workflows/hotfix/workflow.yaml',
-      'workflows/research/workflow.yaml',
-      'workflows/refactor/workflow.yaml'
+      '.owl/workflows/feature/workflow.yaml',
+      '.owl/workflows/composite_feature/workflow.yaml',
+      '.owl/workflows/feature_slice/workflow.yaml',
+      '.owl/workflows/hotfix/workflow.yaml',
+      '.owl/workflows/research/workflow.yaml',
+      '.owl/workflows/refactor/workflow.yaml'
     )
   end
 
