@@ -18,8 +18,13 @@ RSpec.describe 'owl init — Owl::Skills integration' do
       exit_code, _stdout, _stderr = run(['init', '--root', root.to_s], cwd: root)
       expect(exit_code).to eq(0)
 
-      expect((root + '.claude/skills/owl-orchestrator/SKILL.md').exist?).to be(true)
-      expect((root + '.claude/commands/owl-orchestrator.md').exist?).to be(true)
+      skill_md = root + '.claude/skills/owl-orchestrator/SKILL.md'
+      slash    = root + '.claude/commands/owl-orchestrator.md'
+      expect(skill_md.exist?).to be(true)
+      expect(slash.exist?).to be(true)
+      contents = skill_md.read
+      expect(contents).to include('## Stop Conditions')
+      expect(contents).to include('owl-step-run')
     end
   end
 

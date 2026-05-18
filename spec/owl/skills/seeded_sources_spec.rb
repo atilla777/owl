@@ -32,6 +32,11 @@ OWL_STEP_RUN_HARDCODED_STEP_IDS = %w[
   question findings options recommendation
 ].freeze
 
+OWL_ORCHESTRATOR_REQUIRED_SECTIONS = [
+  'Purpose', 'When To Use', 'Inputs', 'Outputs',
+  'Workflow', 'Stop Conditions', 'Notes'
+].freeze
+
 RSpec.describe Owl::Skills::Internal::SeededSources do
   let(:files) { Owl::Skills::Api.seeded_sources }
   let(:paths) { files.map { |entry| entry[:relative_path] } }
@@ -196,6 +201,54 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
 
     it 'loads the skill from the slash-command body' do
       expect(slash_entry[:contents]).to include('Load skill `owl-step-run`')
+    end
+  end
+
+  describe 'owl-orchestrator skill' do
+    let(:skill_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/skills/owl-orchestrator/SKILL.md' }
+    end
+    let(:slash_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/commands/owl-orchestrator.md' }
+    end
+
+    it 'materializes a SKILL.md and a slash-command file' do
+      expect(skill_entry).not_to be_nil, 'expected owl-orchestrator SKILL.md in seeded sources'
+      expect(slash_entry).not_to be_nil, 'expected owl-orchestrator slash-command in seeded sources'
+    end
+
+    it 'has frontmatter with name: owl-orchestrator, non-empty description, non-empty triggers' do
+      fm = YAML.safe_load(skill_entry[:contents].match(/\A---\n(.*?)\n---/m)[1])
+      expect(fm['name']).to eq('owl-orchestrator')
+      expect(fm['description']).to be_a(String)
+      expect(fm['description']).not_to be_empty
+      expect(fm['triggers']).to be_an(Array)
+      expect(fm['triggers']).not_to be_empty
+    end
+
+    it 'documents the required body sections including Stop Conditions' do
+      OWL_ORCHESTRATOR_REQUIRED_SECTIONS.each do |section|
+        expect(skill_entry[:contents]).to include("## #{section}"),
+                                          -> { "owl-orchestrator SKILL.md missing section '## #{section}'" }
+      end
+    end
+
+    it 'references the universal owl-step-run executor and the owl-cli reference skill' do
+      contents = skill_entry[:contents]
+      expect(contents).to include('owl-step-run'),
+                          -> { 'owl-orchestrator SKILL.md should reference owl-step-run' }
+      expect(contents).to include('owl-cli'),
+                          -> { 'owl-orchestrator SKILL.md should reference owl-cli' }
+    end
+
+    it 'does not hardcode per-step skill names as the only delegation target' do
+      message = 'owl-orchestrator SKILL.md still uses deprecated `owl-step-<step.id>` placeholder'
+      expect(skill_entry[:contents]).not_to include('owl-step-<step.id>'), message
+    end
+
+    it 'documents owl instructions as the skill-binding source' do
+      message = 'owl-orchestrator SKILL.md should describe owl instructions as binding source'
+      expect(skill_entry[:contents]).to include('owl instructions'), message
     end
   end
 end
