@@ -4,6 +4,7 @@ require 'fileutils'
 require 'pathname'
 
 require_relative '../../result'
+require_relative '../../storage/api'
 require_relative '../../tasks/internal/atomic_yaml_writer'
 require_relative '../../tasks/internal/index_rebuilder'
 require_relative 'current_resetter'
@@ -60,15 +61,15 @@ module Owl
 
         def rename_directory(state)
           FileUtils.mkdir_p(state[:dest].dirname.to_s)
-          state[:source].rename(state[:dest].to_s)
-          nil
-        rescue SystemCallError => e
+          result = Owl::Storage::Api.rename(source: state[:source], dest: state[:dest])
+          return nil if result.ok?
+
           restore_task_yaml(state)
           Result.err(
             code: :archive_move_failed,
-            message: "Failed to move '#{state[:source]}' to '#{state[:dest]}': #{e.message}",
+            message: "Failed to move '#{state[:source]}' to '#{state[:dest]}': #{result.details[:reason]}",
             details: {
-              reason: e.message, error_class: e.class.name,
+              reason: result.details[:reason], error_class: result.details[:error_class],
               source: state[:source].to_s, destination: state[:dest].to_s
             }
           )
@@ -120,7 +121,7 @@ module Owl
         def rollback_rename(state)
           return unless state[:dest].exist?
 
-          state[:dest].rename(state[:source].to_s)
+          Owl::Storage::Api.rename(source: state[:dest], dest: state[:source])
         end
 
         def rollback_index(state)

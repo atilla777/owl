@@ -224,7 +224,7 @@ RSpec.describe Owl::Archive::Api do
       end
     end
 
-    it 'refuses composite_task archive when there are non-archived children' do
+    it 'refuses composite_task archive when children are not ready (unready, not ready_steps)' do
       with_tmp_project do |root|
         parent_id = setup_project(root, title: 'parent')
         # Mark parent as composite_task in task.yaml.
@@ -233,7 +233,7 @@ RSpec.describe Owl::Archive::Api do
         parent_payload['kind'] = 'composite_task'
         Owl::Tasks::Internal::AtomicYamlWriter.write(path: parent_path, payload: parent_payload)
 
-        # Create a child task with parent_id pointing at parent.
+        # Create a child task with parent_id pointing at parent (steps left pending).
         _, stdout, = run_cli(['task', 'create', '--workflow', 'feature', '--title', 'child',
                               '--parent', parent_id, '--root', root.to_s, '--json'], cwd: root)
         child_id = JSON.parse(stdout).dig('task', 'id')
@@ -245,8 +245,9 @@ RSpec.describe Owl::Archive::Api do
 
         result = described_class.archive_task(root: root, task_id: parent_id, now: now)
         expect(result).to be_err
-        expect(result.code).to eq(:composite_with_open_children)
-        expect(result.details[:open_children]).to include(child_id)
+        expect(result.code).to eq(:composite_with_unready_children)
+        unready_ids = result.details[:unready_children].map { |entry| entry[:id] }
+        expect(unready_ids).to include(child_id)
       end
     end
 

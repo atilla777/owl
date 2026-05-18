@@ -10,8 +10,9 @@ require_relative '../../tasks/internal/paths'
 require_relative '../../tasks/internal/task_reader'
 require_relative '../../workflows/api'
 require_relative 'archived_task_writer'
-require_relative 'completion_gate'
+require_relative 'atomic_subtree_mover'
 require_relative 'composite_guard'
+require_relative 'completion_gate'
 require_relative 'destination_planner'
 require_relative 'mover'
 require_relative 'slug_generator'
@@ -26,13 +27,54 @@ module Owl
           context = load_context(root: root, task_id: task_id)
           return context if context.is_a?(Owl::Result::Err)
 
-          gate_result = validate(context)
-          return gate_result if gate_result.is_a?(Owl::Result::Err)
+          if composite?(context[:task_payload])
+            call_composite(root: root, context: context, now: now)
+          else
+            call_single(root: root, task_id: task_id, context: context, now: now)
+          end
+        end
+
+        def composite?(task_payload)
+          (task_payload['kind'] || task_payload[:kind]).to_s == CompositeGuard::COMPOSITE_KIND
+        end
+
+        def call_single(root:, task_id:, context:, now:)
+          guard_result = run_composite_guard(context: context, subtree_mode: false)
+          return guard_result if guard_result.err?
+
+          completion_result = CompletionGate.call(
+            workflow_body: context[:workflow_body], task_payload: context[:task_payload]
+          )
+          return completion_result if completion_result.err?
 
           plan_result = plan_destination(root: root, context: context, now: now)
           return plan_result if plan_result.is_a?(Owl::Result::Err)
 
-          perform(root: root, task_id: task_id, context: context, plan: plan_result, now: now)
+          perform_single(root: root, task_id: task_id, context: context, plan: plan_result, now: now)
+        end
+
+        def call_composite(root:, context:, now:)
+          guard_result = run_composite_guard(context: context, subtree_mode: true)
+          return guard_result if guard_result.err?
+
+          completion_result = CompletionGate.call(
+            workflow_body: context[:workflow_body], task_payload: context[:task_payload]
+          )
+          return completion_result if completion_result.err?
+
+          ready_child_ids = guard_result.value[:ready_children] || []
+
+          plans_result = build_subtree_plans(
+            root: root, context: context, ready_child_ids: ready_child_ids, now: now
+          )
+          return plans_result if plans_result.is_a?(Owl::Result::Err)
+
+          AtomicSubtreeMover.call(
+            plans: plans_result,
+            tasks_root: context[:paths][:tasks],
+            index_path: context[:paths][:index],
+            local_state_root: context[:paths][:local_state]
+          )
         end
 
         def load_context(root:, task_id:)
@@ -89,16 +131,12 @@ module Owl
             workflow_body: source[:body].is_a?(Hash) ? source[:body] : {} }
         end
 
-        def validate(context)
-          guard = CompositeGuard.call(
+        def run_composite_guard(context:, subtree_mode:)
+          CompositeGuard.call(
             task_payload: context[:task_payload],
-            index_path: context[:paths][:index]
-          )
-          return guard if guard.err?
-
-          CompletionGate.call(
-            workflow_body: context[:workflow_body],
-            task_payload: context[:task_payload]
+            index_path: context[:paths][:index],
+            subtree_mode: subtree_mode,
+            tasks_root: context[:paths][:tasks]
           )
         end
 
@@ -122,7 +160,7 @@ module Owl
           }
         end
 
-        def perform(root:, task_id:, context:, plan:, now:) # rubocop:disable Lint/UnusedMethodArgument
+        def perform_single(root:, task_id:, context:, plan:, now:) # rubocop:disable Lint/UnusedMethodArgument
           archived_payload = ArchivedTaskWriter.build_payload(task_payload: context[:task_payload], now: now)
           source_dir = Pathname.new(context[:paths][:tasks].to_s) + context[:task_id]
 
@@ -148,6 +186,52 @@ module Owl
             archived_at: archived_payload['archived_at'],
             current_reset: move.value[:current_reset]
           )
+        end
+
+        def build_subtree_plans(root:, context:, ready_child_ids:, now:)
+          archive_root_result = resolve_archive_root(root: root)
+          return archive_root_result if archive_root_result.err?
+
+          archive_root = archive_root_result.value
+          ordered_ids = ready_child_ids.sort + [context[:task_id]]
+
+          ordered_ids.map do |task_id|
+            plan_result = build_subtree_plan_entry(
+              root: root, context: context, task_id: task_id,
+              archive_root: archive_root, now: now
+            )
+            return plan_result if plan_result.is_a?(Owl::Result::Err)
+
+            plan_result
+          end
+        end
+
+        def build_subtree_plan_entry(root:, context:, task_id:, archive_root:, now:)
+          payload =
+            if task_id == context[:task_id]
+              context[:task_payload]
+            else
+              read_result = Owl::Tasks::Api.inspect(root: root, task_id: task_id)
+              return read_result if read_result.err?
+
+              read_result.value[:payload]
+            end
+
+          slug = SlugGenerator.from(payload['title'])
+          planner = DestinationPlanner.call(
+            archive_root: archive_root, task_id: task_id, slug: slug, now: now
+          )
+          return planner if planner.err?
+
+          source_dir = Pathname.new(context[:paths][:tasks].to_s) + task_id.to_s
+          archived_payload = ArchivedTaskWriter.build_payload(task_payload: payload, now: now)
+
+          {
+            task_id: task_id.to_s,
+            source_dir: source_dir,
+            destination_path: planner.value[:destination_path],
+            archived_payload: archived_payload
+          }
         end
 
         def resolve_archive_root(root:)

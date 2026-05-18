@@ -2,6 +2,7 @@
 
 require_relative '../../result'
 require_relative '../../tasks/internal/index_reader'
+require_relative 'child_readiness_checker'
 
 module Owl
   module Archive
@@ -11,7 +12,7 @@ module Owl
 
         module_function
 
-        def call(task_payload:, index_path:)
+        def call(task_payload:, index_path:, subtree_mode: false, tasks_root: nil)
           kind = task_payload['kind'] || task_payload[:kind]
           return Result.ok(checked: false) unless kind.to_s == COMPOSITE_KIND
 
@@ -21,15 +22,41 @@ module Owl
           return index_result if index_result.err?
 
           entries = index_result.value[:tasks] || []
-          children = entries.select { |entry| open_child?(entry, task_id) }
-          open_children = children.map { |entry| entry['id'] }
+          open_children_ids = entries.select { |entry| open_child?(entry, task_id) }
+                                     .map { |entry| entry['id'] }
 
-          return Result.ok(checked: true) if open_children.empty?
+          return Result.ok(checked: true) if open_children_ids.empty?
+
+          if subtree_mode
+            subtree_check(
+              task_id: task_id,
+              open_children_ids: open_children_ids,
+              tasks_root: tasks_root
+            )
+          else
+            Result.err(
+              code: :composite_with_open_children,
+              message: "Composite task '#{task_id}' has #{open_children_ids.length} non-archived child task(s).",
+              details: { task_id: task_id, open_children: open_children_ids }
+            )
+          end
+        end
+
+        def subtree_check(task_id:, open_children_ids:, tasks_root:)
+          unready = open_children_ids.filter_map do |child_id|
+            check = ChildReadinessChecker.call(tasks_root: tasks_root, task_id: child_id)
+            next { id: child_id, error: check.code.to_s } if check.err?
+            next nil if check.value[:ready]
+
+            { id: child_id, missing_steps: check.value[:missing_steps] }
+          end
+
+          return Result.ok(checked: true, bypass: true, ready_children: open_children_ids) if unready.empty?
 
           Result.err(
-            code: :composite_with_open_children,
-            message: "Composite task '#{task_id}' has #{open_children.length} non-archived child task(s).",
-            details: { task_id: task_id, open_children: open_children }
+            code: :composite_with_unready_children,
+            message: "Composite task '#{task_id}' has #{unready.length} child task(s) not ready for archive.",
+            details: { task_id: task_id, unready_children: unready }
           )
         end
 

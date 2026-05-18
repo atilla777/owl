@@ -71,6 +71,22 @@ module Owl
         Internal::FilesystemBackend.exists?(path)
       end
 
+      def rename(source:, dest:)
+        Internal::FilesystemBackend.rename(source: source, dest: dest)
+        Result.ok(source: Pathname.new(source.to_s), dest: Pathname.new(dest.to_s))
+      rescue SystemCallError => e
+        Result.err(
+          code: :rename_failed,
+          message: "Failed to rename '#{source}' to '#{dest}': #{e.message}",
+          details: {
+            source: source.to_s,
+            dest: dest.to_s,
+            reason: e.message,
+            error_class: e.class.name
+          }
+        )
+      end
+
       def profile_roles(profile)
         roles = profile.is_a?(Hash) ? (profile['roles'] || profile[:roles]) : nil
         roles ||= {}

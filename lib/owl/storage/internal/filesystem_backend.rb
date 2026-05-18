@@ -28,6 +28,10 @@ module Owl
         def read(path)
           Pathname.new(path.to_s).read
         end
+
+        def rename(source:, dest:)
+          Pathname.new(source.to_s).rename(dest.to_s)
+        end
       end
     end
   end
