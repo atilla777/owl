@@ -16,6 +16,22 @@ OWL_CLI_REQUIRED_COMMANDS = [
   'publish', 'archive', 'instructions', 'status'
 ].freeze
 
+OWL_STEP_RUN_REQUIRED_SECTIONS = [
+  'Purpose', 'When To Use', 'Inputs', 'Outputs',
+  'Workflow', 'Stop Conditions', 'Verification'
+].freeze
+
+OWL_STEP_RUN_REQUIRED_COMMANDS = [
+  'owl step show', 'owl artifact resolve', 'owl artifact validate', 'owl step complete'
+].freeze
+
+OWL_STEP_RUN_HARDCODED_STEP_IDS = %w[
+  brief specify design plan apply verify publish archive
+  decompose coordinate aggregate_verify
+  issue patch_plan tasks
+  question findings options recommendation
+].freeze
+
 RSpec.describe Owl::Skills::Internal::SeededSources do
   let(:files) { Owl::Skills::Api.seeded_sources }
   let(:paths) { files.map { |entry| entry[:relative_path] } }
@@ -71,7 +87,11 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
     end
 
     it 'has the required body sections (Purpose, When to use, Inputs, Outputs, Workflow) for step skills' do
-      step_skill_files = skill_md_files.select { |entry| entry[:relative_path].include?('owl-step-') }
+      step_skill_ids = described_class.step_skill_ids
+      step_skill_files = skill_md_files.select do |entry|
+        match = entry[:relative_path].match(%r{\.claude/skills/([^/]+)/SKILL\.md})
+        match && step_skill_ids.include?(match[1])
+      end
       step_skill_files.each do |entry|
         %w[Purpose When\ to\ use Inputs Outputs Workflow].each do |section|
           expect(entry[:contents]).to include("## #{section}"),
@@ -123,6 +143,59 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
 
     it 'loads the skill from the slash-command body' do
       expect(slash_entry[:contents]).to include('Load skill `owl-cli`')
+    end
+  end
+
+  describe 'owl-step-run skill' do
+    let(:skill_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/skills/owl-step-run/SKILL.md' }
+    end
+    let(:slash_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/commands/owl-step-run.md' }
+    end
+
+    it 'materializes a SKILL.md and a slash-command file' do
+      expect(skill_entry).not_to be_nil, 'expected owl-step-run SKILL.md in seeded sources'
+      expect(slash_entry).not_to be_nil, 'expected owl-step-run slash-command in seeded sources'
+    end
+
+    it 'has frontmatter with name: owl-step-run, non-empty description, and non-empty triggers' do
+      fm = YAML.safe_load(skill_entry[:contents].match(/\A---\n(.*?)\n---/m)[1])
+      expect(fm['name']).to eq('owl-step-run')
+      expect(fm['description']).to be_a(String)
+      expect(fm['description']).not_to be_empty
+      expect(fm['triggers']).to be_an(Array)
+      expect(fm['triggers']).not_to be_empty
+    end
+
+    it 'documents the seeded-skill body sections so downstream agents know the flow' do
+      OWL_STEP_RUN_REQUIRED_SECTIONS.each do |section|
+        expect(skill_entry[:contents]).to include("## #{section}"),
+                                          -> { "owl-step-run SKILL.md missing section '## #{section}'" }
+      end
+    end
+
+    it 'references the canonical step-execution CLI commands' do
+      OWL_STEP_RUN_REQUIRED_COMMANDS.each do |command|
+        expect(skill_entry[:contents]).to include(command),
+                                          -> { "owl-step-run SKILL.md does not mention `#{command}`" }
+      end
+    end
+
+    it 'does not reference any specific owl-step-<id> skill (no hardcoded step type knowledge)' do
+      OWL_STEP_RUN_HARDCODED_STEP_IDS.each do |id|
+        expect(skill_entry[:contents]).not_to include("owl-step-#{id}"),
+                                              -> { "owl-step-run SKILL.md references hardcoded `owl-step-#{id}`" }
+      end
+    end
+
+    it 'points downstream readers at the owl-cli skill for the CLI surface' do
+      expect(skill_entry[:contents]).to include('owl-cli'),
+                                        -> { 'owl-step-run SKILL.md should reference owl-cli as the CLI reference' }
+    end
+
+    it 'loads the skill from the slash-command body' do
+      expect(slash_entry[:contents]).to include('Load skill `owl-step-run`')
     end
   end
 end

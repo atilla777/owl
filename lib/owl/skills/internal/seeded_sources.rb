@@ -556,8 +556,99 @@ module Owl
           - prefer `--json` for read operations; iterate the documented response shapes.
         MD
 
+        OWL_STEP_RUN_BODY = <<~MD
+          ---
+          name: owl-step-run
+          description: Execute any Owl workflow step generically by reading its per-step context bundle through `owl step show` and producing the declared artifact — no hardcoded step type knowledge.
+          triggers: ["owl step run", "run owl step", "execute owl step", "owl step generic"]
+          ---
+
+          ## Purpose
+
+          `owl-step-run` is the universal step execution skill. One skill executes any step on any seeded or custom workflow because the step-specific behaviour lives in the workflow's per-step `context` (inline `step.context` string or referenced `step.context_file`), not in the skill body.
+
+          The skill reads the merged bundle from `owl step show`, interprets the step's purpose and acceptance criteria from the supplied `context`, generates the artifact body declared by `artifact_template`, writes it at the path returned by `owl artifact resolve`, validates it through `owl artifact validate`, and completes the step via `owl step complete`.
+
+          ## When To Use
+
+          - The orchestrator (or a human) names a ready step on an Owl task and asks you to execute it.
+          - The step in the workflow YAML declares either an inline `context` block or a `context_file` reference — those carry the actual instructions for this particular step.
+          - You are working through a seeded or custom workflow and prefer one universal executor over per-step specialised skills.
+
+          Do not use this skill to plan task scope, decide step ordering, or interpret workflow definitions outside the supplied bundle. Workflow choice and step ordering belong to the Owl CLI graph (`owl task ready-steps`); product or scope decisions belong to the human.
+
+          ## Inputs
+
+          - `TASK-ID` (from `owl task current --json` or an explicit argument).
+          - `STEP-ID` chosen from `owl task ready-steps TASK-ID --json` (or the value `owl-orchestrator` handed you).
+          - The bundle returned by `owl step show TASK-ID STEP-ID --json`:
+            - `step` — the step payload (id, status, declared inputs, declared `creates` artifact key, etc.) without the `context` field.
+            - `context` — the per-step instruction text (string or null when the step has no per-step context).
+            - `artifact_template` — `{required_sections, frontmatter_schema}` for the step's declared artifact (null when the step produces no artifact).
+            - `task` — `{id, title, spec_body}` so you can read the parent task's spec for cross-step continuity.
+
+          ## Outputs
+
+          - When the step declares an artifact: a file written at the path returned by `owl artifact resolve`, containing the required sections and frontmatter from `artifact_template`, validated `ok: true` by `owl artifact validate`.
+          - When the step has no artifact (for example, a pure code-change or CLI step): the side effect described in `context` (repository changes, a `owl publish` invocation, etc.). No KOS-style artifact is required.
+          - Step status advanced through `owl step complete TASK-ID STEP-ID`.
+
+          ## Workflow
+
+          1. Resolve the task: `owl task current --json` (or use the supplied `TASK-ID`).
+          2. Choose a ready step: `owl task ready-steps TASK-ID --json` and take the requested or first ready entry; do not invent steps that are not in the ready set.
+          3. Mark the step started: `owl step start TASK-ID STEP-ID`.
+          4. Load the bundle: `owl step show TASK-ID STEP-ID --json`. Read `step`, `context`, `artifact_template`, and `task`.
+          5. Interpret `context` as the authoritative description of this step's purpose, acceptance criteria, and any step-specific hints. Read `task.spec_body` for cross-step continuity.
+          6. If `artifact_template` is present:
+             - Resolve the destination path: `owl artifact resolve TASK-ID ARTIFACT-KEY --json` (the `ARTIFACT-KEY` is in `step.creates`).
+             - Generate Markdown body that covers every entry of `artifact_template.required_sections` and a YAML frontmatter matching `artifact_template.frontmatter_schema`.
+             - Write the file at the resolved path. Do not invent paths; do not write outside `tasks/<TASK-ID>/`.
+             - Validate: `owl artifact validate TASK-ID ARTIFACT-KEY --json`. If `ok` is false, read `errors`, fix the body, re-validate. Do not proceed until `ok: true`.
+          7. If the step has no artifact, execute the side effect described in `context` (for example, run the documented CLI subcommand, or perform the documented code change scoped to the task).
+          8. Complete the step: `owl step complete TASK-ID STEP-ID`. Owl re-runs the artifact validate gate here as a safety net.
+          9. Return control to the orchestrator (or to the human if invoked directly). Do not chain to the next step unless explicitly asked.
+
+          ## Stop Conditions
+
+          Stop and report when:
+
+          - `owl task ready-steps` does not list the requested step (likely a dependency is incomplete).
+          - `owl step show` returns `unknown_step_id`, `task_workflow_missing`, or any other structured error.
+          - `context` is empty or absent and the step's purpose cannot be derived from `step.creates` + `task.spec_body` alone — the workflow YAML is incomplete and the human needs to fill it.
+          - `owl artifact validate` reports errors that require product, scope, or data decisions the human must make.
+          - the requested artifact path is unsafe, points outside the task tree, or already exists with unrelated content.
+          - the step requires repository changes outside the current task's scope.
+
+          ## Verification
+
+          - Round-trip: after `owl step complete`, `owl status TASK-ID --json` shows the step `done` and the next step's `ready: true` flag flips correctly.
+          - Artifact path returned by `owl artifact resolve` exists on disk after the run.
+          - `owl artifact validate TASK-ID ARTIFACT-KEY --json` returns `ok: true` both before and after `owl step complete`.
+
+          ## Notes
+
+          - The full `bin/owl` command surface, JSON response shapes, and error semantics are documented in the `owl-cli` skill. This skill assumes that reference is available; do not duplicate command tables here.
+          - This skill is intentionally generic: it does not switch behaviour on `STEP-ID` value. If you find yourself special-casing a particular step id, add the rule to that step's `context` in the workflow YAML instead of branching here.
+          - Never read `.owl/`, `tasks/`, or `docs/` files directly to discover state — always go through `owl ...` CLI commands.
+        MD
+
+        OWL_STEP_RUN_SLASH = <<~MD
+          ---
+          description: Execute any ready Owl workflow step through the universal owl-step-run skill.
+          ---
+          Load skill `owl-step-run`.
+
+          Use the command arguments as `TASK-ID` + optional `STEP-ID` (or free-form intent): $ARGUMENTS
+
+          Rules:
+          - if no TASK-ID supplied, resolve it via `owl task current --json`.
+          - never invent a step id; pick from `owl task ready-steps TASK-ID --json`.
+          - never read `.owl/` or `tasks/` directly — go through `owl ...` CLI.
+        MD
+
         def files
-          step_files + orchestrator_files + task_command_files + owl_cli_files
+          step_files + orchestrator_files + task_command_files + owl_cli_files + owl_step_run_files
         end
 
         def step_skill_ids
@@ -597,6 +688,13 @@ module Owl
           [
             { relative_path: '.claude/skills/owl-cli/SKILL.md', contents: OWL_CLI_BODY },
             { relative_path: '.claude/commands/owl-cli.md', contents: OWL_CLI_SLASH }
+          ]
+        end
+
+        def owl_step_run_files
+          [
+            { relative_path: '.claude/skills/owl-step-run/SKILL.md', contents: OWL_STEP_RUN_BODY },
+            { relative_path: '.claude/commands/owl-step-run.md', contents: OWL_STEP_RUN_SLASH }
           ]
         end
 
