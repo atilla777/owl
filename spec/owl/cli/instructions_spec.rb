@@ -124,7 +124,7 @@ RSpec.describe 'owl instructions CLI subcommand' do
           kind: task
           steps:
             - id: only
-              skill: owl-step-brief
+              skill: owl-step-run
           artifacts: []
         YAML
         run(['task', 'create', '--workflow', 'tiny', '--title', 't', '--root', root.to_s], cwd: root)

@@ -9,8 +9,7 @@ module Owl
     module Internal
       module Archive
         # Private wrapper around Pathname#rename that returns Owl::Result.
-        # Lives in backend internals (no public Storage::Api callers) and is
-        # the test seam previously provided by Owl::Storage::Api.rename.
+        # Lives in archive backend internals; used as the rename test seam.
         module PathRename
           module_function
 

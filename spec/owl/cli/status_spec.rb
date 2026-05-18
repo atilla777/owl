@@ -31,9 +31,9 @@ RSpec.describe 'owl status CLI subcommand' do
       kind: feature
       steps:
         - id: a
-          skill: owl-step-brief
+          skill: owl-step-run
         - id: b
-          skill: owl-step-specify
+          skill: owl-step-run
           requires: ["a"]
       artifacts: []
     YAML
@@ -55,7 +55,7 @@ RSpec.describe 'owl status CLI subcommand' do
       kind: composite_task
       steps:
         - id: spec
-          skill: owl-step-specify
+          skill: owl-step-run
       artifacts: []
     YAML
     write("#{root}/.owl/workflows/feature_slice/workflow.yaml", <<~YAML)
@@ -63,7 +63,7 @@ RSpec.describe 'owl status CLI subcommand' do
       kind: task
       steps:
         - id: do
-          skill: owl-step-apply
+          skill: owl-step-run
       artifacts: []
     YAML
   end

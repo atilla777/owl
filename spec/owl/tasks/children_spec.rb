@@ -31,7 +31,7 @@ RSpec.describe 'Owl::Tasks::Api.children' do
       kind: composite_task
       steps:
         - id: only
-          skill: owl-step-specify
+          skill: owl-step-run
       artifacts: []
     YAML
     write("#{root}/.owl/workflows/feature_slice/workflow.yaml", <<~YAML)
@@ -39,7 +39,7 @@ RSpec.describe 'Owl::Tasks::Api.children' do
       kind: task
       steps:
         - id: do
-          skill: owl-step-apply
+          skill: owl-step-run
       artifacts: []
     YAML
   end

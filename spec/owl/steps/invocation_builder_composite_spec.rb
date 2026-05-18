@@ -44,12 +44,12 @@ RSpec.describe 'Owl::Steps::Api.invocation composite-aware blocks' do
             path: "{{task.id}}/verification.md"
       steps:
         - id: decompose
-          skill: owl-step-decompose
+          skill: owl-step-run
         - id: coordinate
-          skill: owl-step-coordinate
+          skill: owl-step-run
           requires: [decompose]
         - id: aggregate_verify
-          skill: owl-step-aggregate_verify
+          skill: owl-step-run
           requires: [coordinate]
           creates: [verification]
     YAML
@@ -67,7 +67,7 @@ RSpec.describe 'Owl::Steps::Api.invocation composite-aware blocks' do
             path: "{{task.id}}/verification.md"
       steps:
         - id: verify
-          skill: owl-step-verify
+          skill: owl-step-run
           creates: [verification]
     YAML
   end
