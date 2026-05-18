@@ -23,6 +23,20 @@ RSpec.describe 'owl init — Owl::Skills integration' do
     end
   end
 
+  it 'materializes the owl-cli skill + slash-command in .claude/' do
+    with_tmp_project do |root|
+      exit_code, _stdout, _stderr = run(['init', '--root', root.to_s], cwd: root)
+      expect(exit_code).to eq(0)
+
+      skill_md = root + '.claude/skills/owl-cli/SKILL.md'
+      slash    = root + '.claude/commands/owl-cli.md'
+      expect(skill_md.exist?).to be(true)
+      expect(slash.exist?).to be(true)
+      expect(skill_md.read).to include('## CLI Usage')
+      expect(skill_md.read).to include('## Canonical Operations')
+    end
+  end
+
   it 'materializes every owl-step-<id> skill (≥ 17 step skills)' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)

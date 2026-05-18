@@ -4,6 +4,18 @@ require 'yaml'
 require 'owl/skills/api'
 require 'owl/workflows/internal/seeded_sources'
 
+OWL_CLI_REQUIRED_SECTIONS = [
+  'Purpose', 'When To Use', 'Source Of Truth', 'Inputs', 'Outputs',
+  'CLI Usage', 'Canonical Operations', 'Stop Conditions', 'Verification'
+].freeze
+
+OWL_CLI_REQUIRED_COMMANDS = [
+  'init', 'workflow list', 'config validate', 'task create',
+  'task ready-steps', 'step invocation', 'step show',
+  'artifact resolve', 'artifact validate',
+  'publish', 'archive', 'instructions', 'status'
+].freeze
+
 RSpec.describe Owl::Skills::Internal::SeededSources do
   let(:files) { Owl::Skills::Api.seeded_sources }
   let(:paths) { files.map { |entry| entry[:relative_path] } }
@@ -72,6 +84,45 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
   describe '.step_skill_ids' do
     it 'covers exactly the seeded workflow step ids' do
       expect(described_class.step_skill_ids.sort).to eq(seeded_workflow_step_ids.map { |id| "owl-step-#{id}" }.sort)
+    end
+  end
+
+  describe 'owl-cli skill' do
+    let(:skill_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/skills/owl-cli/SKILL.md' }
+    end
+    let(:slash_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/commands/owl-cli.md' }
+    end
+
+    it 'materializes a SKILL.md and a slash-command file' do
+      expect(skill_entry).not_to be_nil, 'expected owl-cli SKILL.md in seeded sources'
+      expect(slash_entry).not_to be_nil, 'expected owl-cli slash-command in seeded sources'
+    end
+
+    it 'has frontmatter with name: owl-cli and a non-empty description' do
+      fm = YAML.safe_load(skill_entry[:contents].match(/\A---\n(.*?)\n---/m)[1])
+      expect(fm['name']).to eq('owl-cli')
+      expect(fm['description']).to be_a(String)
+      expect(fm['description']).not_to be_empty
+    end
+
+    it 'documents the kos-api-style sections so downstream skills can rely on it' do
+      OWL_CLI_REQUIRED_SECTIONS.each do |section|
+        expect(skill_entry[:contents]).to include("## #{section}"),
+                                          -> { "owl-cli SKILL.md missing section '## #{section}'" }
+      end
+    end
+
+    it 'references the agent-facing bin/owl commands so downstream skills know what is covered' do
+      OWL_CLI_REQUIRED_COMMANDS.each do |command|
+        expect(skill_entry[:contents]).to include(command),
+                                          -> { "owl-cli SKILL.md does not mention `#{command}`" }
+      end
+    end
+
+    it 'loads the skill from the slash-command body' do
+      expect(slash_entry[:contents]).to include('Load skill `owl-cli`')
     end
   end
 end
