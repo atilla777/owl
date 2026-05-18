@@ -4,7 +4,7 @@ module Owl
   module Workflows
     module Internal
       module StepLookup
-        STRING_FIELDS = %w[id title skill kind].freeze
+        STRING_FIELDS = %w[id title skill kind context].freeze
         ARRAY_FIELDS = %w[requires creates uses_if_present].freeze
 
         module_function

@@ -31,4 +31,18 @@ RSpec.describe 'workflow JSON Schema' do
     expect(rule.dig('properties', 'from', 'minLength')).to eq(1)
     expect(rule.dig('properties', 'to', 'minLength')).to eq(1)
   end
+
+  it 'declares step.context as a string property' do
+    expect(schema.dig('$defs', 'step', 'properties', 'context', 'type')).to eq('string')
+  end
+
+  it 'declares step.context_file as a non-empty string property' do
+    context_file = schema.dig('$defs', 'step', 'properties', 'context_file')
+    expect(context_file['type']).to eq('string')
+    expect(context_file['minLength']).to eq(1)
+  end
+
+  it 'forbids step.context and step.context_file together via not/required' do
+    expect(schema.dig('$defs', 'step', 'not', 'required')).to eq(%w[context context_file])
+  end
 end

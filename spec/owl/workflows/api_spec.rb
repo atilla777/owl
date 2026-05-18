@@ -185,6 +185,89 @@ RSpec.describe Owl::Workflows::Api do
     end
   end
 
+  describe '.resolve_backend' do
+    it 'returns a Filesystem backend when no config file is present' do
+      with_tmp_project do |root|
+        backend = described_class.resolve_backend(root: root)
+        expect(backend).to be_a(Owl::Workflows::Backends::Filesystem)
+      end
+    end
+
+    it 'returns a Filesystem backend when settings.storage.backend is "filesystem"' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            storage:
+              backend: filesystem
+        YAML
+
+        backend = described_class.resolve_backend(root: root)
+        expect(backend).to be_a(Owl::Workflows::Backends::Filesystem)
+      end
+    end
+
+    it 'returns a Filesystem backend when config.yaml has no settings hash' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "irrelevant: true\n")
+        backend = described_class.resolve_backend(root: root)
+        expect(backend).to be_a(Owl::Workflows::Backends::Filesystem)
+      end
+    end
+
+    it 'returns a Filesystem backend when settings.storage is not a hash' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            storage: "literal"
+        YAML
+        backend = described_class.resolve_backend(root: root)
+        expect(backend).to be_a(Owl::Workflows::Backends::Filesystem)
+      end
+    end
+
+    it 'returns a Filesystem backend when settings.storage.backend is blank' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            storage:
+              backend: ""
+        YAML
+        backend = described_class.resolve_backend(root: root)
+        expect(backend).to be_a(Owl::Workflows::Backends::Filesystem)
+      end
+    end
+
+    it 'returns a Filesystem backend when config.yaml is YAML-invalid (rescued)' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", ": : :\n")
+        backend = described_class.resolve_backend(root: root)
+        expect(backend).to be_a(Owl::Workflows::Backends::Filesystem)
+      end
+    end
+
+    it 'returns a Filesystem backend when YAML root is not a hash' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "- one\n- two\n")
+        backend = described_class.resolve_backend(root: root)
+        expect(backend).to be_a(Owl::Workflows::Backends::Filesystem)
+      end
+    end
+
+    it 'raises UnknownBackendError for an unknown backend name' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            storage:
+              backend: imaginary
+        YAML
+
+        expect do
+          described_class.resolve_backend(root: root)
+        end.to raise_error(Owl::Workflows::UnknownBackendError, /imaginary/)
+      end
+    end
+  end
+
   describe '.seeded_sources' do
     it 'returns six workflow source YAMLs (relative_path + contents)' do
       sources = described_class.seeded_sources

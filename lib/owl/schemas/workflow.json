@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://owl.dev/schemas/workflow/v1.json",
   "title": "Workflow",
-  "description": "Owl workflow source body. Stages 8 and post-MVP Stage 1 fix the contracts for the optional `publishes` field and for `steps[*]` item shape (including the `skill:` binding consumed by `step invocation`); the rest of the workflow body is intentionally left open (additionalProperties: true) until a later stage tightens the full schema.",
+  "description": "Owl workflow source body. Stages 8 and post-MVP Stage 1 fix the contracts for the optional `publishes` field and for `steps[*]` item shape (including the `skill:` binding consumed by `step invocation`); per-step `context` / `context_file` (mutually exclusive) were added in the backend-abstraction refactor for the universal step runner. The rest of the workflow body is intentionally left open (additionalProperties: true) until a later stage tightens the full schema.",
   "type": "object",
   "additionalProperties": true,
   "properties": {
@@ -25,6 +25,9 @@
       "type": "object",
       "required": ["id"],
       "additionalProperties": true,
+      "not": {
+        "required": ["context", "context_file"]
+      },
       "properties": {
         "id": {
           "type": "string",
@@ -49,6 +52,15 @@
         "optional": {
           "type": "boolean",
           "description": "When true, the step may be skipped via `owl step skip --reason ...` without blocking downstream steps."
+        },
+        "context": {
+          "type": "string",
+          "description": "Inline per-step context shown to the universal step runner. Mutually exclusive with `context_file`."
+        },
+        "context_file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative path (from the workflow source directory) to a Markdown file containing per-step context. Resolved through Workflows::Backend. Mutually exclusive with `context`."
         }
       }
     },
