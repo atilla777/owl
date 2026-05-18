@@ -11,6 +11,7 @@ require_relative 'internal/commands/publish'
 require_relative 'internal/commands/status'
 require_relative 'internal/commands/step_complete'
 require_relative 'internal/commands/step_invocation'
+require_relative 'internal/commands/step_show'
 require_relative 'internal/commands/step_skip'
 require_relative 'internal/commands/step_start'
 require_relative 'internal/commands/task_aggregate_status'
@@ -56,6 +57,7 @@ module Owl
           step complete           Mark a running step as done.
           step skip               Mark a step as skipped (--reason required).
           step invocation         Print full StepInvocation for a ready step (JSON).
+          step show               Show merged step + context + artifact_template + task bundle (JSON).
           artifact resolve        Resolve task-scoped artifact path + template + validation rules.
           artifact validate       Validate a task artifact (existence, sections, patterns, front matter).
           publish                 Publish task artifacts to the docs storage role per workflow `publishes` rules.
@@ -182,6 +184,7 @@ module Owl
         when 'complete'   then Internal::Commands::StepComplete.run(**kwargs)
         when 'skip'       then Internal::Commands::StepSkip.run(**kwargs)
         when 'invocation' then Internal::Commands::StepInvocation.run(**kwargs)
+        when 'show'       then Internal::Commands::StepShow.run(**kwargs)
         else
           unknown_command(stderr, "step #{subcommand}".strip)
         end

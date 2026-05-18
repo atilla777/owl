@@ -4,6 +4,7 @@ require_relative '../result'
 require_relative '../tasks/internal/paths'
 require_relative '../tasks/internal/task_reader'
 require_relative '../workflows/api'
+require_relative 'internal/bundle_builder'
 require_relative 'internal/invocation_builder'
 require_relative 'internal/output_validator'
 require_relative 'internal/statuses'
@@ -16,6 +17,10 @@ module Owl
 
       def invocation(root:, task_id:, step_id:)
         Internal::InvocationBuilder.call(root: root, task_id: task_id, step_id: step_id)
+      end
+
+      def show(root:, task_id:, step_id:)
+        Internal::BundleBuilder.call(root: root, task_id: task_id, step_id: step_id)
       end
 
       def start(root:, task_id:, step_id:)
