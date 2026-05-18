@@ -40,13 +40,12 @@ RSpec.describe Owl::Skills::Api do
       paths = sources.map { |entry| entry[:relative_path] }
       expect(paths).to eq(paths.uniq)
     end
-  end
 
-  describe '.step_skill_ids' do
-    it 'returns owl-step-<step_id> strings matching seeded workflow steps' do
-      ids = described_class.step_skill_ids
-      expect(ids).to all(match(/\Aowl-step-[a-z_]+\z/))
-      expect(ids).not_to be_empty
+    it 'does not ship per-step `owl-step-<id>` skills' do
+      paths = sources.map { |entry| entry[:relative_path] }
+      stale_step_ids = paths.grep(%r{\A\.claude/skills/owl-step-([a-z_]+)/SKILL\.md\z}) { Regexp.last_match(1) }
+      expect(stale_step_ids).to contain_exactly('run'),
+                                -> { "expected only owl-step-run, got: owl-step-#{stale_step_ids.join(', owl-step-')}" }
     end
   end
 end

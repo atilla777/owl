@@ -271,8 +271,9 @@ RSpec.describe Owl::Workflows::Api do
   describe '.seeded_sources' do
     it 'returns six workflow source YAMLs (relative_path + contents)' do
       sources = described_class.seeded_sources
-      expect(sources.size).to eq(6)
-      expect(sources.map { |f| f[:relative_path] }).to contain_exactly(
+      workflow_files = sources.select { |f| f[:relative_path].end_with?('/workflow.yaml') }
+      expect(workflow_files.size).to eq(6)
+      expect(workflow_files.map { |f| f[:relative_path] }).to contain_exactly(
         '.owl/workflows/feature/workflow.yaml',
         '.owl/workflows/composite_feature/workflow.yaml',
         '.owl/workflows/feature_slice/workflow.yaml',
@@ -280,12 +281,23 @@ RSpec.describe Owl::Workflows::Api do
         '.owl/workflows/research/workflow.yaml',
         '.owl/workflows/refactor/workflow.yaml'
       )
-      sources.each do |file|
+      workflow_files.each do |file|
         parsed = YAML.safe_load(file[:contents])
         expect(parsed).to be_a(Hash)
         expect(parsed['id']).to be_a(String)
         expect(parsed['kind']).to be_a(String)
         expect(parsed['steps']).to be_an(Array)
+      end
+    end
+
+    it 'returns per-step .context.md files alongside every seeded workflow' do
+      sources = described_class.seeded_sources
+      context_files = sources.select { |f| f[:relative_path].end_with?('.context.md') }
+      expect(context_files).not_to be_empty
+      context_files.each do |file|
+        expect(file[:relative_path]).to match(%r{\A\.owl/workflows/[^/]+/[a-z_]+\.context\.md\z}),
+                                        -> { "unexpected context path: #{file[:relative_path]}" }
+        expect(file[:contents]).to include('# Purpose')
       end
     end
   end

@@ -56,21 +56,44 @@ RSpec.describe 'owl init — Owl::Skills integration' do
     end
   end
 
-  it 'materializes every owl-step-<id> skill (≥ 17 step skills)' do
+  it 'materializes only the universal owl-* skills (no per-step owl-step-<id> skills)' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
 
-      step_skill_files = Dir[(root + '.claude/skills/owl-step-*/SKILL.md').to_s]
-      expect(step_skill_files.size).to be >= 17
+      step_skill_files = Dir[(root + '.claude/skills/owl-*/SKILL.md').to_s]
+      expect(step_skill_files.map { |f| File.basename(File.dirname(f)) }).to contain_exactly(
+        'owl-cli',
+        'owl-step-run',
+        'owl-orchestrator'
+      )
     end
   end
 
-  it 'materializes ≥ 20 owl-* slash-commands (steps + orchestrator + task-management)' do
+  it 'materializes per-step .context.md files under .owl/workflows/<wf>/' do
+    with_tmp_project do |root|
+      run(['init', '--root', root.to_s], cwd: root)
+
+      context_files = Dir[(root + '.owl/workflows/**/*.context.md').to_s]
+      expect(context_files).not_to be_empty
+      # 6 workflows: feature(8) + composite_feature(8) + feature_slice(3)
+      #            + hotfix(6) + research(4) + refactor(4) = 33 step contexts.
+      expect(context_files.size).to eq(33)
+    end
+  end
+
+  it 'materializes the six universal owl-* slash-commands (3 skills + 3 owl-task-*)' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
 
       command_files = Dir[(root + '.claude/commands/owl-*.md').to_s]
-      expect(command_files.size).to be >= 20
+      expect(command_files.map { |f| File.basename(f, '.md') }).to contain_exactly(
+        'owl-orchestrator',
+        'owl-cli',
+        'owl-step-run',
+        'owl-task-create',
+        'owl-task-status',
+        'owl-task-next'
+      )
     end
   end
 

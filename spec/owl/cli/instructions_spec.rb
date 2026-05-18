@@ -31,9 +31,9 @@ RSpec.describe 'owl instructions CLI subcommand' do
       kind: feature
       steps:
         - id: a
-          skill: owl-step-brief
+          skill: owl-step-run
         - id: b
-          skill: owl-step-specify
+          skill: owl-step-run
           requires: ["a"]
       artifacts: []
     YAML
@@ -59,9 +59,9 @@ RSpec.describe 'owl instructions CLI subcommand' do
         expect(body.dig('task', 'id')).to eq(task_id)
         expect(body.dig('task', 'workflow_key')).to eq('feature')
         expect(body.dig('step', 'id')).to eq('a')
-        expect(body.dig('skill', 'id')).to eq('owl-step-brief')
-        expect(body.dig('skill', 'path')).to end_with('.claude/skills/owl-step-brief/SKILL.md')
-        expect(body.dig('skill', 'command_path')).to end_with('.claude/commands/owl-step-brief.md')
+        expect(body.dig('skill', 'id')).to eq('owl-step-run')
+        expect(body.dig('skill', 'path')).to end_with('.claude/skills/owl-step-run/SKILL.md')
+        expect(body.dig('skill', 'command_path')).to end_with('.claude/commands/owl-step-run.md')
         expect(body['summary']).to be_a(String)
         expect(body['summary']).not_to be_empty
         expect(body['invocation']).to include('task', 'step', 'inputs', 'outputs')
@@ -83,7 +83,7 @@ RSpec.describe 'owl instructions CLI subcommand' do
         expect(exit_code).to eq(0)
         body = JSON.parse(stdout)
         expect(body.dig('step', 'id')).to eq('b')
-        expect(body.dig('skill', 'id')).to eq('owl-step-specify')
+        expect(body.dig('skill', 'id')).to eq('owl-step-run')
       end
     end
   end

@@ -6,10 +6,12 @@ require 'owl/workflows/internal/seeded_sources'
 RSpec.describe Owl::Workflows::Internal::SeededSources do
   let(:files) { described_class.files }
 
+  let(:workflow_files) do
+    files.select { |entry| entry[:relative_path].end_with?('/workflow.yaml') }
+  end
+
   let(:parsed_workflows) do
-    files.each_with_object({}) do |entry, memo|
-      memo[entry[:relative_path]] = YAML.safe_load(entry[:contents])
-    end
+    workflow_files.to_h { |entry| [entry[:relative_path], YAML.safe_load(entry[:contents])] }
   end
 
   it 'ships six seeded workflows' do
@@ -21,6 +23,20 @@ RSpec.describe Owl::Workflows::Internal::SeededSources do
       '.owl/workflows/research/workflow.yaml',
       '.owl/workflows/refactor/workflow.yaml'
     )
+  end
+
+  it 'materializes a per-step .context.md file alongside every seeded workflow.yaml' do
+    parsed_workflows.each do |path, workflow|
+      workflow_dir = File.dirname(path)
+      Array(workflow['steps']).each do |step|
+        expected_path = "#{workflow_dir}/#{step['id']}.context.md"
+        entry = files.find { |f| f[:relative_path] == expected_path }
+        expect(entry).not_to be_nil,
+                             -> { "missing seeded #{expected_path} for step #{step['id']}" }
+        expect(entry[:contents]).to include('# Purpose'),
+                                    -> { "#{expected_path} missing '# Purpose' heading" }
+      end
+    end
   end
 
   describe 'skill bindings' do
@@ -40,18 +56,22 @@ RSpec.describe Owl::Workflows::Internal::SeededSources do
                          -> { "steps without skill: #{missing.map { |e| "#{e[:path]}##{e[:step]['id']}" }.join(', ')}" }
     end
 
-    it 'uses the `owl-step-<snake>` naming convention' do
-      bad = all_steps.reject { |entry| entry[:step]['skill'].to_s.match?(/\Aowl-step-[a-z_]+\z/) }
-      expect(bad).to be_empty,
-                     -> { "non-conforming skill ids: #{bad.map { |e| "#{e[:path]}##{e[:step]['id']} -> #{e[:step]['skill'].inspect}" }.join(', ')}" }
+    def describe_entries(entries, field)
+      entries.map { |e| "#{e[:path]}##{e[:step]['id']} -> #{e[:step][field].inspect}" }.join(', ')
     end
 
-    it 'binds the skill matching its own step id' do
+    it 'binds the universal `owl-step-run` skill on every seeded step' do
+      mismatched = all_steps.reject { |entry| entry[:step]['skill'] == 'owl-step-run' }
+      expect(mismatched).to be_empty,
+                            -> { "non-owl-step-run bindings: #{describe_entries(mismatched, 'skill')}" }
+    end
+
+    it 'binds a `context_file` named after the step id' do
       mismatched = all_steps.reject do |entry|
-        entry[:step]['skill'] == "owl-step-#{entry[:step]['id']}"
+        entry[:step]['context_file'] == "#{entry[:step]['id']}.context.md"
       end
       expect(mismatched).to be_empty,
-                            -> { "mismatched bindings: #{mismatched.map { |e| "#{e[:path]}##{e[:step]['id']} -> #{e[:step]['skill'].inspect}" }.join(', ')}" }
+                            -> { "mismatched context_file bindings: #{describe_entries(mismatched, 'context_file')}" }
     end
   end
 end

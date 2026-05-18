@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require 'yaml'
+
+require_relative 'step_contexts'
+
 module Owl
   module Workflows
     module Internal
@@ -11,11 +15,13 @@ module Owl
         end
 
         def files
-          SOURCES.map do |key, contents|
-            {
+          SOURCES.flat_map do |key, contents|
+            workflow_entry = {
               relative_path: ".owl/workflows/#{key}/workflow.yaml",
               contents: contents
             }
+
+            [workflow_entry] + context_files_for(key, contents)
           end
         end
 
@@ -59,33 +65,40 @@ module Owl
 
           steps:
             - id: brief
-              skill: owl-step-brief
+              skill: owl-step-run
+              context_file: brief.context.md
               creates: [brief]
             - id: specify
-              skill: owl-step-specify
+              skill: owl-step-run
+              context_file: specify.context.md
               requires: [brief]
               creates: [spec]
             - id: design
-              skill: owl-step-design
-              # Optional step — может быть пропущен через `owl step skip`.
+              skill: owl-step-run
+              context_file: design.context.md
               requires: [specify]
               creates: [design]
             - id: plan
-              skill: owl-step-plan
+              skill: owl-step-run
+              context_file: plan.context.md
               requires: [specify]
               creates: [tasks]
             - id: apply
-              skill: owl-step-apply
+              skill: owl-step-run
+              context_file: apply.context.md
               requires: [plan]
             - id: verify
-              skill: owl-step-verify
+              skill: owl-step-run
+              context_file: verify.context.md
               requires: [apply]
               creates: [verification]
             - id: publish
-              skill: owl-step-publish
+              skill: owl-step-run
+              context_file: publish.context.md
               requires: [verify]
             - id: archive
-              skill: owl-step-archive
+              skill: owl-step-run
+              context_file: archive.context.md
               requires: [publish]
         YAML
 
@@ -129,33 +142,40 @@ module Owl
 
           steps:
             - id: brief
-              skill: owl-step-brief
+              skill: owl-step-run
+              context_file: brief.context.md
               creates: [brief]
             - id: specify
-              skill: owl-step-specify
+              skill: owl-step-run
+              context_file: specify.context.md
               requires: [brief]
               creates: [spec]
             - id: design
-              skill: owl-step-design
-              # Optional step.
+              skill: owl-step-run
+              context_file: design.context.md
               requires: [specify]
               creates: [design]
             - id: decompose
-              skill: owl-step-decompose
+              skill: owl-step-run
+              context_file: decompose.context.md
               requires: [specify]
               creates: [decomposition]
             - id: coordinate
-              skill: owl-step-coordinate
+              skill: owl-step-run
+              context_file: coordinate.context.md
               requires: [decompose]
             - id: aggregate_verify
-              skill: owl-step-aggregate_verify
+              skill: owl-step-run
+              context_file: aggregate_verify.context.md
               requires: [coordinate]
               creates: [verification]
             - id: publish
-              skill: owl-step-publish
+              skill: owl-step-run
+              context_file: publish.context.md
               requires: [aggregate_verify]
             - id: archive
-              skill: owl-step-archive
+              skill: owl-step-run
+              context_file: archive.context.md
               requires: [publish]
         YAML
 
@@ -179,13 +199,16 @@ module Owl
 
           steps:
             - id: plan
-              skill: owl-step-plan
+              skill: owl-step-run
+              context_file: plan.context.md
               creates: [tasks]
             - id: apply
-              skill: owl-step-apply
+              skill: owl-step-run
+              context_file: apply.context.md
               requires: [plan]
             - id: verify
-              skill: owl-step-verify
+              skill: owl-step-run
+              context_file: verify.context.md
               requires: [apply]
               creates: [verification]
         YAML
@@ -220,25 +243,31 @@ module Owl
 
           steps:
             - id: issue
-              skill: owl-step-issue
+              skill: owl-step-run
+              context_file: issue.context.md
               creates: [issue]
             - id: patch_plan
-              skill: owl-step-patch_plan
+              skill: owl-step-run
+              context_file: patch_plan.context.md
               requires: [issue]
               creates: [patch_plan]
             - id: tasks
-              skill: owl-step-tasks
+              skill: owl-step-run
+              context_file: tasks.context.md
               requires: [patch_plan]
               creates: [tasks]
             - id: apply
-              skill: owl-step-apply
+              skill: owl-step-run
+              context_file: apply.context.md
               requires: [tasks]
             - id: verify
-              skill: owl-step-verify
+              skill: owl-step-run
+              context_file: verify.context.md
               requires: [apply]
               creates: [verification]
             - id: archive
-              skill: owl-step-archive
+              skill: owl-step-run
+              context_file: archive.context.md
               requires: [verify]
         YAML
 
@@ -262,16 +291,20 @@ module Owl
 
           steps:
             - id: question
-              skill: owl-step-question
+              skill: owl-step-run
+              context_file: question.context.md
             - id: findings
-              skill: owl-step-findings
+              skill: owl-step-run
+              context_file: findings.context.md
               requires: [question]
               creates: [research_findings]
             - id: options
-              skill: owl-step-options
+              skill: owl-step-run
+              context_file: options.context.md
               requires: [findings]
             - id: recommendation
-              skill: owl-step-recommendation
+              skill: owl-step-run
+              context_file: recommendation.context.md
               requires: [options]
               creates: [recommendation]
         YAML
@@ -304,17 +337,21 @@ module Owl
 
           steps:
             - id: specify
-              skill: owl-step-specify
+              skill: owl-step-run
+              context_file: specify.context.md
               creates: [spec]
             - id: plan
-              skill: owl-step-plan
+              skill: owl-step-run
+              context_file: plan.context.md
               requires: [specify]
               creates: [tasks]
             - id: apply
-              skill: owl-step-apply
+              skill: owl-step-run
+              context_file: apply.context.md
               requires: [plan]
             - id: verify
-              skill: owl-step-verify
+              skill: owl-step-run
+              context_file: verify.context.md
               requires: [apply]
               creates: [verification]
         YAML
@@ -327,6 +364,22 @@ module Owl
           'research' => RESEARCH,
           'refactor' => REFACTOR
         }.freeze
+
+        def context_files_for(workflow_key, workflow_yaml)
+          step_ids = parse_step_ids(workflow_yaml)
+          step_ids.map do |step_id|
+            {
+              relative_path: ".owl/workflows/#{workflow_key}/#{step_id}.context.md",
+              contents: StepContexts.render(step_id)
+            }
+          end
+        end
+
+        def parse_step_ids(workflow_yaml)
+          parsed = YAML.safe_load(workflow_yaml)
+          steps = parsed.is_a?(Hash) ? Array(parsed['steps']) : []
+          steps.filter_map { |step| step['id'] }
+        end
       end
     end
   end

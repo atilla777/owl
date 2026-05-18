@@ -41,29 +41,42 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
   let(:files) { Owl::Skills::Api.seeded_sources }
   let(:paths) { files.map { |entry| entry[:relative_path] } }
 
-  let(:seeded_workflow_step_ids) do
-    workflows = Owl::Workflows::Internal::SeededSources.files
-    workflows.flat_map do |entry|
-      YAML.safe_load(entry[:contents]).fetch('steps').map { |step| step['id'] }
-    end.uniq
-  end
-
-  describe '1-to-1 coverage between seeded workflow steps and seeded skills' do
-    it 'has a SKILL.md for every step id mentioned in seeded workflows' do
-      missing = seeded_workflow_step_ids.reject do |step_id|
-        paths.include?(".claude/skills/owl-step-#{step_id}/SKILL.md")
+  describe 'universal-skill seeded surface' do
+    it 'does not ship any per-step `owl-step-<id>` SKILL.md' do
+      stale = OWL_STEP_RUN_HARDCODED_STEP_IDS.select do |id|
+        paths.include?(".claude/skills/owl-step-#{id}/SKILL.md")
       end
-      expect(missing).to be_empty,
-                         -> { "missing SKILL.md for step ids: #{missing.inspect}" }
+      expect(stale).to be_empty,
+                       -> { "still seeding per-step skills: #{stale.inspect}" }
     end
 
-    it 'has a slash-command for every SKILL.md' do
-      skill_dirs = paths.grep(%r{\A\.claude/skills/(owl-step-[a-z_]+)/SKILL\.md\z}) { Regexp.last_match(1) }
-      missing = skill_dirs.reject do |skill_id|
-        paths.include?(".claude/commands/#{skill_id}.md")
+    it 'does not ship any per-step `owl-step-<id>` slash-command' do
+      stale = OWL_STEP_RUN_HARDCODED_STEP_IDS.select do |id|
+        paths.include?(".claude/commands/owl-step-#{id}.md")
       end
-      expect(missing).to be_empty,
-                         -> { "missing slash-command for skills: #{missing.inspect}" }
+      expect(stale).to be_empty,
+                       -> { "still seeding per-step commands: #{stale.inspect}" }
+    end
+
+    it 'seeds exactly the universal owl-* skills (owl-cli, owl-step-run, owl-orchestrator)' do
+      skill_paths = paths.grep(%r{\A\.claude/skills/.+/SKILL\.md\z})
+      expect(skill_paths).to contain_exactly(
+        '.claude/skills/owl-orchestrator/SKILL.md',
+        '.claude/skills/owl-cli/SKILL.md',
+        '.claude/skills/owl-step-run/SKILL.md'
+      )
+    end
+
+    it 'seeds exactly the universal owl-* slash-commands plus owl-task-* helpers' do
+      command_paths = paths.grep(%r{\A\.claude/commands/owl-.+\.md\z})
+      expect(command_paths).to contain_exactly(
+        '.claude/commands/owl-orchestrator.md',
+        '.claude/commands/owl-cli.md',
+        '.claude/commands/owl-step-run.md',
+        '.claude/commands/owl-task-create.md',
+        '.claude/commands/owl-task-status.md',
+        '.claude/commands/owl-task-next.md'
+      )
     end
   end
 
@@ -89,26 +102,6 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
         expect(fm['name']).to eq(dir_name),
                               -> { "name=#{fm['name']} does not match dir=#{dir_name}" }
       end
-    end
-
-    it 'has the required body sections (Purpose, When to use, Inputs, Outputs, Workflow) for step skills' do
-      step_skill_ids = described_class.step_skill_ids
-      step_skill_files = skill_md_files.select do |entry|
-        match = entry[:relative_path].match(%r{\.claude/skills/([^/]+)/SKILL\.md})
-        match && step_skill_ids.include?(match[1])
-      end
-      step_skill_files.each do |entry|
-        %w[Purpose When\ to\ use Inputs Outputs Workflow].each do |section|
-          expect(entry[:contents]).to include("## #{section}"),
-                                      -> { "#{entry[:relative_path]} missing section '## #{section}'" }
-        end
-      end
-    end
-  end
-
-  describe '.step_skill_ids' do
-    it 'covers exactly the seeded workflow step ids' do
-      expect(described_class.step_skill_ids.sort).to eq(seeded_workflow_step_ids.map { |id| "owl-step-#{id}" }.sort)
     end
   end
 

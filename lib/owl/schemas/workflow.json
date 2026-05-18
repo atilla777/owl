@@ -37,7 +37,7 @@
         "skill": {
           "type": "string",
           "pattern": "^owl-step-[a-z_]+$",
-          "description": "Skill id matching the step. By convention the value is `owl-step-<step.id>`; consumed verbatim by `owl step invocation` so agents can locate the matching SKILL.md on disk."
+          "description": "Skill id consumed verbatim by `owl step invocation` so agents can locate the matching SKILL.md on disk. Seeded workflows bind the universal `owl-step-run` skill; custom workflows may name their own `owl-step-<x>` skill as long as it matches the pattern."
         },
         "requires": {
           "type": "array",
