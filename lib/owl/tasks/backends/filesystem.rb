@@ -3,6 +3,7 @@
 require_relative '../../result'
 require_relative '../backend'
 require_relative '../internal/aggregate_status'
+require_relative '../internal/archive/orchestrator'
 require_relative '../internal/child_creator'
 require_relative '../internal/children_lister'
 require_relative '../internal/current_pointer'
@@ -88,8 +89,8 @@ module Owl
           )
         end
 
-        def archive_task(task_id:)
-          raise NotImplementedError, 'Filesystem archive moves to backend in subtask #112'
+        def archive_task(task_id:, now: Time.now.utc)
+          Internal::Archive::Orchestrator.call(root: @root, task_id: task_id, now: now)
         end
 
         def children(parent_id:)

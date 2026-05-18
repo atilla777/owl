@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'owl/archive/internal/slug_generator'
+require 'owl/tasks/internal/archive/slug_generator'
 
-RSpec.describe Owl::Archive::Internal::SlugGenerator do
+RSpec.describe Owl::Tasks::Internal::Archive::SlugGenerator do
   describe '.from' do
     it 'lowercases and dasherizes a simple title' do
       expect(described_class.from('Hello World')).to eq('hello-world')

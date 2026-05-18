@@ -69,6 +69,10 @@ module Owl
         resolve_backend(root: root).split(task_id: task_id, kind: kind)
       end
 
+      def archive(root:, task_id:, now: Time.now.utc)
+        resolve_backend(root: root).archive_task(task_id: task_id, now: now)
+      end
+
       def resolve_backend(root:)
         backend_name = read_backend_name(root: root)
         case backend_name

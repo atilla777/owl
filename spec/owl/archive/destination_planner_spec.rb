@@ -3,9 +3,9 @@
 require 'fileutils'
 require 'pathname'
 
-require 'owl/archive/internal/destination_planner'
+require 'owl/tasks/internal/archive/destination_planner'
 
-RSpec.describe Owl::Archive::Internal::DestinationPlanner do
+RSpec.describe Owl::Tasks::Internal::Archive::DestinationPlanner do
   let(:now) { Time.utc(2026, 5, 17, 12, 0, 0) }
 
   describe '.call' do

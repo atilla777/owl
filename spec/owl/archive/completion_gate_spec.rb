@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'owl/archive/internal/completion_gate'
+require 'owl/tasks/internal/archive/completion_gate'
 
-RSpec.describe Owl::Archive::Internal::CompletionGate do
+RSpec.describe Owl::Tasks::Internal::Archive::CompletionGate do
   def workflow_with(*step_ids)
     { 'steps' => step_ids.map { |id| { 'id' => id } } }
   end

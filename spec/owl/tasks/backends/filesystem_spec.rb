@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
+require 'pathname'
+require 'yaml'
+
 require 'owl/tasks/api'
 require 'owl/tasks/backends/filesystem'
+require 'owl/tasks/internal/atomic_yaml_writer'
 require 'owl/cli/internal/commands/init'
 
 RSpec.describe Owl::Tasks::Backends::Filesystem do
@@ -87,11 +91,30 @@ RSpec.describe Owl::Tasks::Backends::Filesystem do
   end
 
   describe '#archive_task' do
-    it 'raises NotImplementedError until subtask #112 lands' do
+    it 'archives a task whose workflow is completed' do
       with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
         backend = described_class.new(root: root)
-        expect { backend.archive_task(task_id: 'TASK-0001') }
-          .to raise_error(NotImplementedError, /subtask #112/)
+
+        create_result = backend.create(workflow: 'feature', title: 'archived one')
+        task_id = create_result.value[:task_id]
+
+        task_path = Pathname.new("#{root}/tasks/#{task_id}/task.yaml")
+        payload = YAML.safe_load(task_path.read, aliases: false, permitted_classes: [Time])
+        payload['steps'].each { |step| step['status'] = 'done' }
+        Owl::Tasks::Internal::AtomicYamlWriter.write(path: task_path, payload: payload)
+
+        result = backend.archive_task(task_id: task_id, now: Time.utc(2026, 5, 18, 12, 0, 0))
+
+        aggregate_failures do
+          expect(result).to be_ok
+          expect(result.value[:task_id]).to eq(task_id)
+          expect(result.value[:archived_at]).to eq('2026-05-18T12:00:00Z')
+          expect(result.value[:from]).to include("tasks/#{task_id}")
+          expect(Pathname.new(result.value[:to]).exist?).to be(true)
+          expect(result.value[:current_reset]).to be(false)
+        end
       end
     end
   end

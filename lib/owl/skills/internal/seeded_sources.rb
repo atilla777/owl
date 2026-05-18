@@ -127,7 +127,7 @@ module Owl
               '`tasks/<TASK-ID>/` moved into `tasks/archive/<date>-...`, task.yaml `status: archived`, tasks/index.yaml updated.'
             ],
             workflows: %w[feature composite_feature hotfix],
-            notes: 'Drive this step with `owl archive TASK-ID --json`. Until Stage 7 atomic archive lands, archiving a composite parent with open children returns `composite_with_open_children`; archive each child first.'
+            notes: 'Drive this step with `owl archive TASK-ID --json`. Composite parents are archived atomically together with all ready children; if any child is not ready, the command returns `composite_with_unready_children` and lists the missing steps.'
           },
           'decompose' => {
             description: 'Decompose a composite_task into child task slices.',

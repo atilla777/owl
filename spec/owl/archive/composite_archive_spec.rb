@@ -6,9 +6,9 @@ require 'stringio'
 require 'yaml'
 
 require 'owl/archive/api'
-require 'owl/archive/internal/atomic_subtree_mover'
 require 'owl/cli/api'
-require 'owl/storage/api'
+require 'owl/tasks/internal/archive/atomic_subtree_mover'
+require 'owl/tasks/internal/archive/path_rename'
 require 'owl/tasks/internal/atomic_yaml_writer'
 
 RSpec.describe 'composite atomic archive' do
@@ -83,8 +83,8 @@ RSpec.describe 'composite atomic archive' do
 
   def fail_rename_on_nth_call(target_call_index)
     call_count = 0
-    original_rename = Owl::Storage::Api.method(:rename)
-    allow(Owl::Storage::Api).to receive(:rename).and_wrap_original do |_method, **kwargs|
+    original_rename = Owl::Tasks::Internal::Archive::PathRename.method(:call)
+    allow(Owl::Tasks::Internal::Archive::PathRename).to receive(:call).and_wrap_original do |_method, **kwargs|
       call_count += 1
       if call_count == target_call_index
         next Owl::Result.err(

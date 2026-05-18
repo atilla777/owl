@@ -23,7 +23,7 @@ module Owl
         raise NotImplementedError
       end
 
-      def archive_task(task_id:)
+      def archive_task(task_id:, now: Time.now.utc)
         raise NotImplementedError
       end
 

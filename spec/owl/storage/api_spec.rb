@@ -159,43 +159,4 @@ RSpec.describe Owl::Storage::Api do
     end
   end
 
-  describe '.rename' do
-    it 'moves a directory from source to dest' do
-      with_tmp_project do |root|
-        src = Pathname.new("#{root}/from")
-        dest = Pathname.new("#{root}/to")
-        src.mkpath
-        (src + 'marker.txt').write('hello')
-
-        result = described_class.rename(source: src, dest: dest)
-
-        expect(result).to be_ok
-        expect(src.exist?).to be(false)
-        expect(dest.directory?).to be(true)
-        expect((dest + 'marker.txt').read).to eq('hello')
-        expect(result.value[:source].to_s).to eq(src.to_s)
-        expect(result.value[:dest].to_s).to eq(dest.to_s)
-      end
-    end
-
-    it 'returns :rename_failed when the underlying rename raises SystemCallError' do
-      with_tmp_project do |root|
-        src = Pathname.new("#{root}/from")
-        dest = Pathname.new("#{root}/to")
-        src.mkpath
-
-        allow_any_instance_of(Pathname).to receive(:rename).and_raise(Errno::EXDEV, 'cross-device move')
-
-        result = described_class.rename(source: src, dest: dest)
-
-        expect(result).to be_err
-        expect(result.code).to eq(:rename_failed)
-        expect(result.details).to include(
-          source: src.to_s,
-          dest: dest.to_s,
-          error_class: 'Errno::EXDEV'
-        )
-      end
-    end
-  end
 end
