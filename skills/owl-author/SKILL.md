@@ -4,6 +4,9 @@ description: Universal Q&A authoring skill for Owl workflow definitions and arti
 triggers: ["owl author", "owl-author", "author workflow", "author artifact", "create workflow", "create artifact-type", "edit workflow", "edit artifact-type", "new workflow", "new artifact-type"]
 ---
 
+> Follows [Owl skill conventions](../_owl_conventions.md) — numbered
+> prompts, autonomous-by-default execution.
+
 # Skill: owl-author
 
 ## Purpose

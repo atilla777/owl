@@ -11,10 +11,12 @@ require 'owl/validation/api'
 # Otherwise resolve returns :unknown_workflow_artifact.
 SEEDED_ARTIFACT_TEST_WORKFLOW = {
   'brief' => 'feature',
-  'spec' => 'feature',
   'design' => 'feature',
-  'tasks' => 'feature',
+  'plan' => 'feature',
+  'review' => 'feature',
   'verification' => 'feature',
+  'spec' => 'refactor',
+  'tasks' => 'refactor',
   'decomposition' => 'composite_feature',
   'issue' => 'hotfix',
   'patch_plan' => 'hotfix',

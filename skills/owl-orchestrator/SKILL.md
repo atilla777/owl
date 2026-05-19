@@ -4,6 +4,9 @@ description: Drive an Owl task through its workflow end-to-end. Read state throu
 triggers: ["owl orchestrator", "continue owl task", "drive owl workflow", "next owl step"]
 ---
 
+> Follows [Owl skill conventions](../_owl_conventions.md) — numbered
+> prompts, autonomous-by-default execution.
+
 ## Purpose
 
 Drive an Owl task from its current ready step to the workflow's terminal step using the `owl` CLI as the sole source of truth. Every seeded step binds the universal `owl-step-run` skill; the orchestrator's job is to pick the next ready step and trust that binding. The orchestrator stays skill-binding-agnostic so a custom workflow that names a different skill still resolves through `owl instructions`.

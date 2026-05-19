@@ -61,6 +61,15 @@ module Owl
 
               workflows:
                 enabled: []
+
+            # Optional: explicit overlay paths per workflow step. The convention
+            # paths .owl/overlays/<step>.md and docs/ai/<step>.md are auto-
+            # discovered; this block lets you point at additional files.
+            # context_overlays:
+            #   design:
+            #     - docs/architecture/coding-conventions.md
+            #   commit_push:
+            #     - docs/ai/git-conventions.md
           YAML
         end
       end

@@ -70,6 +70,29 @@ RSpec.describe Owl::Context::Api do
       end
     end
 
+    it 'skips overlay files that contain only HTML comments (init placeholders)' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/overlays/design.md", <<~MD)
+          <!--
+          Optional project overlay for the `design` step.
+          -->
+        MD
+        result = described_class.overlays_for(root: root, step_id: 'design')
+        expect(result.value).to be_empty
+      end
+    end
+
+    it 'includes an overlay once non-comment content is added' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/overlays/design.md", <<~MD)
+          <!-- placeholder -->
+          Use service objects for cross-domain calls.
+        MD
+        result = described_class.overlays_for(root: root, step_id: 'design')
+        expect(result.value.first[:body]).to include('service objects')
+      end
+    end
+
     it 'flags overlays larger than the warning threshold' do
       with_tmp_project do |root|
         big = 'x' * (Owl::Context::Internal::FilesystemSource::WARNING_THRESHOLD_BYTES + 1)

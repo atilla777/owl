@@ -6,6 +6,7 @@ module Owl
       module StepLookup
         STRING_FIELDS = %w[id title skill kind context].freeze
         ARRAY_FIELDS = %w[requires creates uses_if_present].freeze
+        BOOLEAN_FIELDS = %w[interactive].freeze
 
         module_function
 
@@ -27,6 +28,10 @@ module Owl
           ARRAY_FIELDS.each do |field|
             value = step[field] || step[field.to_sym] || []
             normalized[field] = Array(value).map(&:to_s)
+          end
+          BOOLEAN_FIELDS.each do |field|
+            value = step.key?(field) ? step[field] : step[field.to_sym]
+            normalized[field] = value == true unless value.nil?
           end
           normalized
         end

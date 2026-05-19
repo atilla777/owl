@@ -8,8 +8,9 @@ require 'owl/cli/api'
 
 SEEDED_WORKFLOW_KEYS = %w[feature composite_feature feature_slice hotfix research refactor].freeze
 SEEDED_ARTIFACT_KEYS = %w[
-  brief spec design decomposition tasks
-  verification issue patch_plan research_findings recommendation
+  brief design plan review spec tasks
+  decomposition verification issue patch_plan
+  research_findings recommendation
 ].freeze
 
 RSpec.describe 'owl init seeded workflow + artifact templates' do
@@ -36,7 +37,7 @@ RSpec.describe 'owl init seeded workflow + artifact templates' do
     end
   end
 
-  it 'materializes an artifact.yaml + templates/default.md for each of the ten artifact types' do
+  it 'materializes an artifact.yaml + templates/default.md for each of the twelve artifact types' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
 
@@ -57,7 +58,7 @@ RSpec.describe 'owl init seeded workflow + artifact templates' do
   end
 
   describe 'owl config validate --json' do
-    it 'returns valid: true with all six workflows + ten artifacts on a fresh init' do
+    it 'returns valid: true with all six workflows + twelve artifacts on a fresh init' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
         exit_code, stdout, _stderr = run(['config', 'validate', '--root', root.to_s, '--json'], cwd: root)
@@ -66,7 +67,7 @@ RSpec.describe 'owl init seeded workflow + artifact templates' do
         expect(body['valid']).to be(true)
         expect(body.dig('workflows', 'count')).to eq(6)
         expect(body.dig('workflows', 'keys')).to match_array(SEEDED_WORKFLOW_KEYS)
-        expect(body.dig('artifacts', 'count')).to eq(10)
+        expect(body.dig('artifacts', 'count')).to eq(12)
         expect(body.dig('artifacts', 'keys')).to match_array(SEEDED_ARTIFACT_KEYS)
         expect(body['errors']).to eq([])
       end

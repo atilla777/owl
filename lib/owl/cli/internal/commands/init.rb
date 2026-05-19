@@ -65,6 +65,13 @@ module Owl
             root.basename.to_s
           end
 
+          # Feature-family step ids for which we seed an empty overlay
+          # template. Projects can add overlays for other steps by hand or
+          # via the `context_overlays:` block in `.owl/config.yaml`.
+          OVERLAY_STEPS = %w[
+            brief design plan implement review_code merge_docs archive commit_push
+          ].freeze
+
           def layout_files(root:, project_id:)
             base = [
               { path: "#{root}/.owl/config.yaml",
@@ -79,9 +86,32 @@ module Owl
                 contents: '' }
             ]
 
-            base + seeded_files(root: root, sources: Owl::Workflows::Api.seeded_sources) \
+            overlays = OVERLAY_STEPS.map do |step|
+              { path: "#{root}/.owl/overlays/#{step}.md",
+                contents: overlay_template(step_id: step) }
+            end
+
+            base + overlays \
+                 + seeded_files(root: root, sources: Owl::Workflows::Api.seeded_sources) \
                  + seeded_files(root: root, sources: Owl::Artifacts::Api.seeded_sources) \
                  + seeded_files(root: root, sources: Owl::Skills::Api.seeded_sources)
+          end
+
+          def overlay_template(step_id:)
+            <<~MARKDOWN
+              <!--
+              Optional project overlay for the `#{step_id}` step.
+
+              Content of this file is merged into the step's working context
+              alongside the built-in workflow context and the current task
+              artifacts. Use it to encode project-specific conventions
+              (commit format, design rules, review checklist, etc.) without
+              editing Owl-shipped templates.
+
+              Delete this file or leave it empty to opt out — Owl skips
+              empty overlays.
+              -->
+            MARKDOWN
           end
 
           def seeded_files(root:, sources:)

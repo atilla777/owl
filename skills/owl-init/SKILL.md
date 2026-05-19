@@ -4,6 +4,9 @@ description: First-run wizard that interviews the user for Owl runtime settings 
 triggers: ["owl init", "owl-init", "initialize owl", "owl wizard", "owl first run", "configure owl"]
 ---
 
+> Follows [Owl skill conventions](../_owl_conventions.md) — numbered
+> prompts, autonomous-by-default execution.
+
 # Skill: owl-init
 
 ## Purpose
