@@ -84,7 +84,7 @@ is short.
 
 ## Skill layering
 
-Four universal skills are seeded into `.claude/skills/` by `owl init`:
+Five universal skills are seeded into `.claude/skills/` by `owl init`:
 
 | Skill              | Layer        | Job                                                                       |
 | ------------------ | ------------ | ------------------------------------------------------------------------- |
@@ -92,6 +92,7 @@ Four universal skills are seeded into `.claude/skills/` by `owl init`:
 | `owl-step-run`     | Executor     | Runs any ready step from `owl step show` bundle.                          |
 | `owl-orchestrator` | Coordinator  | Picks the next ready step, delegates execution.                           |
 | `owl-init`         | Bootstrap    | One-shot wizard that fills `.owl/config.yaml` `settings:` via Q&A + CLI.  |
+| `owl-author`       | Authoring    | Q&A skill that creates / edits workflow + artifact-type definitions.      |
 
 Three slash-commands (`owl-task-create`, `owl-task-status`, `owl-task-next`)
 sit next to the skills under `.claude/commands/`.
@@ -107,6 +108,23 @@ Use `bin/owl <subcommand> --json` for machine output. Common subcommands:
   workflows + per-step `.context.md`, seeded skills, starter artifact
   templates.
 - `owl workflow list --json` — list declared workflows.
+- `owl workflow new --id ID [--kind task|composite_task] [--from TEMPLATE_ID] [--body -] [--force] [--json]` —
+  scaffold a new workflow source at `.owl/workflows/<id>/workflow.yaml`. Default body
+  is a minimal seed; pass `--body -` to pipe a full YAML body on stdin (the CLI
+  validates before writing and writes nothing on failure). Does not modify
+  `.owl/workflows.yaml` — registration is an explicit follow-up step.
+- `owl workflow validate ID-OR-PATH [--json]` — validate a workflow by registry id
+  or by source path (JSON Schema-style shape check + graph + cycle + artifact-ref check).
+- `owl workflow show ID [--json]` — full registry entry + parsed YAML body for a
+  registered workflow.
+- `owl artifact-type list [--json]` — list declared artifact types.
+- `owl artifact-type new --id ID [--body -] [--force] [--json]` — scaffold a new
+  artifact-type source at `.owl/artifacts/<id>/artifact.yaml` plus a minimal
+  `templates/default.md`. Same validate-before-write semantics as `workflow new`.
+- `owl artifact-type validate ID-OR-PATH [--json]` — validate an artifact-type
+  definition by registry id or path.
+- `owl artifact-type show ID [--json]` — full definition body for a registered
+  artifact-type.
 - `owl config get KEY [--json]` — read a value at a `settings.*` dot-path.
 - `owl config set KEY VALUE [--json]` — write a value at a `settings.*`
   dot-path; the call validates the resulting config before writing and
@@ -141,6 +159,16 @@ Use `bin/owl <subcommand> --json` for machine output. Common subcommands:
 Run `bin/owl --help` (or any subcommand with `--help`) for the full list.
 
 ## Authoring a workflow
+
+The fastest path is the agent-driven `owl-author` skill (loaded via the
+`/owl-author` slash-command after `owl init`). It walks you through three
+modes — create workflow, create artifact-type, edit existing — via Q&A
+and persists every change through the `bin/owl workflow|artifact-type` CLI
+(no direct YAML editing). It respects `settings.language.communication`
+for the dialogue and `settings.language.artifacts` for template content;
+`required_sections` stay in English (constitution 5.16).
+
+If you'd rather scaffold by hand:
 
 1. Choose a key (`my_workflow`) and add it to `.owl/workflows.yaml`:
 

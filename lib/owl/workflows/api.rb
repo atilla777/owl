@@ -15,10 +15,12 @@ require_relative 'internal/registry_loader'
 require_relative 'internal/source_loader'
 require_relative 'internal/step_context_resolver'
 require_relative 'internal/step_lookup'
+require_relative 'internal/workflow_validator'
+require_relative '../storage/api'
 
 module Owl
   module Workflows
-    module Api
+    module Api # rubocop:disable Metrics/ModuleLength
       module_function
 
       def registry(root:)
@@ -78,6 +80,52 @@ module Owl
 
       def seeded_sources
         Internal::DefaultTemplate.source_files
+      end
+
+      ID_PATTERN = /\A[a-z][a-z0-9_]*\z/
+
+      def scaffold(root:, id:, body: nil, kind: 'task', from: nil, force: false)
+        id_str = id.to_s
+        unless id_str.match?(ID_PATTERN)
+          return Result.err(
+            code: :invalid_workflow_id,
+            message: "Workflow id '#{id_str}' must match /^[a-z][a-z0-9_]*$/.",
+            details: { id: id_str }
+          )
+        end
+
+        path = workflow_source_path(root: root, id: id_str)
+        if path.exist? && !force
+          return Result.err(
+            code: :workflow_already_exists,
+            message: "Workflow source already exists at #{path}.",
+            details: { id: id_str, path: path.to_s }
+          )
+        end
+
+        body_str = resolve_scaffold_body(root: root, id: id_str, body: body, kind: kind, from: from)
+        return body_str if body_str.is_a?(Owl::Result::Err)
+
+        parsed = safe_parse(body_str)
+        return parsed if parsed.is_a?(Owl::Result::Err)
+
+        validation = Internal::WorkflowValidator.validate(root: root, body: parsed, source_path: path)
+        return validation if validation.err?
+
+        Owl::Storage::Api.write(path: path, contents: body_str)
+
+        Result.ok(id: id_str, path: path.to_s, kind: parsed['kind'] || kind.to_s)
+      end
+
+      def validate(root:, id_or_path:)
+        target = id_or_path.to_s
+        body, source_path = load_for_validate(root: root, target: target)
+        return body if body.is_a?(Owl::Result::Err)
+
+        result = Internal::WorkflowValidator.validate(root: root, body: body, source_path: source_path)
+        return result if result.err?
+
+        Result.ok(valid: true, id: body['id'], source_path: source_path.to_s, errors: [])
       end
 
       def graph(root:, workflow_key:)
@@ -219,7 +267,102 @@ module Owl
         nil
       end
 
-      private_class_method :workflow_source_missing_error, :build_steps_lookup, :read_backend_name
+      def workflow_source_path(root:, id:)
+        Pathname.new(root.to_s) + '.owl' + 'workflows' + id.to_s + 'workflow.yaml'
+      end
+
+      def resolve_scaffold_body(root:, id:, body:, kind:, from:)
+        return body if body.is_a?(String) && !body.empty?
+
+        if from
+          clone = find(root: root, key: from)
+          return clone if clone.err?
+
+          source = clone.value[:source]
+          unless source[:present] && source[:body].is_a?(Hash)
+            return Result.err(
+              code: :workflow_source_missing,
+              message: "Cannot clone workflow '#{from}': source is missing or empty.",
+              details: { from: from.to_s }
+            )
+          end
+
+          cloned = source[:body].merge('id' => id.to_s)
+          return YAML.dump(cloned)
+        end
+
+        Internal::DefaultTemplate.minimal_seed(id: id, kind: kind)
+      end
+
+      def safe_parse(body_str)
+        parsed = YAML.safe_load(body_str.to_s, aliases: false)
+        unless parsed.is_a?(Hash)
+          return Result.err(
+            code: :workflow_validation_failed,
+            message: 'Workflow body is not a YAML mapping after parse.',
+            details: { errors: [{ path: '/', message: 'Top-level YAML must be a mapping.' }] }
+          )
+        end
+
+        parsed
+      rescue Psych::SyntaxError => e
+        Result.err(
+          code: :workflow_validation_failed,
+          message: "Workflow YAML syntax error: #{e.message}",
+          details: { errors: [{ path: '/', message: e.message }] }
+        )
+      end
+
+      def load_for_validate(root:, target:)
+        if target.include?('/') || target.end_with?('.yaml') || target.end_with?('.yml')
+          load_from_path(target)
+        else
+          load_from_registry(root: root, key: target)
+        end
+      end
+
+      def load_from_path(target)
+        path = Pathname.new(target).expand_path
+        unless path.exist?
+          return [
+            Result.err(
+              code: :workflow_source_missing,
+              message: "Workflow source file not found at #{path}.",
+              details: { path: path.to_s }
+            ),
+            path
+          ]
+        end
+
+        parsed = safe_parse(path.read)
+        return [parsed, path] if parsed.is_a?(Owl::Result::Err)
+
+        [parsed, path]
+      end
+
+      def load_from_registry(root:, key:)
+        lookup = find(root: root, key: key)
+        return [lookup, nil] if lookup.err?
+
+        source = lookup.value[:source]
+        path = source[:source_path] ? Pathname.new(source[:source_path]) : nil
+        unless source[:present] && source[:body].is_a?(Hash)
+          return [
+            Result.err(
+              code: :workflow_source_missing,
+              message: "Workflow source for '#{key}' is not present.",
+              details: { key: key.to_s, source_path: path&.to_s }
+            ),
+            path
+          ]
+        end
+
+        [source[:body], path]
+      end
+
+      private_class_method :workflow_source_missing_error, :build_steps_lookup, :read_backend_name,
+                           :workflow_source_path, :resolve_scaffold_body, :safe_parse,
+                           :load_for_validate, :load_from_path, :load_from_registry
     end
   end
 end

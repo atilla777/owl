@@ -71,6 +71,21 @@ RSpec.describe 'owl init — Owl::Skills integration' do
     end
   end
 
+  it 'materializes the owl-author skill + slash-command in .claude/' do
+    with_tmp_project do |root|
+      exit_code, _stdout, _stderr = run(['init', '--root', root.to_s], cwd: root)
+      expect(exit_code).to eq(0)
+
+      skill_md = root + '.claude/skills/owl-author/SKILL.md'
+      slash    = root + '.claude/commands/owl-author.md'
+      expect(skill_md.exist?).to be(true)
+      expect(slash.exist?).to be(true)
+      expect(skill_md.read).to include('Mode A — Create workflow')
+      expect(skill_md.read).to include('Mode B — Create artifact-type')
+      expect(skill_md.read).to include('Mode C — Edit existing')
+    end
+  end
+
   it 'materializes only the universal owl-* skills (no per-step owl-step-<id> skills)' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
@@ -80,7 +95,8 @@ RSpec.describe 'owl init — Owl::Skills integration' do
         'owl-cli',
         'owl-step-run',
         'owl-orchestrator',
-        'owl-init'
+        'owl-init',
+        'owl-author'
       )
     end
   end
@@ -97,7 +113,7 @@ RSpec.describe 'owl init — Owl::Skills integration' do
     end
   end
 
-  it 'materializes the seven universal owl-* slash-commands (4 skills + 3 owl-task-*)' do
+  it 'materializes the eight universal owl-* slash-commands (5 skills + 3 owl-task-*)' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
 
@@ -107,6 +123,7 @@ RSpec.describe 'owl init — Owl::Skills integration' do
         'owl-cli',
         'owl-step-run',
         'owl-init',
+        'owl-author',
         'owl-task-create',
         'owl-task-status',
         'owl-task-next'

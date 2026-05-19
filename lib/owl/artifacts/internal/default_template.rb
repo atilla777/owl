@@ -43,6 +43,43 @@ module Owl
         def keys
           SeededSources.keys
         end
+
+        def minimal_artifact_seed(id:, title: nil, kind: 'markdown')
+          <<~YAML
+            id: #{id}
+            title: #{title || id}
+            kind: #{kind}
+            description: TODO — describe this artifact type.
+            default_template: templates/default.md
+
+            front_matter:
+              type: object
+              required: [status, summary]
+              properties:
+                status:
+                  type: string
+                  enum: [draft, approved]
+                summary:
+                  type: string
+
+            validation:
+              required_sections:
+                - Summary
+          YAML
+        end
+
+        def minimal_artifact_template
+          <<~MARKDOWN
+            ---
+            status: draft
+            summary: TODO — one-line summary.
+            ---
+
+            ## Summary
+
+            TODO
+          MARKDOWN
+        end
       end
     end
   end

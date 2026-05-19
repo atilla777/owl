@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://owl.dev/schemas/artifact/v1.json",
+  "title": "ArtifactType",
+  "description": "Owl artifact type source body. Lives under `.owl/artifacts/<id>/artifact.yaml`. Defines the agent-facing template, required sections, and front matter schema for a reusable artifact type. The runtime validator (`Owl::Artifacts::Internal::ArtifactTypeValidator`) enforces a subset of this contract; the schema is the authoritative documented shape.",
+  "type": "object",
+  "required": ["id", "title", "kind"],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "description": "Artifact type identifier, lowercase snake_case; matches the registry key in `.owl/artifacts.yaml`." },
+    "title": { "type": "string", "minLength": 1, "description": "Human-readable title (UI / `owl artifact-type list`)." },
+    "kind": { "type": "string", "minLength": 1, "description": "Artifact kind. Current values: `markdown`. Future kinds may declare different validators." },
+    "description": { "type": "string", "description": "Optional one-paragraph description of the artifact's purpose." },
+    "default_template": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Relative path (from the artifact type source directory) to a Markdown template that gets copied into a task's artifact path on first write."
+    },
+    "front_matter": {
+      "type": "object",
+      "description": "Schema for the YAML front matter block at the top of every artifact instance. Subset of JSON Schema validated by `Owl::Validation::Internal::FrontMatterValidator`.",
+      "additionalProperties": true,
+      "properties": {
+        "type": { "type": "string", "enum": ["object", "array", "string", "integer", "boolean", "null"] },
+        "required": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "properties": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "description": "Body-level validation rules applied by `owl artifact validate`.",
+      "additionalProperties": true,
+      "properties": {
+        "required_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Literal H1/H2 headings that must appear in the artifact body. Per constitution 5.16 these are always written in English."
+        },
+        "required_patterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Regular expressions that must match somewhere in the artifact body."
+        }
+      }
+    },
+    "agent_hints": {
+      "type": "object",
+      "description": "Optional free-form hints surfaced to agents authoring this artifact (e.g. `summary_line_limit`, `tone`)."
+    }
+  }
+}

@@ -55,6 +55,49 @@ module Owl
         def keys
           SeededSources.keys
         end
+
+        def minimal_seed(id:, kind: 'task', title: nil)
+          case kind.to_s
+          when 'composite_task' then composite_task_seed(id, title)
+          else task_seed(id, title)
+          end
+        end
+
+        def task_seed(id, title)
+          <<~YAML
+            id: #{id}
+            kind: task
+            title: #{title || id}
+            description: TODO — describe this workflow.
+
+            artifacts: {}
+
+            steps:
+              - id: main
+                skill: owl-step-run
+          YAML
+        end
+
+        def composite_task_seed(id, title)
+          <<~YAML
+            id: #{id}
+            kind: composite_task
+            title: #{title || id}
+            description: TODO — describe this composite workflow.
+
+            artifacts:
+              decomposition:
+                type: decomposition
+                storage:
+                  role: tasks
+                  path: "{{task.id}}/decomposition.md"
+
+            steps:
+              - id: decompose
+                skill: owl-step-run
+                creates: [decomposition]
+          YAML
+        end
       end
     end
   end

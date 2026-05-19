@@ -1,7 +1,12 @@
 # frozen_string_literal: true
 
+require 'pathname'
+require 'yaml'
+
 require_relative '../result'
+require_relative '../storage/api'
 require_relative 'internal/artifact_type_loader'
+require_relative 'internal/artifact_type_validator'
 require_relative 'internal/default_template'
 require_relative 'internal/registry_loader'
 require_relative 'internal/source_loader'
@@ -67,6 +72,120 @@ module Owl
       def seeded_sources
         Internal::DefaultTemplate.source_files
       end
+
+      ID_PATTERN = /\A[a-z][a-z0-9_]*\z/
+
+      def scaffold(root:, id:, body: nil, force: false)
+        id_str = id.to_s
+        unless id_str.match?(ID_PATTERN)
+          return Result.err(
+            code: :invalid_artifact_type_id,
+            message: "Artifact type id '#{id_str}' must match /^[a-z][a-z0-9_]*$/.",
+            details: { id: id_str }
+          )
+        end
+
+        path = artifact_source_path(root: root, id: id_str)
+        if path.exist? && !force
+          return Result.err(
+            code: :artifact_type_already_exists,
+            message: "Artifact type source already exists at #{path}.",
+            details: { id: id_str, path: path.to_s }
+          )
+        end
+
+        body_str = if body.is_a?(String) && !body.empty?
+                     body
+                   else
+                     Internal::DefaultTemplate.minimal_artifact_seed(id: id_str)
+                   end
+
+        parsed = safe_parse(body_str)
+        return parsed if parsed.is_a?(Owl::Result::Err)
+
+        validation = Internal::ArtifactTypeValidator.validate(body: parsed, source_path: path)
+        return validation if validation.err?
+
+        Owl::Storage::Api.write(path: path, contents: body_str)
+
+        template_path = path.dirname + 'templates' + 'default.md'
+        unless template_path.exist?
+          Owl::Storage::Api.write(path: template_path, contents: Internal::DefaultTemplate.minimal_artifact_template)
+        end
+
+        Result.ok(id: id_str, path: path.to_s, template_path: template_path.to_s)
+      end
+
+      def validate(root:, id_or_path:)
+        target = id_or_path.to_s
+        body, source_path = load_for_validate(root: root, target: target)
+        return body if body.is_a?(Owl::Result::Err)
+
+        result = Internal::ArtifactTypeValidator.validate(body: body, source_path: source_path)
+        return result if result.err?
+
+        Result.ok(valid: true, id: body['id'], source_path: source_path.to_s, errors: [])
+      end
+
+      def artifact_source_path(root:, id:)
+        Pathname.new(root.to_s) + '.owl' + 'artifacts' + id.to_s + 'artifact.yaml'
+      end
+
+      def safe_parse(body_str)
+        parsed = YAML.safe_load(body_str.to_s, aliases: false)
+        unless parsed.is_a?(Hash)
+          return Result.err(
+            code: :artifact_type_validation_failed,
+            message: 'Artifact type body is not a YAML mapping after parse.',
+            details: { errors: [{ path: '/', message: 'Top-level YAML must be a mapping.' }] }
+          )
+        end
+
+        parsed
+      rescue Psych::SyntaxError => e
+        Result.err(
+          code: :artifact_type_validation_failed,
+          message: "Artifact type YAML syntax error: #{e.message}",
+          details: { errors: [{ path: '/', message: e.message }] }
+        )
+      end
+
+      def load_for_validate(root:, target:)
+        if target.include?('/') || target.end_with?('.yaml') || target.end_with?('.yml')
+          load_from_path(target)
+        else
+          load_from_registry(root: root, key: target)
+        end
+      end
+
+      def load_from_path(target)
+        path = Pathname.new(target).expand_path
+        unless path.exist?
+          return [
+            Result.err(
+              code: :artifact_type_source_missing,
+              message: "Artifact type source file not found at #{path}.",
+              details: { path: path.to_s }
+            ),
+            path
+          ]
+        end
+
+        parsed = safe_parse(path.read)
+        [parsed, path]
+      end
+
+      def load_from_registry(root:, key:)
+        lookup = find(root: root, key: key)
+        return [lookup, nil] if lookup.err?
+
+        source_path = lookup.value[:source_path] ? Pathname.new(lookup.value[:source_path]) : nil
+        body = lookup.value[:body] || {}
+        [body, source_path]
+      end
+
+      private_class_method :artifact_source_path, :safe_parse, :load_for_validate,
+                           :load_from_path, :load_from_registry
     end
   end
 end

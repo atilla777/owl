@@ -3,6 +3,10 @@
 require_relative '../version'
 require_relative 'internal/commands/archive'
 require_relative 'internal/commands/artifact_resolve'
+require_relative 'internal/commands/artifact_type_list'
+require_relative 'internal/commands/artifact_type_new'
+require_relative 'internal/commands/artifact_type_show'
+require_relative 'internal/commands/artifact_type_validate'
 require_relative 'internal/commands/artifact_validate'
 require_relative 'internal/commands/config_get'
 require_relative 'internal/commands/config_set'
@@ -31,6 +35,9 @@ require_relative 'internal/commands/task_split'
 require_relative 'internal/commands/task_tree'
 require_relative 'internal/commands/task_use'
 require_relative 'internal/commands/workflow_list'
+require_relative 'internal/commands/workflow_new'
+require_relative 'internal/commands/workflow_show'
+require_relative 'internal/commands/workflow_validate'
 require_relative 'internal/json_printer'
 
 module Owl
@@ -42,6 +49,13 @@ module Owl
         Commands:
           init                    Initialize a new Owl project layout in the target directory.
           workflow list           List declared workflows (JSON output).
+          workflow new            Scaffold a new workflow definition at .owl/workflows/<id>/workflow.yaml.
+          workflow validate       Validate a workflow definition by ID or path (JSON output).
+          workflow show           Show a workflow definition by ID (JSON output).
+          artifact-type list      List declared artifact types (JSON output).
+          artifact-type new       Scaffold a new artifact type definition at .owl/artifacts/<id>/artifact.yaml.
+          artifact-type validate  Validate an artifact type definition by ID or path (JSON output).
+          artifact-type show      Show an artifact type definition by ID (JSON output).
           config get              Get a value at a settings.* dot-path (JSON output).
           config set              Set a value at a settings.* dot-path; validates before write.
           config show             Print settings + storage roles snapshot (JSON output).
@@ -98,12 +112,13 @@ module Owl
       def dispatch_command(command, args, stdout:, stderr:, cwd:, env:)
         kwargs = { stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case command
-        when 'init'     then Internal::Commands::Init.run(argv: args, **kwargs)
-        when 'workflow' then dispatch_workflow(args, **kwargs)
-        when 'config'   then dispatch_config(args, **kwargs)
-        when 'task'     then dispatch_task(args, **kwargs)
-        when 'step'     then dispatch_step(args, **kwargs)
-        when 'artifact' then dispatch_artifact(args, **kwargs)
+        when 'init'          then Internal::Commands::Init.run(argv: args, **kwargs)
+        when 'workflow'      then dispatch_workflow(args, **kwargs)
+        when 'artifact-type' then dispatch_artifact_type(args, **kwargs)
+        when 'config'        then dispatch_config(args, **kwargs)
+        when 'task'          then dispatch_task(args, **kwargs)
+        when 'step'          then dispatch_step(args, **kwargs)
+        when 'artifact'      then dispatch_artifact(args, **kwargs)
         when 'publish'      then Internal::Commands::Publish.run(argv: args, **kwargs)
         when 'archive'      then Internal::Commands::Archive.run(argv: args, **kwargs)
         when 'instructions' then Internal::Commands::Instructions.run(argv: args, **kwargs)
@@ -126,11 +141,27 @@ module Owl
 
       def dispatch_workflow(args, stdout:, stderr:, cwd:, env:)
         subcommand = args.shift
+        kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case subcommand
-        when 'list'
-          Internal::Commands::WorkflowList.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        when 'list'     then Internal::Commands::WorkflowList.run(**kwargs)
+        when 'new'      then Internal::Commands::WorkflowNew.run(**kwargs)
+        when 'validate' then Internal::Commands::WorkflowValidate.run(**kwargs)
+        when 'show'     then Internal::Commands::WorkflowShow.run(**kwargs)
         else
           unknown_command(stderr, "workflow #{subcommand}".strip)
+        end
+      end
+
+      def dispatch_artifact_type(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
+        case subcommand
+        when 'list'     then Internal::Commands::ArtifactTypeList.run(**kwargs)
+        when 'new'      then Internal::Commands::ArtifactTypeNew.run(**kwargs)
+        when 'validate' then Internal::Commands::ArtifactTypeValidate.run(**kwargs)
+        when 'show'     then Internal::Commands::ArtifactTypeShow.run(**kwargs)
+        else
+          unknown_command(stderr, "artifact-type #{subcommand}".strip)
         end
       end
 

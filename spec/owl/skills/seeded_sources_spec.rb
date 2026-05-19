@@ -58,13 +58,14 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
                        -> { "still seeding per-step commands: #{stale.inspect}" }
     end
 
-    it 'seeds exactly the universal owl-* skills (owl-cli, owl-step-run, owl-orchestrator, owl-init)' do
+    it 'seeds exactly the universal owl-* skills (owl-cli, owl-step-run, owl-orchestrator, owl-init, owl-author)' do
       skill_paths = paths.grep(%r{\A\.claude/skills/.+/SKILL\.md\z})
       expect(skill_paths).to contain_exactly(
         '.claude/skills/owl-orchestrator/SKILL.md',
         '.claude/skills/owl-cli/SKILL.md',
         '.claude/skills/owl-step-run/SKILL.md',
-        '.claude/skills/owl-init/SKILL.md'
+        '.claude/skills/owl-init/SKILL.md',
+        '.claude/skills/owl-author/SKILL.md'
       )
     end
 
@@ -75,6 +76,7 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
         '.claude/commands/owl-cli.md',
         '.claude/commands/owl-step-run.md',
         '.claude/commands/owl-init.md',
+        '.claude/commands/owl-author.md',
         '.claude/commands/owl-task-create.md',
         '.claude/commands/owl-task-status.md',
         '.claude/commands/owl-task-next.md'
@@ -290,6 +292,64 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
 
     it 'loads the skill from the slash-command body' do
       expect(slash_entry[:contents]).to include('Load skill `owl-init`')
+    end
+  end
+
+  describe 'owl-author skill' do
+    let(:skill_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/skills/owl-author/SKILL.md' }
+    end
+    let(:slash_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/commands/owl-author.md' }
+    end
+
+    it 'materializes a SKILL.md and a slash-command file' do
+      expect(skill_entry).not_to be_nil, 'expected owl-author SKILL.md in seeded sources'
+      expect(slash_entry).not_to be_nil, 'expected owl-author slash-command in seeded sources'
+    end
+
+    it 'has frontmatter with name: owl-author, non-empty description, non-empty triggers' do
+      fm = YAML.safe_load(skill_entry[:contents].match(/\A---\n(.*?)\n---/m)[1])
+      expect(fm['name']).to eq('owl-author')
+      expect(fm['description']).to be_a(String)
+      expect(fm['description']).not_to be_empty
+      expect(fm['triggers']).to be_an(Array)
+      expect(fm['triggers']).not_to be_empty
+    end
+
+    it 'includes a Language Clause referencing constitution 5.16/5.17' do
+      expect(skill_entry[:contents]).to include('Language Clause')
+      expect(skill_entry[:contents]).to include('5.16')
+      expect(skill_entry[:contents]).to include('5.17')
+    end
+
+    it 'documents three modes (Create workflow, Create artifact-type, Edit existing)' do
+      contents = skill_entry[:contents]
+      expect(contents).to include('Mode A — Create workflow')
+      expect(contents).to include('Mode B — Create artifact-type')
+      expect(contents).to include('Mode C — Edit existing')
+    end
+
+    it 'routes every state change through bin/owl workflow|artifact-type CLI' do
+      contents = skill_entry[:contents]
+      expect(contents).to include('owl workflow new')
+      expect(contents).to include('owl workflow validate')
+      expect(contents).to include('owl artifact-type new')
+      expect(contents).to include('owl artifact-type validate')
+    end
+
+    it 'enforces English required_sections via constitution 5.16' do
+      expect(skill_entry[:contents]).to include('required_sections')
+      expect(skill_entry[:contents]).to include('always English')
+    end
+
+    it 'forbids direct .owl/ source writes in the slash command body' do
+      expect(slash_entry[:contents]).to include('never edit')
+      expect(slash_entry[:contents]).to include('owl workflow new')
+    end
+
+    it 'loads the skill from the slash-command body' do
+      expect(slash_entry[:contents]).to include('Load skill `owl-author`')
     end
   end
 end
