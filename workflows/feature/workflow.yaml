@@ -1,0 +1,74 @@
+id: feature
+kind: task
+title: Feature
+description: Стандартный workflow одиночной фичи.
+
+artifacts:
+  brief:
+    type: brief
+    storage:
+      role: tasks
+      path: "{{task.id}}/brief.md"
+  spec:
+    type: spec
+    storage:
+      role: tasks
+      path: "{{task.id}}/spec.md"
+  design:
+    type: design
+    optional: true
+    storage:
+      role: tasks
+      path: "{{task.id}}/design.md"
+  tasks:
+    type: tasks
+    storage:
+      role: tasks
+      path: "{{task.id}}/tasks.md"
+  verification:
+    type: verification
+    storage:
+      role: tasks
+      path: "{{task.id}}/verification.md"
+
+publishes:
+  - from: "{{task.id}}/spec.md"
+    to: "{{task.id}}/spec.md"
+
+steps:
+  - id: brief
+    skill: owl-step-run
+    context_file: brief.context.md
+    creates: [brief]
+  - id: specify
+    skill: owl-step-run
+    context_file: specify.context.md
+    requires: [brief]
+    creates: [spec]
+  - id: design
+    skill: owl-step-run
+    context_file: design.context.md
+    requires: [specify]
+    creates: [design]
+  - id: plan
+    skill: owl-step-run
+    context_file: plan.context.md
+    requires: [specify]
+    creates: [tasks]
+  - id: apply
+    skill: owl-step-run
+    context_file: apply.context.md
+    requires: [plan]
+  - id: verify
+    skill: owl-step-run
+    context_file: verify.context.md
+    requires: [apply]
+    creates: [verification]
+  - id: publish
+    skill: owl-step-run
+    context_file: publish.context.md
+    requires: [verify]
+  - id: archive
+    skill: owl-step-run
+    context_file: archive.context.md
+    requires: [publish]

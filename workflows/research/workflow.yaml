@@ -1,0 +1,35 @@
+id: research
+kind: task
+title: Research
+description: Workflow для исследовательской задачи без кода.
+
+artifacts:
+  research_findings:
+    type: research_findings
+    storage:
+      role: tasks
+      path: "{{task.id}}/findings.md"
+  recommendation:
+    type: recommendation
+    storage:
+      role: tasks
+      path: "{{task.id}}/recommendation.md"
+
+steps:
+  - id: question
+    skill: owl-step-run
+    context_file: question.context.md
+  - id: findings
+    skill: owl-step-run
+    context_file: findings.context.md
+    requires: [question]
+    creates: [research_findings]
+  - id: options
+    skill: owl-step-run
+    context_file: options.context.md
+    requires: [findings]
+  - id: recommendation
+    skill: owl-step-run
+    context_file: recommendation.context.md
+    requires: [options]
+    creates: [recommendation]

@@ -1,0 +1,44 @@
+id: refactor
+kind: task
+title: Refactor
+description: |
+  Default workflow для рефакторинг-задачи. Конкретный граф
+  рекомендуется фиксировать в спецификации child'а; здесь —
+  sensible default: specify → plan → apply → verify.
+
+artifacts:
+  spec:
+    type: spec
+    storage:
+      role: tasks
+      path: "{{task.id}}/spec.md"
+  tasks:
+    type: tasks
+    storage:
+      role: tasks
+      path: "{{task.id}}/tasks.md"
+  verification:
+    type: verification
+    storage:
+      role: tasks
+      path: "{{task.id}}/verification.md"
+
+steps:
+  - id: specify
+    skill: owl-step-run
+    context_file: specify.context.md
+    creates: [spec]
+  - id: plan
+    skill: owl-step-run
+    context_file: plan.context.md
+    requires: [specify]
+    creates: [tasks]
+  - id: apply
+    skill: owl-step-run
+    context_file: apply.context.md
+    requires: [plan]
+  - id: verify
+    skill: owl-step-run
+    context_file: verify.context.md
+    requires: [apply]
+    creates: [verification]
