@@ -103,11 +103,13 @@ RSpec.describe Owl::Steps::Api, '.show' do
         expect(bundle[:context]).to eq('Write the brief')
         expect(bundle[:artifact_template][:required_sections]).to eq(['Intent', 'Acceptance criteria'])
         expect(bundle[:artifact_template][:frontmatter_schema]).to include('type' => 'object')
-        expect(bundle[:task]).to eq(id: task_id, title: 't', spec_body: nil)
+        expect(bundle[:task]).to eq(id: task_id, title: 't', artifacts: {})
+        expect(bundle[:overlays]).to eq([])
+        expect(bundle[:execution_mode]).to be_nil
       end
     end
 
-    it 'reads context from context_file and spec_body when the spec file exists' do
+    it 'reads context from context_file and exposes task artifact bodies when files exist' do
       with_tmp_project do |root|
         init(root)
         write_workflow_registry(root)
@@ -132,7 +134,7 @@ RSpec.describe Owl::Steps::Api, '.show' do
 
         bundle = described_class.show(root: root, task_id: task_id, step_id: 'brief').value
         expect(bundle[:context]).to eq('Step context from file')
-        expect(bundle[:task][:spec_body]).to eq('spec body text')
+        expect(bundle[:task][:artifacts]).to eq('spec' => 'spec body text')
       end
     end
 
@@ -212,7 +214,7 @@ RSpec.describe Owl::Steps::Api, '.show' do
       end
     end
 
-    it 'returns nil spec_body when the workflow does not declare a spec artifact' do
+    it 'returns empty artifacts hash when the workflow declares no artifacts' do
       with_tmp_project do |root|
         init(root)
         write_workflow_registry(root)
@@ -226,11 +228,11 @@ RSpec.describe Owl::Steps::Api, '.show' do
         task_id = create_task(root)
 
         bundle = described_class.show(root: root, task_id: task_id, step_id: 'a').value
-        expect(bundle[:task][:spec_body]).to be_nil
+        expect(bundle[:task][:artifacts]).to eq({})
       end
     end
 
-    it 'returns nil spec_body when the spec artifact file has not been written' do
+    it 'omits artifacts whose files have not been written yet' do
       with_tmp_project do |root|
         init(root)
         write_workflow_registry(root)
@@ -250,7 +252,28 @@ RSpec.describe Owl::Steps::Api, '.show' do
         task_id = create_task(root)
 
         bundle = described_class.show(root: root, task_id: task_id, step_id: 'a').value
-        expect(bundle[:task][:spec_body]).to be_nil
+        expect(bundle[:task][:artifacts]).to eq({})
+      end
+    end
+
+    it 'exposes execution_mode and overlays for a step' do
+      with_tmp_project do |root|
+        init(root)
+        write_workflow_registry(root)
+        write_workflow_source(root, <<~YAML)
+          id: feature
+          kind: feature
+          execution_mode: autonomous_after_brief
+          artifacts: []
+          steps:
+            - id: a
+        YAML
+        write("#{root}/.owl/overlays/a.md", "Project conventions for step a.\n")
+        task_id = create_task(root)
+
+        bundle = described_class.show(root: root, task_id: task_id, step_id: 'a').value
+        expect(bundle[:execution_mode]).to eq('autonomous_after_brief')
+        expect(bundle[:overlays].first[:body]).to include('Project conventions')
       end
     end
   end

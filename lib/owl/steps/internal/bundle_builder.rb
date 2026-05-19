@@ -4,6 +4,7 @@ require 'pathname'
 
 require_relative '../../result'
 require_relative '../../artifacts/api'
+require_relative '../../context/api'
 require_relative '../../storage/api'
 require_relative '../../tasks/api'
 require_relative '../../tasks/internal/paths'
@@ -47,13 +48,16 @@ module Owl
           return template_result if template_result.is_a?(Owl::Result::Err)
 
           step_payload, context = split_step_payload(root: root, task_id: task_id, step: step, step_id: step_id)
-          spec_body = extract_spec_body(root: root, task_id: task_id, definition: definition)
+          artifacts = extract_task_artifacts(root: root, task_id: task_id, definition: definition)
+          overlays = extract_overlays(root: root, step_id: step_id)
 
           Result.ok(
             step: step_payload,
             context: context,
+            overlays: overlays,
             artifact_template: template_result,
-            task: { id: task_id.to_s, title: payload['title'].to_s, spec_body: spec_body }
+            execution_mode: execution_mode_for(definition: definition),
+            task: { id: task_id.to_s, title: payload['title'].to_s, artifacts: artifacts }
           )
         end
 
@@ -86,11 +90,21 @@ module Owl
           }
         end
 
-        def extract_spec_body(root:, task_id:, definition:)
+        # Returns a hash { artifact_key => body_string } for every declared
+        # artifact of the workflow whose file exists on disk. Missing artifacts
+        # are omitted (not included as nil) — agents can detect absence by key.
+        def extract_task_artifacts(root:, task_id:, definition:)
           artifacts = definition[:artifacts]
-          return nil unless artifacts.is_a?(Hash) && artifacts.key?('spec')
+          return {} unless artifacts.is_a?(Hash) && !artifacts.empty?
 
-          descriptor = Owl::Artifacts::Api.resolve(root: root, task_id: task_id, artifact_key: 'spec')
+          artifacts.each_with_object({}) do |(key, _decl), acc|
+            body = read_artifact_body(root: root, task_id: task_id, artifact_key: key)
+            acc[key.to_s] = body if body
+          end
+        end
+
+        def read_artifact_body(root:, task_id:, artifact_key:)
+          descriptor = Owl::Artifacts::Api.resolve(root: root, task_id: task_id, artifact_key: artifact_key)
           return nil if descriptor.err?
 
           path = descriptor.value[:path]
@@ -98,6 +112,18 @@ module Owl
 
           read = Owl::Storage::Api.read(path: Pathname.new(path))
           read.ok? ? read.value : nil
+        end
+
+        def extract_overlays(root:, step_id:)
+          result = Owl::Context::Api.overlays_for(root: root, step_id: step_id)
+          result.ok? ? result.value : []
+        end
+
+        def execution_mode_for(definition:)
+          body = definition[:body]
+          return nil unless body.is_a?(Hash)
+
+          body['execution_mode'] || body[:execution_mode]
         end
       end
     end
