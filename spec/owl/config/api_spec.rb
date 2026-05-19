@@ -192,5 +192,274 @@ RSpec.describe Owl::Config::Api do
       expect(template).to include('id: demo')
       expect(template).to include('schema_version: 1')
     end
+
+    it 'renders a settings: block with language, storage and workflows defaults' do
+      template = described_class.default_template(project_id: 'demo')
+      expect(template).to include('settings:')
+      expect(template).to include('communication: en')
+      expect(template).to include('backend: filesystem')
+      expect(template).to include('workflows:')
+    end
+  end
+
+  describe '.validate (settings block)' do
+    def base_config_without_settings
+      <<~YAML
+        schema_version: 1
+        project:
+          id: sample
+        storage:
+          active_profile: default
+          profiles:
+            default:
+              backend: filesystem
+              roles:
+                control: { path: "/tmp" }
+                local_state: { path: "/tmp" }
+                index: { path: "/tmp" }
+                tasks: { path: "/tmp" }
+                archive: { path: "/tmp" }
+                docs: { path: "/tmp" }
+      YAML
+    end
+
+    it 'accepts a config without a settings: block (backwards compat)' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", base_config_without_settings)
+        result = described_class.validate(root: root)
+        expect(result).to be_ok
+      end
+    end
+
+    it 'accepts a settings block with only required language.communication' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  language:\n    communication: ru\n")
+        result = described_class.validate(root: root)
+        expect(result).to be_ok
+      end
+    end
+
+    it 'reports missing settings.language.communication when language section is present' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  language:\n    artifacts: en\n")
+        result = described_class.validate(root: root)
+        expect(result).to be_err
+        codes = result.details[:errors].map { |e| e[:code] }
+        expect(codes).to include(:missing_settings_language_communication)
+      end
+    end
+
+    it 'reports invalid optional language values (non-string or empty)' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  language:\n    communication: en\n    artifacts: ''\n")
+        result = described_class.validate(root: root)
+        expect(result).to be_err
+        codes = result.details[:errors].map { |e| e[:code] }
+        expect(codes).to include(:invalid_settings_language_value)
+      end
+    end
+
+    it 'reports unsupported storage backend' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  language:\n    communication: en\n  storage:\n    backend: s3\n")
+        result = described_class.validate(root: root)
+        expect(result).to be_err
+        codes = result.details[:errors].map { |e| e[:code] }
+        expect(codes).to include(:unsupported_settings_storage_backend)
+      end
+    end
+
+    it 'reports invalid settings.storage.roles path' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  language:\n    communication: en\n  storage:\n    roles:\n      tasks: ''\n")
+        result = described_class.validate(root: root)
+        expect(result).to be_err
+        codes = result.details[:errors].map { |e| e[:code] }
+        expect(codes).to include(:invalid_settings_storage_role_path)
+      end
+    end
+
+    it 'reports invalid settings shape (non-hash)' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings: scalar\n")
+        result = described_class.validate(root: root)
+        expect(result).to be_err
+        codes = result.details[:errors].map { |e| e[:code] }
+        expect(codes).to include(:invalid_settings_shape)
+      end
+    end
+
+    it 'reports invalid settings.language shape (non-hash)' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  language: scalar\n")
+        result = described_class.validate(root: root)
+        expect(result).to be_err
+        codes = result.details[:errors].map { |e| e[:code] }
+        expect(codes).to include(:invalid_settings_language_shape)
+      end
+    end
+
+    it 'reports invalid settings.storage shape (non-hash)' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  storage: scalar\n")
+        result = described_class.validate(root: root)
+        expect(result).to be_err
+        codes = result.details[:errors].map { |e| e[:code] }
+        expect(codes).to include(:invalid_settings_storage_shape)
+      end
+    end
+
+    it 'reports invalid settings.storage.roles shape (non-hash)' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  storage:\n    roles: scalar\n")
+        result = described_class.validate(root: root)
+        expect(result).to be_err
+        codes = result.details[:errors].map { |e| e[:code] }
+        expect(codes).to include(:invalid_settings_storage_roles_shape)
+      end
+    end
+  end
+
+  describe '.read_key' do
+    it 'returns the value at a settings.* dot-path' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.read_key(root: root, key: 'settings.language.communication')
+        expect(result).to be_ok
+        expect(result.value).to eq(key: 'settings.language.communication', value: 'en')
+      end
+    end
+
+    it 'rejects paths outside settings.*' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.read_key(root: root, key: 'project.id')
+        expect(result).to be_err
+        expect(result.code).to eq(:unsupported_config_path)
+      end
+    end
+
+    it 'reports missing key' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.read_key(root: root, key: 'settings.language.bogus')
+        expect(result).to be_err
+        expect(result.code).to eq(:config_key_missing)
+      end
+    end
+
+    it 'reports invalid key shape' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.read_key(root: root, key: 'settings..language')
+        expect(result).to be_err
+        expect(result.code).to eq(:invalid_config_key)
+      end
+    end
+
+    it 'propagates load errors as-is' do
+      with_tmp_project do |root|
+        result = described_class.read_key(root: root, key: 'settings.language.communication')
+        expect(result).to be_err
+        expect(result.code).to eq(:config_missing)
+      end
+    end
+  end
+
+  describe '.write_key' do
+    it 'writes a string value and persists it' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.write_key(root: root, key: 'settings.language.communication', value: 'ru')
+        expect(result).to be_ok
+        expect(result.value).to eq(key: 'settings.language.communication', value: 'ru')
+
+        reread = described_class.read_key(root: root, key: 'settings.language.communication')
+        expect(reread.value[:value]).to eq('ru')
+      end
+    end
+
+    it 'creates intermediate hash nodes when path does not exist' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.write_key(root: root, key: 'settings.workflows.enabled', value: '["feature","bugfix"]')
+        expect(result).to be_ok
+        expect(result.value[:value]).to eq(%w[feature bugfix])
+
+        reread = described_class.read_key(root: root, key: 'settings.workflows.enabled')
+        expect(reread.value[:value]).to eq(%w[feature bugfix])
+      end
+    end
+
+    it 'rejects paths outside settings.*' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.write_key(root: root, key: 'project.id', value: 'other')
+        expect(result).to be_err
+        expect(result.code).to eq(:unsupported_config_path)
+      end
+    end
+
+    it 'refuses writes that would invalidate config (atomic rollback)' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.write_key(root: root, key: 'settings.storage.backend', value: 's3')
+        expect(result).to be_err
+        expect(result.code).to eq(:config_validation_failed)
+
+        reread = described_class.read_key(root: root, key: 'settings.storage.backend')
+        expect(reread.value[:value]).to eq('filesystem')
+      end
+    end
+
+    it 'reports invalid JSON literal' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.write_key(root: root, key: 'settings.workflows.enabled', value: '[broken')
+        expect(result).to be_err
+        expect(result.code).to eq(:invalid_config_value)
+      end
+    end
+
+    it 'reports invalid key shape' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.write_key(root: root, key: 'settings..language', value: 'x')
+        expect(result).to be_err
+        expect(result.code).to eq(:invalid_config_key)
+      end
+    end
+
+    it 'propagates load errors as-is' do
+      with_tmp_project do |root|
+        result = described_class.write_key(root: root, key: 'settings.language.communication', value: 'ru')
+        expect(result).to be_err
+        expect(result.code).to eq(:config_missing)
+      end
+    end
+  end
+
+  describe '.snapshot' do
+    it 'returns settings, storage profile, project, schema_version' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.snapshot(root: root)
+        expect(result).to be_ok
+        snapshot = result.value
+        expect(snapshot[:schema_version]).to eq(1)
+        expect(snapshot[:project]['id']).to eq('sample')
+        expect(snapshot[:settings]['language']['communication']).to eq('en')
+        expect(snapshot[:storage][:active_profile]).to eq('default')
+        expect(snapshot[:storage][:roles_present]).to include('tasks', 'docs')
+      end
+    end
+
+    it 'propagates load errors as-is' do
+      with_tmp_project do |root|
+        result = described_class.snapshot(root: root)
+        expect(result).to be_err
+        expect(result.code).to eq(:config_missing)
+      end
+    end
   end
 end

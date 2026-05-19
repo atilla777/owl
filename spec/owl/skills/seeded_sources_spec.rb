@@ -58,12 +58,13 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
                        -> { "still seeding per-step commands: #{stale.inspect}" }
     end
 
-    it 'seeds exactly the universal owl-* skills (owl-cli, owl-step-run, owl-orchestrator)' do
+    it 'seeds exactly the universal owl-* skills (owl-cli, owl-step-run, owl-orchestrator, owl-init)' do
       skill_paths = paths.grep(%r{\A\.claude/skills/.+/SKILL\.md\z})
       expect(skill_paths).to contain_exactly(
         '.claude/skills/owl-orchestrator/SKILL.md',
         '.claude/skills/owl-cli/SKILL.md',
-        '.claude/skills/owl-step-run/SKILL.md'
+        '.claude/skills/owl-step-run/SKILL.md',
+        '.claude/skills/owl-init/SKILL.md'
       )
     end
 
@@ -73,6 +74,7 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
         '.claude/commands/owl-orchestrator.md',
         '.claude/commands/owl-cli.md',
         '.claude/commands/owl-step-run.md',
+        '.claude/commands/owl-init.md',
         '.claude/commands/owl-task-create.md',
         '.claude/commands/owl-task-status.md',
         '.claude/commands/owl-task-next.md'
@@ -242,6 +244,52 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
     it 'documents owl instructions as the skill-binding source' do
       message = 'owl-orchestrator SKILL.md should describe owl instructions as binding source'
       expect(skill_entry[:contents]).to include('owl instructions'), message
+    end
+  end
+
+  describe 'owl-init skill' do
+    let(:skill_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/skills/owl-init/SKILL.md' }
+    end
+    let(:slash_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/commands/owl-init.md' }
+    end
+
+    it 'materializes a SKILL.md and a slash-command file' do
+      expect(skill_entry).not_to be_nil, 'expected owl-init SKILL.md in seeded sources'
+      expect(slash_entry).not_to be_nil, 'expected owl-init slash-command in seeded sources'
+    end
+
+    it 'has frontmatter with name: owl-init, non-empty description, non-empty triggers' do
+      fm = YAML.safe_load(skill_entry[:contents].match(/\A---\n(.*?)\n---/m)[1])
+      expect(fm['name']).to eq('owl-init')
+      expect(fm['description']).to be_a(String)
+      expect(fm['description']).not_to be_empty
+      expect(fm['triggers']).to be_an(Array)
+      expect(fm['triggers']).not_to be_empty
+    end
+
+    it 'includes a Language Clause referencing constitution 5.16/5.17' do
+      expect(skill_entry[:contents]).to include('Language Clause')
+      expect(skill_entry[:contents]).to include('5.16')
+      expect(skill_entry[:contents]).to include('5.17')
+    end
+
+    it 'records each wizard answer through owl config set (CLI-only state writes)' do
+      contents = skill_entry[:contents]
+      expect(contents).to include('owl config set settings.language.communication')
+      expect(contents).to include('owl config set settings.language.artifacts')
+      expect(contents).to include('owl config set settings.language.docs')
+      expect(contents).to include('owl config set settings.storage.backend')
+      expect(contents).to include('owl config validate')
+    end
+
+    it 'forbids direct .owl/config.yaml writes in the slash command body' do
+      expect(slash_entry[:contents]).to include('never edit `.owl/config.yaml` directly')
+    end
+
+    it 'loads the skill from the slash-command body' do
+      expect(slash_entry[:contents]).to include('Load skill `owl-init`')
     end
   end
 end

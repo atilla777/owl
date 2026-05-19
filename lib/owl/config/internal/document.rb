@@ -9,6 +9,7 @@ module Owl
         :owl_section,
         :workflow,
         :storage,
+        :settings_section,
         :raw
       ) do
         def active_profile_name

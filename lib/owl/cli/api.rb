@@ -4,6 +4,9 @@ require_relative '../version'
 require_relative 'internal/commands/archive'
 require_relative 'internal/commands/artifact_resolve'
 require_relative 'internal/commands/artifact_validate'
+require_relative 'internal/commands/config_get'
+require_relative 'internal/commands/config_set'
+require_relative 'internal/commands/config_show'
 require_relative 'internal/commands/config_validate'
 require_relative 'internal/commands/init'
 require_relative 'internal/commands/instructions'
@@ -39,6 +42,9 @@ module Owl
         Commands:
           init                    Initialize a new Owl project layout in the target directory.
           workflow list           List declared workflows (JSON output).
+          config get              Get a value at a settings.* dot-path (JSON output).
+          config set              Set a value at a settings.* dot-path; validates before write.
+          config show             Print settings + storage roles snapshot (JSON output).
           config validate         Validate .owl/config.yaml (JSON output).
           task create             Create a new task from a registered workflow.
           task list               List tasks from tasks/index.yaml.
@@ -130,9 +136,12 @@ module Owl
 
       def dispatch_config(args, stdout:, stderr:, cwd:, env:)
         subcommand = args.shift
+        kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case subcommand
-        when 'validate'
-          Internal::Commands::ConfigValidate.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
+        when 'validate' then Internal::Commands::ConfigValidate.run(**kwargs)
+        when 'get'      then Internal::Commands::ConfigGet.run(**kwargs)
+        when 'set'      then Internal::Commands::ConfigSet.run(**kwargs)
+        when 'show'     then Internal::Commands::ConfigShow.run(**kwargs)
         else
           unknown_command(stderr, "config #{subcommand}".strip)
         end

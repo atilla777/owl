@@ -84,13 +84,14 @@ is short.
 
 ## Skill layering
 
-Three universal skills are seeded into `.claude/skills/` by `owl init`:
+Four universal skills are seeded into `.claude/skills/` by `owl init`:
 
-| Skill              | Layer        | Job                                              |
-| ------------------ | ------------ | ------------------------------------------------ |
-| `owl-cli`          | CLI wrapper  | Canonical interface to `bin/owl`.                |
-| `owl-step-run`     | Executor     | Runs any ready step from `owl step show` bundle. |
-| `owl-orchestrator` | Coordinator  | Picks the next ready step, delegates execution.  |
+| Skill              | Layer        | Job                                                                       |
+| ------------------ | ------------ | ------------------------------------------------------------------------- |
+| `owl-cli`          | CLI wrapper  | Canonical interface to `bin/owl`.                                         |
+| `owl-step-run`     | Executor     | Runs any ready step from `owl step show` bundle.                          |
+| `owl-orchestrator` | Coordinator  | Picks the next ready step, delegates execution.                           |
+| `owl-init`         | Bootstrap    | One-shot wizard that fills `.owl/config.yaml` `settings:` via Q&A + CLI.  |
 
 Three slash-commands (`owl-task-create`, `owl-task-status`, `owl-task-next`)
 sit next to the skills under `.claude/commands/`.
@@ -106,6 +107,12 @@ Use `bin/owl <subcommand> --json` for machine output. Common subcommands:
   workflows + per-step `.context.md`, seeded skills, starter artifact
   templates.
 - `owl workflow list --json` — list declared workflows.
+- `owl config get KEY [--json]` — read a value at a `settings.*` dot-path.
+- `owl config set KEY VALUE [--json]` — write a value at a `settings.*`
+  dot-path; the call validates the resulting config before writing and
+  rolls back on failure. JSON-array literals (`'["a","b"]'`) are accepted
+  for list values.
+- `owl config show [--json]` — full `settings:` + storage roles snapshot.
 - `owl config validate --json` — JSON Schema check for `.owl/config.yaml`.
 - `owl task create --workflow KEY --title "..." [--json]` /
   `owl task child create --parent ID --workflow KEY --title "..."` —

@@ -33,6 +33,7 @@ module Owl
             owl_section: stringified['owl'] || {},
             workflow: stringified['workflow'] || {},
             storage: stringified['storage'] || {},
+            settings_section: stringified['settings'] || {},
             raw: stringified
           )
           [:ok, document]

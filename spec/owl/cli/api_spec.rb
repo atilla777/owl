@@ -71,6 +71,14 @@ RSpec.describe Owl::Cli::Api do
         expect(JSON.parse(stderr).dig('error', 'code')).to eq('unknown_command')
       end
     end
+
+    it 'reports an unknown task child subcommand' do
+      with_tmp_project do |root|
+        exit_code, _stdout, stderr = run(%w[task child nope], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('unknown_command')
+      end
+    end
   end
 
   describe 'owl init' do
@@ -228,6 +236,187 @@ RSpec.describe Owl::Cli::Api do
         exit_code, _stdout, stderr = run(['config', 'validate', '--bogus'], cwd: root)
         expect(exit_code).to eq(1)
         expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+      end
+    end
+  end
+
+  describe 'owl config get' do
+    it 'returns ok: true with key/value for a settings.* dot-path' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, stdout, _stderr = run(['config', 'get', 'settings.language.communication', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body).to include('ok' => true, 'key' => 'settings.language.communication', 'value' => 'en')
+      end
+    end
+
+    it 'returns unsupported_config_path for non-settings keys' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(['config', 'get', 'project.id', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('unsupported_config_path')
+      end
+    end
+
+    it 'reports config_key_missing for unknown leaf' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(['config', 'get', 'settings.language.bogus', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('config_key_missing')
+      end
+    end
+
+    it 'reports invalid_arguments when KEY is omitted' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(['config', 'get', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+      end
+    end
+
+    it 'reports invalid option flags as a structured error' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(['config', 'get', '--bogus'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+      end
+    end
+
+    it 'reports project_root_not_found when no .owl/ is detectable' do
+      with_tmp_project do |root|
+        exit_code, _stdout, stderr = run(['config', 'get', 'settings.language.communication', '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('project_root_not_found')
+      end
+    end
+  end
+
+  describe 'owl config set' do
+    it 'persists a string value at a settings.* dot-path' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, stdout, _stderr = run(['config', 'set', 'settings.language.communication', 'ru', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body).to include('ok' => true, 'key' => 'settings.language.communication', 'value' => 'ru')
+
+        verify_code, verify_stdout, _stderr = run(['config', 'get', 'settings.language.communication', '--root', root.to_s, '--json'], cwd: root)
+        expect(verify_code).to eq(0)
+        expect(JSON.parse(verify_stdout)['value']).to eq('ru')
+      end
+    end
+
+    it 'persists a JSON-array value' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, stdout, _stderr = run(['config', 'set', 'settings.workflows.enabled', '["feature","bugfix"]', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        expect(JSON.parse(stdout)['value']).to eq(%w[feature bugfix])
+      end
+    end
+
+    it 'rejects writes that would invalidate config (atomic rollback)' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(['config', 'set', 'settings.storage.backend', 's3', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('config_validation_failed')
+
+        verify_code, verify_stdout, _stderr = run(['config', 'get', 'settings.storage.backend', '--root', root.to_s, '--json'], cwd: root)
+        expect(verify_code).to eq(0)
+        expect(JSON.parse(verify_stdout)['value']).to eq('filesystem')
+      end
+    end
+
+    it 'rejects non-settings paths' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(['config', 'set', 'project.id', 'other', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('unsupported_config_path')
+      end
+    end
+
+    it 'reports invalid JSON literal' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(['config', 'set', 'settings.workflows.enabled', '[broken', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_config_value')
+      end
+    end
+
+    it 'reports invalid_arguments when KEY or VALUE is omitted' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(['config', 'set', 'settings.language.communication', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+      end
+    end
+
+    it 'reports invalid option flags as a structured error' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(['config', 'set', '--bogus'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+      end
+    end
+
+    it 'reports project_root_not_found when no .owl/ is detectable' do
+      with_tmp_project do |root|
+        exit_code, _stdout, stderr = run(['config', 'set', 'settings.language.communication', 'ru', '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('project_root_not_found')
+      end
+    end
+  end
+
+  describe 'owl config show' do
+    it 'returns a JSON snapshot with settings and storage info' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, stdout, _stderr = run(['config', 'show', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body['ok']).to be(true)
+        expect(body['schema_version']).to eq(1)
+        expect(body.dig('settings', 'language', 'communication')).to eq('en')
+        expect(body.dig('settings', 'storage', 'backend')).to eq('filesystem')
+        expect(body.dig('storage', 'active_profile')).to eq('default')
+        expect(body.dig('storage', 'roles_present')).to include('tasks', 'docs')
+      end
+    end
+
+    it 'reports config_missing when there is no config file' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/.keep", '')
+        exit_code, _stdout, stderr = run(['config', 'show', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('config_missing')
+      end
+    end
+
+    it 'reports invalid option flags as a structured error' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(['config', 'show', '--bogus'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+      end
+    end
+
+    it 'reports project_root_not_found when no .owl/ is detectable' do
+      with_tmp_project do |root|
+        exit_code, _stdout, stderr = run(['config', 'show', '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('project_root_not_found')
       end
     end
   end

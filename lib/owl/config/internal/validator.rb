@@ -44,6 +44,103 @@ module Owl
             errors.concat(validate_profile(profile, active_profile_name))
           end
 
+          errors.concat(validate_settings(document.settings_section))
+
+          errors
+        end
+
+        SUPPORTED_STORAGE_BACKENDS = %w[filesystem].freeze
+        SETTINGS_LANGUAGE_OPTIONAL_KEYS = %w[artifacts docs].freeze
+
+        def validate_settings(settings)
+          return [] if settings.nil? || (settings.is_a?(Hash) && settings.empty?)
+
+          unless settings.is_a?(Hash)
+            return [{
+              code: :invalid_settings_shape,
+              message: 'settings must be a mapping when present'
+            }]
+          end
+
+          errors = []
+          errors.concat(validate_settings_language(settings['language']))
+          errors.concat(validate_settings_storage(settings['storage']))
+          errors
+        end
+
+        def validate_settings_language(language)
+          return [] if language.nil?
+
+          unless language.is_a?(Hash)
+            return [{
+              code: :invalid_settings_language_shape,
+              message: 'settings.language must be a mapping'
+            }]
+          end
+
+          errors = []
+          comm = language['communication']
+          if comm.nil? || !comm.is_a?(String) || comm.strip.empty?
+            errors << {
+              code: :missing_settings_language_communication,
+              message: 'settings.language.communication is required and must be a non-empty string'
+            }
+          end
+
+          SETTINGS_LANGUAGE_OPTIONAL_KEYS.each do |key|
+            value = language[key]
+            next if value.nil?
+
+            unless value.is_a?(String) && !value.strip.empty?
+              errors << {
+                code: :invalid_settings_language_value,
+                message: "settings.language.#{key} must be a non-empty string when present",
+                details: { key: key }
+              }
+            end
+          end
+
+          errors
+        end
+
+        def validate_settings_storage(storage)
+          return [] if storage.nil?
+
+          unless storage.is_a?(Hash)
+            return [{
+              code: :invalid_settings_storage_shape,
+              message: 'settings.storage must be a mapping'
+            }]
+          end
+
+          errors = []
+          backend = storage['backend']
+          if !backend.nil? && !SUPPORTED_STORAGE_BACKENDS.include?(backend)
+            errors << {
+              code: :unsupported_settings_storage_backend,
+              message: "settings.storage.backend '#{backend}' is not supported; supported: #{SUPPORTED_STORAGE_BACKENDS.join(', ')}",
+              details: { backend: backend, supported: SUPPORTED_STORAGE_BACKENDS }
+            }
+          end
+
+          roles = storage['roles']
+          if roles && !roles.is_a?(Hash)
+            errors << {
+              code: :invalid_settings_storage_roles_shape,
+              message: 'settings.storage.roles must be a mapping'
+            }
+          elsif roles.is_a?(Hash)
+            roles.each do |role_name, path|
+              unless path.is_a?(String) && !path.strip.empty?
+                errors << {
+                  code: :invalid_settings_storage_role_path,
+                  message: "settings.storage.roles.#{role_name} must be a non-empty string",
+                  details: { role: role_name }
+                }
+              end
+            end
+          end
+
           errors
         end
 

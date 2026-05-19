@@ -56,6 +56,21 @@ RSpec.describe 'owl init — Owl::Skills integration' do
     end
   end
 
+  it 'materializes the owl-init skill + slash-command in .claude/' do
+    with_tmp_project do |root|
+      exit_code, _stdout, _stderr = run(['init', '--root', root.to_s], cwd: root)
+      expect(exit_code).to eq(0)
+
+      skill_md = root + '.claude/skills/owl-init/SKILL.md'
+      slash    = root + '.claude/commands/owl-init.md'
+      expect(skill_md.exist?).to be(true)
+      expect(slash.exist?).to be(true)
+      expect(skill_md.read).to include('## Workflow')
+      expect(skill_md.read).to include('owl config set settings.language.communication')
+      expect(skill_md.read).to include('## Language Clause')
+    end
+  end
+
   it 'materializes only the universal owl-* skills (no per-step owl-step-<id> skills)' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
@@ -64,7 +79,8 @@ RSpec.describe 'owl init — Owl::Skills integration' do
       expect(step_skill_files.map { |f| File.basename(File.dirname(f)) }).to contain_exactly(
         'owl-cli',
         'owl-step-run',
-        'owl-orchestrator'
+        'owl-orchestrator',
+        'owl-init'
       )
     end
   end
@@ -81,7 +97,7 @@ RSpec.describe 'owl init — Owl::Skills integration' do
     end
   end
 
-  it 'materializes the six universal owl-* slash-commands (3 skills + 3 owl-task-*)' do
+  it 'materializes the seven universal owl-* slash-commands (4 skills + 3 owl-task-*)' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
 
@@ -90,6 +106,7 @@ RSpec.describe 'owl init — Owl::Skills integration' do
         'owl-orchestrator',
         'owl-cli',
         'owl-step-run',
+        'owl-init',
         'owl-task-create',
         'owl-task-status',
         'owl-task-next'

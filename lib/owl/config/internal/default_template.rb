@@ -46,6 +46,21 @@ module Owl
 
                     docs:
                       path: "{{project.root}}/docs"
+
+            settings:
+              language:
+                communication: en
+
+              storage:
+                backend: filesystem
+
+                roles:
+                  tasks: "{{project.root}}/tasks"
+                  docs: "{{project.root}}/docs"
+                  archive: "{{project.root}}/tasks/archive"
+
+              workflows:
+                enabled: []
           YAML
         end
       end
