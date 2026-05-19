@@ -6,7 +6,7 @@ artifact. Escalate to the user only on real blockers.
 
 ## When to use
 
-After `implement` in the `feature` and `feature_slice` workflows.
+After `implement` in the `feature` workflow.
 
 ## Inputs
 

@@ -107,9 +107,9 @@ RSpec.describe 'owl init — Owl::Skills integration' do
 
       context_files = Dir[(root + '.owl/workflows/**/*.context.md').to_s]
       expect(context_files).not_to be_empty
-      # 6 workflows: feature(8) + composite_feature(8) + feature_slice(3)
-      #            + hotfix(6) + research(4) + refactor(4) = 33 step contexts.
-      expect(context_files.size).to eq(33)
+      # 5 workflows: feature(8) + composite_feature(6)
+      #            + hotfix(6) + research(4) + refactor(4) = 28 step contexts.
+      expect(context_files.size).to eq(28)
     end
   end
 

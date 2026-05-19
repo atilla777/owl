@@ -21,14 +21,37 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
         composite_feature:
           enabled: true
           source: "workflows/composite_feature/workflow.yaml"
-        feature_slice:
+        feature:
           enabled: true
-          source: "workflows/feature_slice/workflow.yaml"
+          source: "workflows/feature/workflow.yaml"
     YAML
-    write("#{root}/.owl/workflows/composite_feature/workflow.yaml",
-          "id: composite_feature\nkind: composite_task\nsteps:\n  - id: only\nartifacts: []\n")
-    write("#{root}/.owl/workflows/feature_slice/workflow.yaml",
-          "id: feature_slice\nkind: task\nsteps:\n  - id: do\nartifacts: []\n")
+    write("#{root}/.owl/workflows/composite_feature/workflow.yaml", <<~YAML)
+      id: composite_feature
+      kind: composite_task
+      artifacts:
+        brief:
+          type: brief
+          storage:
+            role: tasks
+            path: "{{task.id}}/brief.md"
+      steps:
+        - id: only
+    YAML
+    write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+      id: feature
+      kind: task
+      artifacts:
+        brief:
+          type: brief
+          storage:
+            role: tasks
+            path: "{{task.id}}/brief.md"
+      steps:
+        - id: brief
+          creates: [brief]
+        - id: do
+          requires: [brief]
+    YAML
   end
 
   describe '--help' do
@@ -51,7 +74,7 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
         init_with_workflows(root)
         run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
         run(
-          ['task', 'create', '--workflow', 'feature_slice', '--title', 'C', '--parent', 'TASK-0001', '--root',
+          ['task', 'create', '--workflow', 'feature', '--title', 'C', '--parent', 'TASK-0001', '--root',
            root.to_s], cwd: root
         )
 
@@ -71,7 +94,7 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
         init_with_workflows(root)
         run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
         run(
-          ['task', 'create', '--workflow', 'feature_slice', '--title', 'C', '--parent', 'TASK-0001', '--root',
+          ['task', 'create', '--workflow', 'feature', '--title', 'C', '--parent', 'TASK-0001', '--root',
            root.to_s], cwd: root
         )
 
@@ -98,7 +121,7 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
         init_with_workflows(root)
         run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
         run(
-          ['task', 'create', '--workflow', 'feature_slice', '--title', 'C', '--parent', 'TASK-0001', '--root',
+          ['task', 'create', '--workflow', 'feature', '--title', 'C', '--parent', 'TASK-0001', '--root',
            root.to_s], cwd: root
         )
 
@@ -125,7 +148,7 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
         init_with_workflows(root)
         run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
         run(
-          ['task', 'create', '--workflow', 'feature_slice', '--title', 'C', '--parent', 'TASK-0001', '--root',
+          ['task', 'create', '--workflow', 'feature', '--title', 'C', '--parent', 'TASK-0001', '--root',
            root.to_s], cwd: root
         )
 
@@ -138,7 +161,7 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
     it 'fails for non-composite tasks' do
       with_tmp_project do |root|
         init_with_workflows(root)
-        run(['task', 'create', '--workflow', 'feature_slice', '--title', 'plain', '--root', root.to_s], cwd: root)
+        run(['task', 'create', '--workflow', 'feature', '--title', 'plain', '--root', root.to_s], cwd: root)
         exit_code, _stdout, stderr = run(['task', 'aggregate-status', 'TASK-0001', '--root', root.to_s], cwd: root)
         expect(exit_code).to eq(1)
         expect(JSON.parse(stderr).dig('error', 'code')).to eq('not_a_composite_task')
@@ -153,7 +176,7 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
         run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
 
         exit_code, stdout, = run(
-          ['task', 'child', 'create', 'TASK-0001', '--workflow', 'feature_slice', '--title', 'C', '--root', root.to_s,
+          ['task', 'child', 'create', 'TASK-0001', '--workflow', 'feature', '--title', 'C', '--root', root.to_s,
            '--json'],
           cwd: root
         )
@@ -167,14 +190,48 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
     it 'rejects parent that is not composite' do
       with_tmp_project do |root|
         init_with_workflows(root)
-        run(['task', 'create', '--workflow', 'feature_slice', '--title', 'plain', '--root', root.to_s], cwd: root)
+        run(['task', 'create', '--workflow', 'feature', '--title', 'plain', '--root', root.to_s], cwd: root)
 
         exit_code, _stdout, stderr = run(
-          ['task', 'child', 'create', 'TASK-0001', '--workflow', 'feature_slice', '--title', 'C', '--root', root.to_s],
+          ['task', 'child', 'create', 'TASK-0001', '--workflow', 'feature', '--title', 'C', '--root', root.to_s],
           cwd: root
         )
         expect(exit_code).to eq(1)
         expect(JSON.parse(stderr).dig('error', 'code')).to eq('parent_not_composite')
+      end
+    end
+
+    it 'seeds child brief.md and marks brief step done when --brief PATH is provided' do
+      with_tmp_project do |root|
+        init_with_workflows(root)
+        run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+        brief_file = root + 'child-brief.md'
+        brief_file.write("# Child brief\n\nFrom parent decompose.\n")
+
+        exit_code, stdout, = run(
+          ['task', 'child', 'create', 'TASK-0001', '--workflow', 'feature', '--title', 'C',
+           '--brief', brief_file.to_s, '--root', root.to_s, '--json'],
+          cwd: root
+        )
+        expect(exit_code).to eq(0)
+        child_id = JSON.parse(stdout).dig('task', 'id')
+        expect((root + "tasks/#{child_id}/brief.md").read).to include('From parent decompose')
+      end
+    end
+
+    it 'reports brief_file_missing when --brief points to a missing file' do
+      with_tmp_project do |root|
+        init_with_workflows(root)
+        run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+        exit_code, _stdout, stderr = run(
+          ['task', 'child', 'create', 'TASK-0001', '--workflow', 'feature', '--title', 'C',
+           '--brief', (root + 'missing.md').to_s, '--root', root.to_s],
+          cwd: root
+        )
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('brief_file_missing')
       end
     end
   end
@@ -183,7 +240,7 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
     it 'flips a task into composite_task' do
       with_tmp_project do |root|
         init_with_workflows(root)
-        run(['task', 'create', '--workflow', 'feature_slice', '--title', 'T', '--root', root.to_s], cwd: root)
+        run(['task', 'create', '--workflow', 'feature', '--title', 'T', '--root', root.to_s], cwd: root)
 
         exit_code, stdout, = run(['task', 'split', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
         expect(exit_code).to eq(0)

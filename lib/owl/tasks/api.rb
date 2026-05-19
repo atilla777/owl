@@ -57,11 +57,12 @@ module Owl
         resolve_backend(root: root).aggregate_status(task_id: task_id)
       end
 
-      def child_create(root:, parent_id:, workflow:, title:)
+      def child_create(root:, parent_id:, workflow:, title:, brief_body: nil)
         resolve_backend(root: root).child_create(
           parent_id: parent_id,
           workflow: workflow,
-          title: title
+          title: title,
+          brief_body: brief_body
         )
       end
 

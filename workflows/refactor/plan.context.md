@@ -5,7 +5,7 @@ Break the spec (and optional design) into an ordered tasks checklist so `apply` 
 
 ## When to use
 
-After `specify` (and optional `design`) in `feature` / `feature_slice` /
+After `specify` (and optional `design`) in `feature` /
 `refactor` workflows.
 
 ## Inputs

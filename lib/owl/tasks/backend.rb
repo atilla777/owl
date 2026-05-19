@@ -55,7 +55,7 @@ module Owl
         raise NotImplementedError
       end
 
-      def child_create(parent_id:, workflow:, title:)
+      def child_create(parent_id:, workflow:, title:, brief_body: nil)
         raise NotImplementedError
       end
 

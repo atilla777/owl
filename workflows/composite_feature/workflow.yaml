@@ -1,7 +1,7 @@
 id: composite_feature
 kind: composite_task
 title: Composite feature
-description: Workflow for a large feature that decomposes into child tasks.
+description: Workflow for a large feature decomposed into child tasks.
 execution_mode: autonomous_after_brief
 
 artifacts:
@@ -21,15 +21,11 @@ artifacts:
     storage:
       role: tasks
       path: "{{task.id}}/decomposition.md"
-  verification:
-    type: verification
+  review:
+    type: review
     storage:
       role: tasks
-      path: "{{task.id}}/verification.md"
-
-publishes:
-  - from: "{{task.id}}/design.md"
-    to: "{{task.id}}/design.md"
+      path: "{{task.id}}/review.md"
 
 steps:
   - id: brief
@@ -49,23 +45,15 @@ steps:
     interactive: true
     requires: [brief]
     creates: [decomposition]
-  - id: coordinate
+  - id: review
     skill: owl-step-run
-    context_file: coordinate.context.md
+    context_file: review.context.md
     requires: [decompose]
-  - id: aggregate_verify
-    skill: owl-step-run
-    context_file: aggregate_verify.context.md
-    requires: [coordinate]
-    creates: [verification]
-  - id: merge_docs
-    skill: owl-step-run
-    context_file: merge_docs.context.md
-    requires: [aggregate_verify]
+    creates: [review]
   - id: archive
     skill: owl-step-run
     context_file: archive.context.md
-    requires: [merge_docs]
+    requires: [review]
   - id: commit_push
     skill: owl-step-run
     context_file: commit_push.context.md

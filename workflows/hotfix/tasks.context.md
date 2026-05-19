@@ -18,5 +18,5 @@ In `hotfix` workflow after `patch_plan`.
 
 ## Notes
 
-Do not confuse with the `plan` step in feature/feature_slice/refactor workflows;
+Do not confuse with the `plan` step in feature/refactor workflows;
 both create a `tasks` artifact but live in different workflows.

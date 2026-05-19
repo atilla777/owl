@@ -26,9 +26,9 @@ RSpec.describe 'Owl::Steps::Api.invocation composite-aware blocks' do
         composite_feature:
           enabled: true
           source: "workflows/composite_feature/workflow.yaml"
-        feature_slice:
+        feature:
           enabled: true
-          source: "workflows/feature_slice/workflow.yaml"
+          source: "workflows/feature/workflow.yaml"
     YAML
   end
 
@@ -56,8 +56,8 @@ RSpec.describe 'Owl::Steps::Api.invocation composite-aware blocks' do
   end
 
   def write_slice_workflow(root)
-    write("#{root}/.owl/workflows/feature_slice/workflow.yaml", <<~YAML)
-      id: feature_slice
+    write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+      id: feature
       kind: task
       artifacts:
         verification:
@@ -88,7 +88,7 @@ RSpec.describe 'Owl::Steps::Api.invocation composite-aware blocks' do
       init_with_composite_workflow(root)
       run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
       run(
-        ['task', 'create', '--workflow', 'feature_slice', '--title', 'C', '--parent', 'TASK-0001', '--root',
+        ['task', 'create', '--workflow', 'feature', '--title', 'C', '--parent', 'TASK-0001', '--root',
          root.to_s], cwd: root
       )
       # Mark decompose done so coordinate becomes ready.
@@ -107,7 +107,7 @@ RSpec.describe 'Owl::Steps::Api.invocation composite-aware blocks' do
       init_with_composite_workflow(root)
       run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
       run(
-        ['task', 'create', '--workflow', 'feature_slice', '--title', 'C', '--parent', 'TASK-0001', '--root',
+        ['task', 'create', '--workflow', 'feature', '--title', 'C', '--parent', 'TASK-0001', '--root',
          root.to_s], cwd: root
       )
       verification_path = root + 'tasks/TASK-0002/verification.md'

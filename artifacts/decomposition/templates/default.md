@@ -1,13 +1,15 @@
 # Decomposition
 
-## Цель
+## Goal
 
-TODO
+TODO — restate the composite's goal in one paragraph.
 
-## Дочерние задачи
+## Children
 
-- TODO
+- TODO — one bullet per child slice: title + scope + the path to its
+  pre-authored brief (e.g. `tasks/<PARENT-ID>/.briefs/<slug>.md`).
 
-## Порядок исполнения
+## Order
 
-1. TODO
+1. TODO — execution order across children (parallel is fine; note
+  any inter-child handoff).

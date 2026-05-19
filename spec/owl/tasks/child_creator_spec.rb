@@ -21,14 +21,37 @@ RSpec.describe 'Owl::Tasks::Api.child_create' do
         composite_feature:
           enabled: true
           source: "workflows/composite_feature/workflow.yaml"
-        feature_slice:
+        feature:
           enabled: true
-          source: "workflows/feature_slice/workflow.yaml"
+          source: "workflows/feature/workflow.yaml"
     YAML
-    write("#{root}/.owl/workflows/composite_feature/workflow.yaml",
-          "id: composite_feature\nkind: composite_task\nsteps:\n  - id: only\nartifacts: []\n")
-    write("#{root}/.owl/workflows/feature_slice/workflow.yaml",
-          "id: feature_slice\nkind: task\nsteps:\n  - id: do\nartifacts: []\n")
+    write("#{root}/.owl/workflows/composite_feature/workflow.yaml", <<~YAML)
+      id: composite_feature
+      kind: composite_task
+      artifacts:
+        brief:
+          type: brief
+          storage:
+            role: tasks
+            path: "{{task.id}}/brief.md"
+      steps:
+        - id: only
+    YAML
+    write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+      id: feature
+      kind: task
+      artifacts:
+        brief:
+          type: brief
+          storage:
+            role: tasks
+            path: "{{task.id}}/brief.md"
+      steps:
+        - id: brief
+          creates: [brief]
+        - id: do
+          requires: [brief]
+    YAML
   end
 
   it 'creates a child task under a composite parent' do
@@ -36,7 +59,7 @@ RSpec.describe 'Owl::Tasks::Api.child_create' do
       init_with_workflows(root)
       run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
 
-      result = Owl::Tasks::Api.child_create(root: root, parent_id: 'TASK-0001', workflow: 'feature_slice', title: 'C')
+      result = Owl::Tasks::Api.child_create(root: root, parent_id: 'TASK-0001', workflow: 'feature', title: 'C')
       expect(result.ok?).to be(true)
       expect(result.value[:task_id]).to eq('TASK-0002')
       expect(result.value[:payload]['parent_id']).to eq('TASK-0001')
@@ -46,9 +69,9 @@ RSpec.describe 'Owl::Tasks::Api.child_create' do
   it 'refuses when parent is not a composite_task' do
     with_tmp_project do |root|
       init_with_workflows(root)
-      run(['task', 'create', '--workflow', 'feature_slice', '--title', 'plain', '--root', root.to_s], cwd: root)
+      run(['task', 'create', '--workflow', 'feature', '--title', 'plain', '--root', root.to_s], cwd: root)
 
-      result = Owl::Tasks::Api.child_create(root: root, parent_id: 'TASK-0001', workflow: 'feature_slice', title: 'C')
+      result = Owl::Tasks::Api.child_create(root: root, parent_id: 'TASK-0001', workflow: 'feature', title: 'C')
       expect(result.err?).to be(true)
       expect(result.code).to eq(:parent_not_composite)
     end
@@ -57,7 +80,7 @@ RSpec.describe 'Owl::Tasks::Api.child_create' do
   it 'refuses when parent does not exist' do
     with_tmp_project do |root|
       init_with_workflows(root)
-      result = Owl::Tasks::Api.child_create(root: root, parent_id: 'TASK-9999', workflow: 'feature_slice', title: 'C')
+      result = Owl::Tasks::Api.child_create(root: root, parent_id: 'TASK-9999', workflow: 'feature', title: 'C')
       expect(result.err?).to be(true)
       expect(result.code).to eq(:task_not_found)
     end
@@ -71,15 +94,54 @@ RSpec.describe 'Owl::Tasks::Api.child_create' do
         ['task', 'create', '--workflow', 'composite_feature', '--title', 'B', '--parent', 'TASK-0001', '--root',
          root.to_s], cwd: root
       )
-      # Break the index by pointing TASK-0001.parent_id → TASK-0002 (cycle).
       a_path = root + 'tasks/TASK-0001/task.yaml'
       a_payload = YAML.safe_load(a_path.read, aliases: false, permitted_classes: [Time])
       a_payload['parent_id'] = 'TASK-0002'
       a_path.write(YAML.dump(a_payload))
 
-      result = Owl::Tasks::Api.child_create(root: root, parent_id: 'TASK-0002', workflow: 'feature_slice', title: 'C')
+      result = Owl::Tasks::Api.child_create(root: root, parent_id: 'TASK-0002', workflow: 'feature', title: 'C')
       expect(result.err?).to be(true)
       expect(result.code).to eq(:parent_chain_cycle)
+    end
+  end
+
+  it 'seeds the child brief.md and marks the brief step done when brief_body is given' do
+    with_tmp_project do |root|
+      init_with_workflows(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+      body = "# Child brief\n\nAuthored by parent decompose.\n"
+      result = Owl::Tasks::Api.child_create(
+        root: root, parent_id: 'TASK-0001', workflow: 'feature', title: 'C', brief_body: body
+      )
+      expect(result.ok?).to be(true)
+
+      child_id = result.value[:task_id]
+      brief_path = root + "tasks/#{child_id}/brief.md"
+      expect(brief_path.exist?).to be(true)
+      expect(brief_path.read).to eq(body)
+
+      payload = YAML.safe_load((root + "tasks/#{child_id}/task.yaml").read, aliases: false, permitted_classes: [Time])
+      brief_step = payload['steps'].find { |s| s['id'] == 'brief' }
+      expect(brief_step['status']).to eq('done')
+    end
+  end
+
+  it 'leaves brief step pending when no brief_body provided' do
+    with_tmp_project do |root|
+      init_with_workflows(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+      result = Owl::Tasks::Api.child_create(root: root, parent_id: 'TASK-0001', workflow: 'feature', title: 'C')
+      expect(result.ok?).to be(true)
+
+      child_id = result.value[:task_id]
+      brief_path = root + "tasks/#{child_id}/brief.md"
+      expect(brief_path.exist?).to be(false)
+
+      payload = YAML.safe_load((root + "tasks/#{child_id}/task.yaml").read, aliases: false, permitted_classes: [Time])
+      brief_step = payload['steps'].find { |s| s['id'] == 'brief' }
+      expect(brief_step['status']).to eq('pending')
     end
   end
 end

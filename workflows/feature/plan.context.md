@@ -6,8 +6,7 @@ without re-deciding.
 
 ## When to use
 
-After `brief` (and optional `design`) in the `feature` and
-`feature_slice` workflows.
+After `brief` (and optional `design`) in the `feature` workflow.
 
 ## Inputs
 

@@ -1,9 +1,12 @@
 # Purpose
 
-Produce a parent-level `design` with `Context / Decision / Alternatives
-/ Risks / API` covering the cross-cutting choices that every child of
-this composite must respect. The API section is the public surface
-that publishes to `docs/` once the design ships.
+Produce the parent-level `design` with
+`Context / Decision / Alternatives / Risks / API` covering the
+cross-cutting choices that every child of this composite must respect.
+This document is a working artifact that informs decomposition — it
+does **not** publish to `docs/`. Each child republishes its own slice
+of architecture from its own `design` via the child's `merge_docs`
+step.
 
 ## When to use
 
@@ -20,13 +23,11 @@ just a fan-out with no cross-cutting decision.
 ## Outputs
 
 - `design` artifact at `tasks/<TASK-ID>/design.md` with front matter
-  `status: approved`.
+  `status: approved`. Archived with the parent task — no `docs/`
+  publication from this step.
 
 ## Mode
 
 Interactive. Children inherit this design's API contract — be precise
-about it. Questions follow the Owl skill conventions (numbered options).
-
-## Notes
-
-Skipping turns the `merge_docs` step into a no-op for this composite.
+about it. Questions follow the Owl skill conventions (numbered
+options).

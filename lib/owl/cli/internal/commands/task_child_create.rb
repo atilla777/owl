@@ -27,11 +27,15 @@ module Owl
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
 
+            brief_body = load_brief_body(options[:brief_path], stderr)
+            return brief_body if brief_body.is_a?(Integer)
+
             result = Owl::Tasks::Api.child_create(
               root: root,
               parent_id: parent_id,
               workflow: options[:workflow],
-              title: options[:title]
+              title: options[:title],
+              brief_body: brief_body
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
@@ -45,12 +49,29 @@ module Owl
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end
 
+          def load_brief_body(path, stderr)
+            return nil if path.nil?
+
+            unless File.exist?(path)
+              return JsonPrinter.failure(
+                stderr,
+                code: :brief_file_missing,
+                message: "--brief file not found: #{path}"
+              )
+            end
+            File.read(path)
+          end
+
           def parse_options(argv)
-            options = { root: nil, workflow: nil, title: nil }
+            options = { root: nil, workflow: nil, title: nil, brief_path: nil }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl task child create TASK-ID --workflow KEY --title TITLE [--root PATH] [--json]'
+              opts.banner = 'Usage: owl task child create TASK-ID --workflow KEY --title TITLE ' \
+                            '[--brief PATH] [--root PATH] [--json]'
               opts.on('--workflow KEY', String) { |v| options[:workflow] = v }
               opts.on('--title TITLE', String) { |v| options[:title] = v }
+              opts.on('--brief PATH', String, 'Pre-author child brief.md from PATH; marks brief step done') do |v|
+                options[:brief_path] = v
+              end
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

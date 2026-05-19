@@ -1,30 +1,31 @@
 # Purpose
 
-Move `tasks/<TASK-ID>/` (parent + every ready child) into
-`tasks/archive/<date>-<TASK-ID>-<slug>/`, update `tasks/index.yaml`,
-and set every archived task's status to `archived`. Runs *before*
-`commit_push` so the archived files land in the same commit.
+Move `tasks/<PARENT-ID>/` into
+`tasks/archive/<date>-<PARENT-ID>-<slug>/`, update `tasks/index.yaml`,
+and set the parent's status to `archived`. Runs *before* `commit_push`
+so the archive move lands in the same commit.
 
 ## When to use
 
-After `merge_docs` in the `composite_feature` workflow.
+After `review` in the `composite_feature` workflow.
 
 ## Inputs
 
-- Completed parent + every child task with every required step in
-  `done` or `skipped`.
+- Parent task with `brief / design (or skipped) / decomposition /
+  review` all in `done` or `skipped`.
 
 ## Outputs
 
-- Each `tasks/<ID>/` moved to `tasks/archive/<date>-<ID>-<slug>/`.
-- Every `task.yaml` status set to `archived`.
+- `tasks/<PARENT-ID>/` moved to
+  `tasks/archive/<date>-<PARENT-ID>-<slug>/`.
+- `task.yaml` status set to `archived`.
 - `tasks/index.yaml` updated.
 
 ## Mode
 
-Autonomous. Drive this step with `owl archive TASK-ID --json` on the
-parent — Owl archives the parent and all ready children atomically. If
-any child is not ready, the command returns
-`composite_with_unready_children` and lists the missing steps. Closing
-this step (`owl step complete TASK-ID archive`) is a separate signal
-from running `owl archive`.
+Autonomous. Drive this step with `owl archive PARENT-ID --json`.
+**Parent archive is a solo operation** — it does not touch child task
+directories. Each child archives itself when its own `feature`
+workflow reaches its `archive` step. Closing this step
+(`owl step complete PARENT-ID archive`) is a separate signal from
+running `owl archive`.

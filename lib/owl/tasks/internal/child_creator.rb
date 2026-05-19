@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
+require 'pathname'
+
 require_relative '../../result'
+require_relative '../../artifacts/api'
+require_relative '../../steps/internal/status_writer'
+require_relative '../../storage/api'
 require_relative 'paths'
 require_relative 'task_reader'
 
@@ -10,10 +15,12 @@ module Owl
       module ChildCreator
         COMPOSITE_KIND = 'composite_task'
         MAX_PARENT_CHAIN = 32
+        BRIEF_STEP_ID = 'brief'
+        BRIEF_ARTIFACT_KEY = 'brief'
 
         module_function
 
-        def call(root:, parent_id:, workflow:, title:, creator:)
+        def call(root:, parent_id:, workflow:, title:, creator:, brief_body: nil)
           paths_result = Paths.resolve(root: root)
           return paths_result if paths_result.err?
 
@@ -24,11 +31,43 @@ module Owl
           chain_check = walk_parent_chain(tasks_root: tasks_root, start_id: parent_id)
           return chain_check if chain_check.is_a?(Result::Err)
 
-          creator.call(
+          create_result = creator.call(
             root: root,
             workflow: workflow,
             title: title,
             parent_id: parent_id.to_s
+          )
+          return create_result if create_result.err?
+
+          return create_result if brief_body.nil?
+
+          seed_result = seed_brief(
+            root: root,
+            tasks_root: tasks_root,
+            task_id: create_result.value[:task_id],
+            brief_body: brief_body
+          )
+          return seed_result if seed_result.is_a?(Result::Err)
+
+          create_result
+        end
+
+        def seed_brief(root:, tasks_root:, task_id:, brief_body:)
+          descriptor = Owl::Artifacts::Api.resolve(
+            root: root, task_id: task_id, artifact_key: BRIEF_ARTIFACT_KEY
+          )
+          return descriptor if descriptor.err?
+
+          path = Pathname.new(descriptor.value[:path])
+          path.dirname.mkpath
+          write_result = Owl::Storage::Api.write(path: path, contents: brief_body.to_s)
+          return write_result if write_result.err?
+
+          Owl::Steps::Internal::StatusWriter.update(
+            tasks_root: tasks_root,
+            task_id: task_id,
+            step_id: BRIEF_STEP_ID,
+            attributes: { 'status' => 'done' }
           )
         end
 

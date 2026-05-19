@@ -25,11 +25,6 @@ module Owl
                 version: "1.0"
                 title: Composite feature
                 source: "workflows/composite_feature/workflow.yaml"
-              feature_slice:
-                enabled: true
-                version: "1.0"
-                title: Feature slice
-                source: "workflows/feature_slice/workflow.yaml"
               hotfix:
                 enabled: true
                 version: "1.0"

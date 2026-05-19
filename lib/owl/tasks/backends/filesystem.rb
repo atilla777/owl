@@ -158,13 +158,14 @@ module Owl
           )
         end
 
-        def child_create(parent_id:, workflow:, title:)
+        def child_create(parent_id:, workflow:, title:, brief_body: nil)
           Internal::ChildCreator.call(
             root: @root,
             parent_id: parent_id,
             workflow: workflow,
             title: title,
-            creator: method(:create_via_self)
+            creator: method(:create_via_self),
+            brief_body: brief_body
           )
         end
 

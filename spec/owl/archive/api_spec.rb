@@ -224,7 +224,7 @@ RSpec.describe Owl::Archive::Api do
       end
     end
 
-    it 'refuses composite_task archive when children are not ready (unready, not ready_steps)' do
+    it 'archives a composite_task independently of its children (leaves them in active tasks/)' do
       with_tmp_project do |root|
         parent_id = setup_project(root, title: 'parent')
         # Mark parent as composite_task in task.yaml.
@@ -238,16 +238,16 @@ RSpec.describe Owl::Archive::Api do
                               '--parent', parent_id, '--root', root.to_s, '--json'], cwd: root)
         child_id = JSON.parse(stdout).dig('task', 'id')
 
-        # Rebuild the index to surface parent_id + (nil) status.
         run_cli(['task', 'index', 'rebuild', '--root', root.to_s, '--json'], cwd: root)
 
         mark_all_done(root, parent_id, %w[specify verify publish])
 
         result = described_class.archive_task(root: root, task_id: parent_id, now: now)
-        expect(result).to be_err
-        expect(result.code).to eq(:composite_with_unready_children)
-        unready_ids = result.details[:unready_children].map { |entry| entry[:id] }
-        expect(unready_ids).to include(child_id)
+        expect(result).to be_ok
+
+        # Parent dir moved to archive, child dir stays active.
+        expect((Pathname.new(root) + 'tasks' + parent_id).exist?).to be(false)
+        expect((Pathname.new(root) + 'tasks' + child_id).directory?).to be(true)
       end
     end
 

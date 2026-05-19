@@ -5,7 +5,7 @@ code, run local checks, keep changes scoped to this task.
 
 ## When to use
 
-After `plan` in `feature` / `feature_slice` / `hotfix` / `refactor` workflows.
+After `plan` in `feature` / `hotfix` / `refactor` workflows.
 
 ## Inputs
 

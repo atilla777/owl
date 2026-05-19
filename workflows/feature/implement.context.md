@@ -6,7 +6,7 @@ artifact.
 
 ## When to use
 
-After `plan` in the `feature` and `feature_slice` workflows.
+After `plan` in the `feature` workflow.
 
 ## Inputs
 

@@ -21,14 +21,14 @@ RSpec.describe 'Owl::Tasks::Api.parent' do
         composite_feature:
           enabled: true
           source: "workflows/composite_feature/workflow.yaml"
-        feature_slice:
+        feature:
           enabled: true
-          source: "workflows/feature_slice/workflow.yaml"
+          source: "workflows/feature/workflow.yaml"
     YAML
     write("#{root}/.owl/workflows/composite_feature/workflow.yaml",
           "id: composite_feature\nkind: composite_task\nsteps:\n  - id: only\nartifacts: []\n")
-    write("#{root}/.owl/workflows/feature_slice/workflow.yaml",
-          "id: feature_slice\nkind: task\nsteps:\n  - id: do\nartifacts: []\n")
+    write("#{root}/.owl/workflows/feature/workflow.yaml",
+          "id: feature\nkind: task\nsteps:\n  - id: do\nartifacts: []\n")
   end
 
   it 'returns parent payload for a child task' do
@@ -36,7 +36,7 @@ RSpec.describe 'Owl::Tasks::Api.parent' do
       init_with_workflows(root)
       run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
       run(
-        ['task', 'create', '--workflow', 'feature_slice', '--title', 'C', '--parent', 'TASK-0001', '--root',
+        ['task', 'create', '--workflow', 'feature', '--title', 'C', '--parent', 'TASK-0001', '--root',
          root.to_s], cwd: root
       )
 

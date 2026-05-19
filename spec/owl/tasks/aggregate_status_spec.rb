@@ -21,14 +21,14 @@ RSpec.describe 'Owl::Tasks::Api.aggregate_status' do
         composite_feature:
           enabled: true
           source: "workflows/composite_feature/workflow.yaml"
-        feature_slice:
+        feature:
           enabled: true
-          source: "workflows/feature_slice/workflow.yaml"
+          source: "workflows/feature/workflow.yaml"
     YAML
     write("#{root}/.owl/workflows/composite_feature/workflow.yaml",
           "id: composite_feature\nkind: composite_task\nsteps:\n  - id: only\nartifacts: []\n")
-    write("#{root}/.owl/workflows/feature_slice/workflow.yaml",
-          "id: feature_slice\nkind: task\nsteps:\n  - id: do\nartifacts: []\n")
+    write("#{root}/.owl/workflows/feature/workflow.yaml",
+          "id: feature\nkind: task\nsteps:\n  - id: do\nartifacts: []\n")
   end
 
   def set_child_step_status(root, task_id, step_id, status)
@@ -44,7 +44,7 @@ RSpec.describe 'Owl::Tasks::Api.aggregate_status' do
       init_with_workflows(root)
       run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
       run(
-        ['task', 'create', '--workflow', 'feature_slice', '--title', 'C', '--parent', 'TASK-0001', '--root',
+        ['task', 'create', '--workflow', 'feature', '--title', 'C', '--parent', 'TASK-0001', '--root',
          root.to_s], cwd: root
       )
 
@@ -60,7 +60,7 @@ RSpec.describe 'Owl::Tasks::Api.aggregate_status' do
       init_with_workflows(root)
       run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
       run(
-        ['task', 'create', '--workflow', 'feature_slice', '--title', 'C', '--parent', 'TASK-0001', '--root',
+        ['task', 'create', '--workflow', 'feature', '--title', 'C', '--parent', 'TASK-0001', '--root',
          root.to_s], cwd: root
       )
       set_child_step_status(root, 'TASK-0002', 'do', 'blocked')
@@ -76,7 +76,7 @@ RSpec.describe 'Owl::Tasks::Api.aggregate_status' do
       init_with_workflows(root)
       run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
       run(
-        ['task', 'create', '--workflow', 'feature_slice', '--title', 'C', '--parent', 'TASK-0001', '--root',
+        ['task', 'create', '--workflow', 'feature', '--title', 'C', '--parent', 'TASK-0001', '--root',
          root.to_s], cwd: root
       )
       run(['step', 'start', 'TASK-0002', 'do', '--root', root.to_s], cwd: root)
@@ -91,7 +91,7 @@ RSpec.describe 'Owl::Tasks::Api.aggregate_status' do
   it 'returns not_a_composite_task error for plain tasks' do
     with_tmp_project do |root|
       init_with_workflows(root)
-      run(['task', 'create', '--workflow', 'feature_slice', '--title', 'plain', '--root', root.to_s], cwd: root)
+      run(['task', 'create', '--workflow', 'feature', '--title', 'plain', '--root', root.to_s], cwd: root)
 
       result = Owl::Tasks::Api.aggregate_status(root: root, task_id: 'TASK-0001')
       expect(result.err?).to be(true)

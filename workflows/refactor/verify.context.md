@@ -5,7 +5,7 @@ Outcomes so the next step (publish/archive) can rely on a passing baseline.
 
 ## When to use
 
-After `apply` in `feature` / `feature_slice` / `hotfix` / `refactor` workflows.
+After `apply` in `feature` / `hotfix` / `refactor` workflows.
 In `composite_feature` use `aggregate_verify` instead.
 
 ## Inputs

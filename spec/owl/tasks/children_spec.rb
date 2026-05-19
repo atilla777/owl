@@ -22,9 +22,9 @@ RSpec.describe 'Owl::Tasks::Api.children' do
         composite_feature:
           enabled: true
           source: "workflows/composite_feature/workflow.yaml"
-        feature_slice:
+        feature:
           enabled: true
-          source: "workflows/feature_slice/workflow.yaml"
+          source: "workflows/feature/workflow.yaml"
     YAML
     write("#{root}/.owl/workflows/composite_feature/workflow.yaml", <<~YAML)
       id: composite_feature
@@ -34,8 +34,8 @@ RSpec.describe 'Owl::Tasks::Api.children' do
           skill: owl-step-run
       artifacts: []
     YAML
-    write("#{root}/.owl/workflows/feature_slice/workflow.yaml", <<~YAML)
-      id: feature_slice
+    write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+      id: feature
       kind: task
       steps:
         - id: do
@@ -49,11 +49,11 @@ RSpec.describe 'Owl::Tasks::Api.children' do
       init_project_with_composite(root)
       run(['task', 'create', '--workflow', 'composite_feature', '--title', 'p', '--root', root.to_s], cwd: root)
       run(
-        ['task', 'create', '--workflow', 'feature_slice', '--title', 'c1', '--parent', 'TASK-0001', '--root',
+        ['task', 'create', '--workflow', 'feature', '--title', 'c1', '--parent', 'TASK-0001', '--root',
          root.to_s], cwd: root
       )
       run(
-        ['task', 'create', '--workflow', 'feature_slice', '--title', 'c2', '--parent', 'TASK-0001', '--root',
+        ['task', 'create', '--workflow', 'feature', '--title', 'c2', '--parent', 'TASK-0001', '--root',
          root.to_s], cwd: root
       )
       run(['step', 'start', 'TASK-0002', 'do', '--root', root.to_s], cwd: root)
@@ -72,7 +72,7 @@ RSpec.describe 'Owl::Tasks::Api.children' do
   it 'returns empty children for a non-composite or orphan parent' do
     with_tmp_project do |root|
       init_project_with_composite(root)
-      run(['task', 'create', '--workflow', 'feature_slice', '--title', 'plain', '--root', root.to_s], cwd: root)
+      run(['task', 'create', '--workflow', 'feature', '--title', 'plain', '--root', root.to_s], cwd: root)
 
       result = Owl::Tasks::Api.children(root: root, parent_id: 'TASK-0001')
       expect(result.ok?).to be(true)
