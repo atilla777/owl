@@ -1,0 +1,11 @@
+id: decomposition
+title: Decomposition
+kind: markdown
+description: Декомпозиция composite task на child tasks — цель, список детей, порядок исполнения.
+default_template: templates/default.md
+
+validation:
+  required_sections:
+    - Цель
+    - Дочерние задачи
+    - Порядок исполнения

@@ -1,0 +1,12 @@
+id: patch_plan
+title: Patch plan
+kind: markdown
+description: План фикса для hotfix — контекст, шаги фикса, тестирование, откат.
+default_template: templates/default.md
+
+validation:
+  required_sections:
+    - Контекст
+    - План фикса
+    - Тесты
+    - Откат

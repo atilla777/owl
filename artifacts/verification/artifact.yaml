@@ -1,0 +1,21 @@
+id: verification
+title: Verification report
+kind: markdown
+description: Verification report — список выполненных команд, результаты, найденные проблемы.
+default_template: templates/default.md
+
+front_matter:
+  type: object
+  required: [status, summary]
+  properties:
+    status:
+      type: string
+      enum: [passed, failed, partial]
+    summary:
+      type: string
+
+validation:
+  required_sections:
+    - Summary
+    - Commands
+    - Outcomes

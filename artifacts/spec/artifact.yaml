@@ -1,0 +1,23 @@
+id: spec
+title: Specification
+kind: markdown
+description: Спецификация фичи / задачи — intent, AC, scope, ограничения.
+default_template: templates/default.md
+
+front_matter:
+  type: object
+  required: [status, summary]
+  properties:
+    status:
+      type: string
+      enum: [draft, approved]
+    summary:
+      type: string
+
+validation:
+  required_sections:
+    - Intent
+    - Acceptance criteria
+    - Non-goals
+    - Open questions
+    - Scope

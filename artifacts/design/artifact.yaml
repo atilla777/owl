@@ -1,0 +1,12 @@
+id: design
+title: Design
+kind: markdown
+description: Design notes — контекст, выбранное решение, альтернативы, риски.
+default_template: templates/default.md
+
+validation:
+  required_sections:
+    - Контекст
+    - Решение
+    - Альтернативы
+    - Риски
