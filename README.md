@@ -244,13 +244,41 @@ Do not use `rubocop -A` — `Style/StringConcatenation` autocorrect rewrites
 `Pathname + String` into broken string interpolation. The cop is disabled
 in `.rubocop.yml`, but `-A` would silently re-enable it for the diff.
 
+## Seeded sources
+
+The top-level `skills/`, `commands/`, `workflows/`, `artifacts/`, and
+`schemas/` directories are the *seeded* defaults Owl materializes into a
+target project on `owl init`. They are plain files — readable and
+editable in any editor without going through the Ruby code, and copyable
+by hand if you ever need to bootstrap a project without `bin/owl`.
+
+| Repo path                       | Materialized to                       |
+| ------------------------------- | ------------------------------------- |
+| `skills/owl-*/SKILL.md`         | `.claude/skills/owl-*/SKILL.md`       |
+| `commands/owl-*.md`             | `.claude/commands/owl-*.md`           |
+| `workflows/<id>/workflow.yaml`  | `.owl/workflows/<id>/workflow.yaml`   |
+| `workflows/<id>/*.context.md`   | `.owl/workflows/<id>/*.context.md`    |
+| `artifacts/<id>/artifact.yaml`  | `.owl/artifacts/<id>/artifact.yaml`   |
+| `artifacts/<id>/templates/*.md` | `.owl/artifacts/<id>/templates/*.md`  |
+| `schemas/*.json`                | (not copied — used in-process)        |
+
+Do not confuse repo-root `skills/` (Owl defaults, the seed) with
+`.claude/skills/kos-*` (KOS skills used while *developing* Owl itself —
+a separate concept, not part of what Owl ships).
+
 ## Layout
 
 ```
 .
 ├── bin/owl                       # CLI entrypoint (thin)
+├── skills/                       # seeded Owl-owned skills (SKILL.md per name)
+├── commands/                     # seeded slash-commands for the skills above
+├── workflows/                    # seeded default workflows + per-step .context.md
+├── artifacts/                    # seeded artifact types + default Markdown templates
+├── schemas/                      # JSON Schemas (workflow / artifact / step_invocation)
 ├── lib/owl/
 │   ├── result.rb                 # Owl::Result::Ok / Err
+│   ├── internal/                 # cross-domain helpers (Paths, SeededLoader)
 │   ├── cli/                      # CLI dispatch + subcommand handlers
 │   ├── config/                   # .owl/config.yaml loader + validator
 │   ├── tasks/                    # task lifecycle + Tasks::Backend
@@ -260,10 +288,9 @@ in `.rubocop.yml`, but `-A` would silently re-enable it for the diff.
 │   ├── storage/                  # filesystem storage role resolver
 │   ├── archive/                  # archive subtree + slug generator
 │   ├── publish/                  # publishes rules
-│   ├── skills/                   # seeded skills + slash-commands
+│   ├── skills/                   # thin loader over repo-root skills/ + commands/
 │   ├── instructions/             # next-step packaging
-│   ├── validation/               # artifact validation
-│   └── schemas/                  # JSON Schemas for workflow / config
+│   └── validation/               # artifact validation
 ├── spec/owl/...                  # RSpec
 ├── CLAUDE.md                     # KOS bootstrap entrypoint
 ├── AGENTS.md / ARCHITECTURE.md / REQUIREMENTS.md / IMPLEMENTATION_PLAN.md
