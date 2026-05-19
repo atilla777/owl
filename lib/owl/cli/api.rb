@@ -36,6 +36,8 @@ require_relative 'internal/commands/task_tree'
 require_relative 'internal/commands/task_use'
 require_relative 'internal/commands/workflow_list'
 require_relative 'internal/commands/workflow_new'
+require_relative 'internal/commands/workflow_diagram_data'
+require_relative 'internal/commands/workflow_diagram_renderer'
 require_relative 'internal/commands/workflow_show'
 require_relative 'internal/commands/workflow_validate'
 require_relative 'internal/json_printer'
@@ -51,7 +53,7 @@ module Owl
           workflow list           List declared workflows (JSON output).
           workflow new            Scaffold a new workflow definition at .owl/workflows/<id>/workflow.yaml.
           workflow validate       Validate a workflow definition by ID or path (JSON output).
-          workflow show           Show a workflow definition by ID (JSON output).
+          workflow show           Render workflow as ASCII diagram (live by TASK-ID, abstract by --workflow KEY) or return legacy JSON definition by bare KEY.
           artifact-type list      List declared artifact types (JSON output).
           artifact-type new       Scaffold a new artifact type definition at .owl/artifacts/<id>/artifact.yaml.
           artifact-type validate  Validate an artifact type definition by ID or path (JSON output).

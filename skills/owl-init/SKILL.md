@@ -37,6 +37,7 @@ Do not use this skill to:
   - `settings.storage.backend` (`filesystem` in v1)
   - `settings.storage.roles.tasks|docs|archive` (defaults shown; per-role override on opt-in)
   - `settings.workflows.enabled` (optional list)
+  - `settings.ui.auto_render_diagram` (optional boolean, default `false`; when `true`, `owl-orchestrator` prints a workflow diagram once per loop iteration via `bin/owl workflow show TASK-ID`)
 - A short user-facing summary report in `settings.language.communication` describing what was recorded.
 
 ## Workflow

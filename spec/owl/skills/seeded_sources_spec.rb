@@ -69,7 +69,7 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
       )
     end
 
-    it 'seeds exactly the universal owl-* slash-commands plus owl-task-* helpers' do
+    it 'seeds exactly the universal owl-* slash-commands plus owl-task-* helpers and owl-workflow-show' do
       command_paths = paths.grep(%r{\A\.claude/commands/owl-.+\.md\z})
       expect(command_paths).to contain_exactly(
         '.claude/commands/owl-orchestrator.md',
@@ -79,7 +79,8 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
         '.claude/commands/owl-author.md',
         '.claude/commands/owl-task-create.md',
         '.claude/commands/owl-task-status.md',
-        '.claude/commands/owl-task-next.md'
+        '.claude/commands/owl-task-next.md',
+        '.claude/commands/owl-workflow-show.md'
       )
     end
   end

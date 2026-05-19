@@ -32,13 +32,14 @@ Do not use this skill to invent workflow stages, edit `.owl/` config, or run pro
 
 1. Resolve the active task: `owl task current --json`. If the user named a different task, switch with `owl task use TASK-ID`.
 2. Inspect progress: `owl status TASK-ID --json` returns the agent-friendly summary (steps with `ready` flag, `progress {done, total, pct}`, blockers, `children` for composite tasks). Fall back to `owl task inspect TASK-ID --json` only when the raw `task.yaml` payload is needed.
-3. Pick the next ready step: `owl task ready-steps TASK-ID --json`. Take the first entry unless the user named one. Do not invent a step id that is not in the ready set.
-4. Resolve the bound skill: `owl instructions TASK-ID --step-id STEP --json` returns the step invocation packaged with the matching `SKILL.md` path, slash-command path, and a one-paragraph summary. For seeded workflows the binding is always `owl-step-run`; a custom workflow can name its own skill and the orchestrator delegates verbatim. Use `owl step invocation TASK-ID STEP --json` when only the raw invocation block is needed.
-5. Delegate execution to the bound skill. It is responsible for `owl step start`, generating the artifact (when one is declared), and producing valid output. Pass the `TASK-ID` and `STEP-ID` to the delegated skill; do not paste step-specific instructions inline.
-6. After delegation returns:
+3. Optional diagram chunk: if `owl config get settings.ui.auto_render_diagram --json` returns `true`, execute `bin/owl workflow show TASK-ID` and print the stdout as a single user-visible chunk before picking the next step. Render the diagram at most once per loop iteration. When the key is unset or `false`, skip this step.
+4. Pick the next ready step: `owl task ready-steps TASK-ID --json`. Take the first entry unless the user named one. Do not invent a step id that is not in the ready set.
+5. Resolve the bound skill: `owl instructions TASK-ID --step-id STEP --json` returns the step invocation packaged with the matching `SKILL.md` path, slash-command path, and a one-paragraph summary. For seeded workflows the binding is always `owl-step-run`; a custom workflow can name its own skill and the orchestrator delegates verbatim. Use `owl step invocation TASK-ID STEP --json` when only the raw invocation block is needed.
+6. Delegate execution to the bound skill. It is responsible for `owl step start`, generating the artifact (when one is declared), and producing valid output. Pass the `TASK-ID` and `STEP-ID` to the delegated skill; do not paste step-specific instructions inline.
+7. After delegation returns:
    - Re-validate the artifact: `owl artifact validate TASK-ID ARTIFACT-KEY --json` returns `{ok, errors}`. Inspect `ok` before assuming success.
    - Mark the step complete: `owl step complete TASK-ID STEP-ID`. Owl re-runs the validate gate at complete time as a safety net.
-7. Loop from step 2 until `owl task ready-steps` returns empty AND the workflow's terminal step (typically `archive`) is done. Stop and report when no more progress is possible.
+8. Loop from step 2 until `owl task ready-steps` returns empty AND the workflow's terminal step (typically `archive`) is done. Stop and report when no more progress is possible.
 
 ## Stop Conditions
 
