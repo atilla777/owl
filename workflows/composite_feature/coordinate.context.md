@@ -1,17 +1,25 @@
 # Purpose
 
-Track the child task tree, surface readiness / blockers, and signal the orchestrator
-when all children are verified and ready for aggregate verification.
+Track the child task tree, surface readiness or blockers, and signal
+the orchestrator when every child has finished its `review_code` step
+and is ready for aggregate verification.
 
 ## When to use
 
-Inside `composite_feature` after `decompose`.
+After `decompose` in the `composite_feature` workflow.
 
 ## Inputs
 
-- Child task tree (`owl task children PARENT-ID --json`, `owl task aggregate-status PARENT-ID --json`).
+- Child task tree (`owl task children PARENT-ID --json`,
+  `owl task aggregate-status PARENT-ID --json`).
 
 ## Outputs
 
-- Conversational status update; no KOS artifact. Transitions the composite step from
-`coordinate` to `aggregate_verify` once children finish their `verify` step.
+- Conversational status update; no artifact. Transitions the parent
+  from `coordinate` to `aggregate_verify` once every child has its
+  `review_code` step done or skipped.
+
+## Mode
+
+Autonomous. Poll child statuses, surface blockers to the user only
+when a child cannot progress without input.

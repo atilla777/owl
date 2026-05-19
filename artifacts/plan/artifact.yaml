@@ -1,0 +1,10 @@
+id: plan
+title: Implementation plan
+kind: markdown
+description: Ordered checklist of concrete code changes for the implement step.
+default_template: templates/default.md
+
+validation:
+  required_sections:
+    - Goal
+    - Checklist

@@ -1,18 +1,26 @@
 ---
 status: draft
-summary: TODO — one-line summary of the feature.
+summary: TODO — one-line summary of the task.
 ---
 
 # Brief
 
-## Контекст
+## Problem
 
-TODO
+TODO — what user/business problem motivates this task.
 
-## Цель
+## Goal
 
-TODO
+TODO — what concrete outcome marks success.
+
+## Scenarios
+
+- TODO — primary user story / flow.
+
+## Edge cases
+
+- TODO — boundary conditions, failure modes, surprising inputs.
 
 ## Acceptance criteria
 
-- TODO
+- [ ] TODO — checkable, observable criterion.

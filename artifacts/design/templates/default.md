@@ -1,17 +1,31 @@
+---
+status: draft
+summary: TODO — one-line summary of the design decision.
+---
+
 # Design
 
-## Контекст
+## Context
 
-TODO
+TODO — what is being decided and why now. Reference the brief's problem
+and goal.
 
-## Решение
+## Decision
 
-TODO
+TODO — the chosen approach in prose. Be specific about what changes.
 
-## Альтернативы
+## Alternatives
 
-- TODO
+- TODO — one credible option that was considered but not chosen, with
+  one-line reason.
 
-## Риски
+## Risks
 
-- TODO
+- TODO — what could go wrong with the chosen approach and how to
+  detect/mitigate.
+
+## API
+
+TODO — concrete public surface introduced or changed by this design:
+classes, modules, methods, endpoints, schemas. This is the section that
+publishes to `docs/` when the design ships.

@@ -1,7 +1,7 @@
 id: brief
 title: Brief
 kind: markdown
-description: Краткое описание фичи — контекст, цель, критерии готовности.
+description: Task brief — problem, goal, user scenarios, edge cases, acceptance criteria.
 default_template: templates/default.md
 
 front_matter:
@@ -16,6 +16,8 @@ front_matter:
 
 validation:
   required_sections:
-    - Контекст
-    - Цель
+    - Problem
+    - Goal
+    - Scenarios
+    - Edge cases
     - Acceptance criteria

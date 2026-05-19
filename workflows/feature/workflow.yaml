@@ -1,7 +1,8 @@
 id: feature
 kind: task
 title: Feature
-description: Стандартный workflow одиночной фичи.
+description: Default workflow for a single feature.
+execution_mode: autonomous_after_brief
 
 artifacts:
   brief:
@@ -9,22 +10,22 @@ artifacts:
     storage:
       role: tasks
       path: "{{task.id}}/brief.md"
-  spec:
-    type: spec
-    storage:
-      role: tasks
-      path: "{{task.id}}/spec.md"
   design:
     type: design
     optional: true
     storage:
       role: tasks
       path: "{{task.id}}/design.md"
-  tasks:
-    type: tasks
+  plan:
+    type: plan
     storage:
       role: tasks
-      path: "{{task.id}}/tasks.md"
+      path: "{{task.id}}/plan.md"
+  review:
+    type: review
+    storage:
+      role: tasks
+      path: "{{task.id}}/review.md"
   verification:
     type: verification
     storage:
@@ -32,43 +33,45 @@ artifacts:
       path: "{{task.id}}/verification.md"
 
 publishes:
-  - from: "{{task.id}}/spec.md"
-    to: "{{task.id}}/spec.md"
+  - from: "{{task.id}}/design.md"
+    to: "{{task.id}}/design.md"
 
 steps:
   - id: brief
     skill: owl-step-run
     context_file: brief.context.md
+    interactive: true
     creates: [brief]
-  - id: specify
-    skill: owl-step-run
-    context_file: specify.context.md
-    requires: [brief]
-    creates: [spec]
   - id: design
     skill: owl-step-run
     context_file: design.context.md
-    requires: [specify]
+    interactive: true
+    requires: [brief]
     creates: [design]
   - id: plan
     skill: owl-step-run
     context_file: plan.context.md
-    requires: [specify]
-    creates: [tasks]
-  - id: apply
+    requires: [brief]
+    creates: [plan]
+  - id: implement
     skill: owl-step-run
-    context_file: apply.context.md
+    context_file: implement.context.md
     requires: [plan]
-  - id: verify
-    skill: owl-step-run
-    context_file: verify.context.md
-    requires: [apply]
     creates: [verification]
-  - id: publish
+  - id: review_code
     skill: owl-step-run
-    context_file: publish.context.md
-    requires: [verify]
+    context_file: review_code.context.md
+    requires: [implement]
+    creates: [review]
+  - id: merge_docs
+    skill: owl-step-run
+    context_file: merge_docs.context.md
+    requires: [review_code]
   - id: archive
     skill: owl-step-run
     context_file: archive.context.md
-    requires: [publish]
+    requires: [merge_docs]
+  - id: commit_push
+    skill: owl-step-run
+    context_file: commit_push.context.md
+    requires: [archive]

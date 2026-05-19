@@ -1,12 +1,23 @@
 id: design
 title: Design
 kind: markdown
-description: Design notes — контекст, выбранное решение, альтернативы, риски.
+description: Design notes — context, decision, alternatives, risks, and the public API surface.
 default_template: templates/default.md
+
+front_matter:
+  type: object
+  required: [status, summary]
+  properties:
+    status:
+      type: string
+      enum: [draft, approved, shipped]
+    summary:
+      type: string
 
 validation:
   required_sections:
-    - Контекст
-    - Решение
-    - Альтернативы
-    - Риски
+    - Context
+    - Decision
+    - Alternatives
+    - Risks
+    - API

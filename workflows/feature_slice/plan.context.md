@@ -1,18 +1,27 @@
 # Purpose
 
-Break the spec (and optional design) into an ordered tasks checklist so `apply` and
-`verify` know exactly what to do.
+Break the parent composite's `brief` and `design` (inherited via
+`parent_id`) into an ordered checklist of concrete code changes scoped
+to this slice.
 
 ## When to use
 
-After `specify` (and optional `design`) in `feature` / `feature_slice` /
-`refactor` workflows.
+First step of the `feature_slice` workflow.
 
 ## Inputs
 
-- `spec` artifact.
-- `design` artifact when the previous step created one.
+- Parent's `brief` artifact.
+- Parent's `design` artifact when present.
+- Slice's title and scope from `decomposition.md`.
 
 ## Outputs
 
-- `tasks` artifact under `tasks/<TASK-ID>/tasks.md` — a checklist of concrete actions to apply.
+- `plan` artifact at `tasks/<TASK-ID>/plan.md` — `Goal` paragraph plus
+  a `Checklist` of `- [ ]` items, each naming a file path and the
+  change.
+
+## Mode
+
+Autonomous. Inherit context from the parent — do not re-decide
+architecture. If a slice cannot proceed without architectural input,
+that is a blocker to escalate to the user.

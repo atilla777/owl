@@ -1,19 +1,26 @@
 # Purpose
 
-Capture the initial brief for a new Owl task: turn a rough request into a structured
-Контекст / Цель / Acceptance criteria document so later steps have a stable foundation.
+Capture the brief for a composite (multi-child) task: turn a rough
+request into `Problem / Goal / Scenarios / Edge cases / Acceptance
+criteria` so the upcoming `decompose` step can carve clear children.
 
 ## When to use
 
-First step of `feature` and `composite_feature` workflows when a task needs a written
-intent record before specifying the solution.
+First step of the `composite_feature` workflow.
 
 ## Inputs
 
-- Task id (from `owl task current --json` or explicit argument).
-- Human intent: chat history, ticket, requirements paste.
-- Any context the requester already shared (links, sketches, conversations).
+- Task id of the parent composite task.
+- The user's request: chat history, ticket, requirements paste,
+  sketches.
 
 ## Outputs
 
-- `brief` artifact under `tasks/<TASK-ID>/brief.md` with sections Контекст / Цель / Acceptance criteria.
+- `brief` artifact at `tasks/<TASK-ID>/brief.md` with front matter
+  `status: approved` once the user confirms the captured intent.
+
+## Mode
+
+Interactive. Aim for a brief broad enough to cover the whole composite
+but specific enough that `decompose` can produce non-overlapping
+children. Questions follow the Owl skill conventions (numbered options).

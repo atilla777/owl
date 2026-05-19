@@ -1,18 +1,25 @@
 # Purpose
 
-Break the spec (and optional design) into an ordered tasks checklist so `apply` and
-`verify` know exactly what to do.
+Break the brief's acceptance criteria and the design's API into an
+ordered checklist of concrete code changes so `implement` can execute
+without re-deciding.
 
 ## When to use
 
-After `specify` (and optional `design`) in `feature` / `feature_slice` /
-`refactor` workflows.
+After `brief` (and optional `design`) in the `feature` and
+`feature_slice` workflows.
 
 ## Inputs
 
-- `spec` artifact.
-- `design` artifact when the previous step created one.
+- `brief` artifact.
+- `design` artifact when the previous step produced one.
 
 ## Outputs
 
-- `tasks` artifact under `tasks/<TASK-ID>/tasks.md` — a checklist of concrete actions to apply.
+- `plan` artifact at `tasks/<TASK-ID>/plan.md` — `Goal` paragraph plus a
+  `Checklist` of `- [ ]` items, each naming a file path and the change.
+
+## Mode
+
+Autonomous. Do not ask the user to choose between implementation
+options — those choices belong in `design`. Ask only on a real blocker.

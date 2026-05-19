@@ -1,7 +1,8 @@
 id: composite_feature
 kind: composite_task
 title: Composite feature
-description: Workflow для крупной фичи с декомпозицией на child tasks.
+description: Workflow for a large feature that decomposes into child tasks.
+execution_mode: autonomous_after_brief
 
 artifacts:
   brief:
@@ -9,11 +10,6 @@ artifacts:
     storage:
       role: tasks
       path: "{{task.id}}/brief.md"
-  spec:
-    type: spec
-    storage:
-      role: tasks
-      path: "{{task.id}}/spec.md"
   design:
     type: design
     optional: true
@@ -32,28 +28,26 @@ artifacts:
       path: "{{task.id}}/verification.md"
 
 publishes:
-  - from: "{{task.id}}/spec.md"
-    to: "{{task.id}}/spec.md"
+  - from: "{{task.id}}/design.md"
+    to: "{{task.id}}/design.md"
 
 steps:
   - id: brief
     skill: owl-step-run
     context_file: brief.context.md
+    interactive: true
     creates: [brief]
-  - id: specify
-    skill: owl-step-run
-    context_file: specify.context.md
-    requires: [brief]
-    creates: [spec]
   - id: design
     skill: owl-step-run
     context_file: design.context.md
-    requires: [specify]
+    interactive: true
+    requires: [brief]
     creates: [design]
   - id: decompose
     skill: owl-step-run
     context_file: decompose.context.md
-    requires: [specify]
+    interactive: true
+    requires: [brief]
     creates: [decomposition]
   - id: coordinate
     skill: owl-step-run
@@ -64,11 +58,15 @@ steps:
     context_file: aggregate_verify.context.md
     requires: [coordinate]
     creates: [verification]
-  - id: publish
+  - id: merge_docs
     skill: owl-step-run
-    context_file: publish.context.md
+    context_file: merge_docs.context.md
     requires: [aggregate_verify]
   - id: archive
     skill: owl-step-run
     context_file: archive.context.md
-    requires: [publish]
+    requires: [merge_docs]
+  - id: commit_push
+    skill: owl-step-run
+    context_file: commit_push.context.md
+    requires: [archive]

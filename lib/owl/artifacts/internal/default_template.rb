@@ -15,14 +15,18 @@ module Owl
             artifacts:
               brief:
                 source: "artifacts/brief/artifact.yaml"
-              spec:
-                source: "artifacts/spec/artifact.yaml"
               design:
                 source: "artifacts/design/artifact.yaml"
-              decomposition:
-                source: "artifacts/decomposition/artifact.yaml"
+              plan:
+                source: "artifacts/plan/artifact.yaml"
+              review:
+                source: "artifacts/review/artifact.yaml"
+              spec:
+                source: "artifacts/spec/artifact.yaml"
               tasks:
                 source: "artifacts/tasks/artifact.yaml"
+              decomposition:
+                source: "artifacts/decomposition/artifact.yaml"
               verification:
                 source: "artifacts/verification/artifact.yaml"
               issue:

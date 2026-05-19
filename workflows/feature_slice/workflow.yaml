@@ -1,31 +1,38 @@
 id: feature_slice
 kind: task
 title: Feature slice
-description: Минимальный slice workflow для child task внутри composite feature.
+description: Minimal child workflow inside a composite feature.
+execution_mode: autonomous
 
 artifacts:
-  tasks:
-    type: tasks
+  plan:
+    type: plan
     storage:
       role: tasks
-      path: "{{task.id}}/tasks.md"
+      path: "{{task.id}}/plan.md"
   verification:
     type: verification
     storage:
       role: tasks
       path: "{{task.id}}/verification.md"
+  review:
+    type: review
+    storage:
+      role: tasks
+      path: "{{task.id}}/review.md"
 
 steps:
   - id: plan
     skill: owl-step-run
     context_file: plan.context.md
-    creates: [tasks]
-  - id: apply
+    creates: [plan]
+  - id: implement
     skill: owl-step-run
-    context_file: apply.context.md
+    context_file: implement.context.md
     requires: [plan]
-  - id: verify
-    skill: owl-step-run
-    context_file: verify.context.md
-    requires: [apply]
     creates: [verification]
+  - id: review_code
+    skill: owl-step-run
+    context_file: review_code.context.md
+    requires: [implement]
+    creates: [review]
