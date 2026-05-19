@@ -2,11 +2,13 @@
 
 require 'json'
 
+require 'owl/internal/paths'
+
 RSpec.describe 'step_invocation JSON Schema' do
-  let(:schema_path) { File.expand_path('../../../lib/owl/schemas/step_invocation.json', __dir__) }
+  let(:schema_path) { File.join(Owl::Internal::Paths.schemas_dir, 'step_invocation.json') }
   let(:schema)      { JSON.parse(File.read(schema_path)) }
 
-  it 'exists at lib/owl/schemas/step_invocation.json' do
+  it 'exists at schemas/step_invocation.json' do
     expect(File).to exist(schema_path)
   end
 
