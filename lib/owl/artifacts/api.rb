@@ -1,191 +1,69 @@
 # frozen_string_literal: true
 
-require 'pathname'
-require 'yaml'
-
 require_relative '../result'
-require_relative '../storage/api'
-require_relative 'internal/artifact_type_loader'
-require_relative 'internal/artifact_type_validator'
-require_relative 'internal/default_template'
-require_relative 'internal/registry_loader'
-require_relative 'internal/source_loader'
-require_relative 'internal/task_artifact_resolver'
+require_relative '../internal/backend_resolver'
+require_relative 'backend'
+require_relative 'backends/filesystem'
 
 module Owl
   module Artifacts
+    # Thin facade over artifact backends.
+    #
+    # All operations route through `Owl::Internal::BackendResolver` with
+    # `scope: :artifacts`, so future non-filesystem backends can take over
+    # artifact-type storage per project.
+    #
+    # `default_template` and `seeded_sources` run before any project exists
+    # (`owl init` seed step) and therefore bypass `BackendResolver` and call
+    # the default filesystem backend directly, mirroring the same pattern in
+    # `Owl::Workflows::Api`.
     module Api
       module_function
 
       def registry(root:)
-        outcome = Internal::RegistryLoader.load(root: root)
-        return Result.err(code: outcome[1], message: outcome[2], details: outcome[3] || {}) if outcome[0] == :err
-
-        Result.ok(outcome[1])
+        with_backend(root, &:registry)
       end
 
       def list(root:)
-        registry_result = registry(root: root)
-        return registry_result if registry_result.err?
-
-        registry_data = registry_result.value
-        artifacts = registry_data[:entries].map do |entry|
-          source_info = Internal::SourceLoader.load(root: root, source: entry[:source])
-
-          {
-            key: entry[:key],
-            title: source_info[:title],
-            kind: source_info[:kind],
-            description: source_info[:description],
-            source: entry[:source],
-            source_present: source_info[:present]
-          }
-        end
-
-        Result.ok(artifacts)
+        with_backend(root, &:list)
       end
 
       def find(root:, key:)
-        registry_result = registry(root: root)
-        return registry_result if registry_result.err?
-
-        entry = registry_result.value[:entries].find { |e| e[:key] == key.to_s }
-        unless entry
-          return Result.err(
-            code: :unknown_artifact_type,
-            message: "Artifact type '#{key}' is not declared in .owl/artifacts.yaml.",
-            details: { key: key.to_s, available: registry_result.value[:entries].map { |e| e[:key] } }
-          )
-        end
-
-        Internal::ArtifactTypeLoader.load(root: root, type_key: key, registry_entry: entry)
+        with_backend(root) { |backend| backend.find(key: key) }
       end
 
       def resolve(root:, task_id:, artifact_key:)
-        Internal::TaskArtifactResolver.call(root: root, task_id: task_id, artifact_key: artifact_key)
+        with_backend(root) { |backend| backend.resolve(task_id: task_id, artifact_key: artifact_key) }
       end
-
-      def default_template
-        Internal::DefaultTemplate.render
-      end
-
-      def seeded_sources
-        Internal::DefaultTemplate.source_files
-      end
-
-      ID_PATTERN = /\A[a-z][a-z0-9_]*\z/
 
       def scaffold(root:, id:, body: nil, force: false)
-        id_str = id.to_s
-        unless id_str.match?(ID_PATTERN)
-          return Result.err(
-            code: :invalid_artifact_type_id,
-            message: "Artifact type id '#{id_str}' must match /^[a-z][a-z0-9_]*$/.",
-            details: { id: id_str }
-          )
-        end
-
-        path = artifact_source_path(root: root, id: id_str)
-        if path.exist? && !force
-          return Result.err(
-            code: :artifact_type_already_exists,
-            message: "Artifact type source already exists at #{path}.",
-            details: { id: id_str, path: path.to_s }
-          )
-        end
-
-        body_str = if body.is_a?(String) && !body.empty?
-                     body
-                   else
-                     Internal::DefaultTemplate.minimal_artifact_seed(id: id_str)
-                   end
-
-        parsed = safe_parse(body_str)
-        return parsed if parsed.is_a?(Owl::Result::Err)
-
-        validation = Internal::ArtifactTypeValidator.validate(body: parsed, source_path: path)
-        return validation if validation.err?
-
-        Owl::Storage::Api.write(path: path, contents: body_str)
-
-        template_path = path.dirname + 'templates' + 'default.md'
-        unless template_path.exist?
-          Owl::Storage::Api.write(path: template_path, contents: Internal::DefaultTemplate.minimal_artifact_template)
-        end
-
-        Result.ok(id: id_str, path: path.to_s, template_path: template_path.to_s)
+        with_backend(root) { |backend| backend.scaffold(id: id, body: body, force: force) }
       end
 
       def validate(root:, id_or_path:)
-        target = id_or_path.to_s
-        body, source_path = load_for_validate(root: root, target: target)
-        return body if body.is_a?(Owl::Result::Err)
-
-        result = Internal::ArtifactTypeValidator.validate(body: body, source_path: source_path)
-        return result if result.err?
-
-        Result.ok(valid: true, id: body['id'], source_path: source_path.to_s, errors: [])
+        with_backend(root) { |backend| backend.validate(id_or_path: id_or_path) }
       end
 
-      def artifact_source_path(root:, id:)
-        Pathname.new(root.to_s) + '.owl' + 'artifacts' + id.to_s + 'artifact.yaml'
+      def default_template
+        default_filesystem_backend.default_template
       end
 
-      def safe_parse(body_str)
-        parsed = YAML.safe_load(body_str.to_s, aliases: false)
-        unless parsed.is_a?(Hash)
-          return Result.err(
-            code: :artifact_type_validation_failed,
-            message: 'Artifact type body is not a YAML mapping after parse.',
-            details: { errors: [{ path: '/', message: 'Top-level YAML must be a mapping.' }] }
-          )
-        end
-
-        parsed
-      rescue Psych::SyntaxError => e
-        Result.err(
-          code: :artifact_type_validation_failed,
-          message: "Artifact type YAML syntax error: #{e.message}",
-          details: { errors: [{ path: '/', message: e.message }] }
-        )
+      def seeded_sources
+        default_filesystem_backend.seeded_sources
       end
 
-      def load_for_validate(root:, target:)
-        if target.include?('/') || target.end_with?('.yaml') || target.end_with?('.yml')
-          load_from_path(target)
-        else
-          load_from_registry(root: root, key: target)
-        end
+      def with_backend(root)
+        backend_result = Owl::Internal::BackendResolver.resolve(root: root, scope: :artifacts)
+        return backend_result if backend_result.err?
+
+        yield backend_result.value
       end
 
-      def load_from_path(target)
-        path = Pathname.new(target).expand_path
-        unless path.exist?
-          return [
-            Result.err(
-              code: :artifact_type_source_missing,
-              message: "Artifact type source file not found at #{path}.",
-              details: { path: path.to_s }
-            ),
-            path
-          ]
-        end
-
-        parsed = safe_parse(path.read)
-        [parsed, path]
+      def default_filesystem_backend
+        Backends::Filesystem.new(root: nil)
       end
 
-      def load_from_registry(root:, key:)
-        lookup = find(root: root, key: key)
-        return [lookup, nil] if lookup.err?
-
-        source_path = lookup.value[:source_path] ? Pathname.new(lookup.value[:source_path]) : nil
-        body = lookup.value[:body] || {}
-        [body, source_path]
-      end
-
-      private_class_method :artifact_source_path, :safe_parse, :load_for_validate,
-                           :load_from_path, :load_from_registry
+      private_class_method :with_backend, :default_filesystem_backend
     end
   end
 end

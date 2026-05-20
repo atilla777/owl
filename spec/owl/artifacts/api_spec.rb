@@ -109,6 +109,28 @@ RSpec.describe Owl::Artifacts::Api do
     end
   end
 
+  describe '.find' do
+    it 'returns Ok for a registered key with a present source file' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/artifacts.yaml", described_class.default_template)
+        described_class.seeded_sources.each do |source|
+          write("#{root}/#{source[:relative_path]}", source[:contents])
+        end
+        result = described_class.find(root: root, key: 'brief')
+        expect(result).to be_ok
+      end
+    end
+
+    it 'returns Err(:unknown_artifact_type) for a missing key' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/artifacts.yaml", described_class.default_template)
+        result = described_class.find(root: root, key: 'nope')
+        expect(result).to be_err
+        expect(result.code).to eq(:unknown_artifact_type)
+      end
+    end
+  end
+
   describe '.default_template' do
     it 'creates a parseable YAML with the six seeded artifact entries' do
       parsed = YAML.safe_load(described_class.default_template)
@@ -137,6 +159,22 @@ RSpec.describe Owl::Artifacts::Api do
         expect(parsed['kind']).to eq('markdown')
         expect(parsed['default_template']).to eq('templates/default.md')
         expect(parsed.dig('validation', 'required_sections')).to be_an(Array)
+      end
+    end
+  end
+
+  describe 'backend resolver routing' do
+    it 'returns Err(:unknown_backend) when settings.storage.backend is unrecognised' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            storage:
+              backend: imaginary
+        YAML
+        result = described_class.registry(root: root)
+        expect(result).to be_err
+        expect(result.code).to eq(:unknown_backend)
+        expect(result.details).to include(scope: :artifacts, backend_name: 'imaginary')
       end
     end
   end

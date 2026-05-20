@@ -17,6 +17,9 @@ RSpec.describe Owl::Internal::BackendResolver do
 
   describe '.resolve' do
     it_behaves_like 'returns the matching filesystem backend',
+                    scope: :artifacts,
+                    klass: Owl::Artifacts::Backends::Filesystem
+    it_behaves_like 'returns the matching filesystem backend',
                     scope: :tasks,
                     klass: Owl::Tasks::Backends::Filesystem
     it_behaves_like 'returns the matching filesystem backend',
@@ -155,7 +158,7 @@ RSpec.describe Owl::Internal::BackendResolver do
 
     it 'raises ArgumentError on an unknown scope' do
       with_tmp_project do |root|
-        expect { described_class.resolve(root: root, scope: :artifacts) }
+        expect { described_class.resolve(root: root, scope: :nonexistent_scope) }
           .to raise_error(ArgumentError, /scope/)
       end
     end

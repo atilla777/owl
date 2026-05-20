@@ -4,6 +4,7 @@ require 'pathname'
 require 'yaml'
 
 require_relative '../result'
+require_relative '../artifacts/backends/filesystem'
 require_relative '../config/backends/filesystem'
 require_relative '../storage/backends/filesystem'
 require_relative '../tasks/backends/filesystem'
@@ -52,6 +53,7 @@ module Owl
 
       def filesystem_backend(scope:, root:)
         case scope
+        when :artifacts then Owl::Artifacts::Backends::Filesystem.new(root: root)
         when :config    then Owl::Config::Backends::Filesystem.new(root: root)
         when :storage   then Owl::Storage::Backends::Filesystem.new(root: root)
         when :tasks     then Owl::Tasks::Backends::Filesystem.new(root: root)
