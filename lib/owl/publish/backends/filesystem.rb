@@ -84,7 +84,7 @@ module Owl
             return Result.err(
               code: :workflow_source_missing,
               message: "Workflow source for '#{workflow_key}' is not present.",
-              details: { key: workflow_key.to_s, source_path: source[:source_path] }
+              details: { key: workflow_key.to_s }
             )
           end
 

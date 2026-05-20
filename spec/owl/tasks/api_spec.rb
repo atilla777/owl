@@ -510,4 +510,11 @@ RSpec.describe Owl::Tasks::Api do
       end
     end
   end
+
+  describe 'internal helpers are private' do
+    it 'does not expose with_backend or strip_local as public class methods' do
+      expect(described_class).not_to respond_to(:with_backend)
+      expect(described_class).not_to respond_to(:strip_local)
+    end
+  end
 end

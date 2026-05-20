@@ -78,6 +78,68 @@ Domains with a public Backend triplet today: Tasks, Workflows, Storage, Artifact
 
 The shared-examples pattern below works for any domain. The host-group `let` values change per domain (e.g. a Tasks contract needs a writable task index, an Artifacts contract needs an artifact-type registry), but the structure stays the same.
 
+## Local-paths reflection contract
+
+The Backend triplet separates the public DTO (no filesystem semantics) from an optional **local-paths reflection** that the CLI uses to print filesystem locations. This reflection is *not* part of the Backend interface — it sits one layer above it, on the Api module.
+
+### Api surface
+
+Four domains expose `local_paths`:
+
+- `Owl::Tasks::Api.local_paths(root:, task_id: nil)` — index + pointer when `task_id` is nil, plus `task_file` when supplied.
+- `Owl::Workflows::Api.local_paths(root:, key: nil)` — registry + sources when `key` is nil, plus the specific workflow source when supplied.
+- `Owl::Artifacts::Api.local_paths(root:, key: nil)` — registry + templates when `key` is nil, plus the specific artifact source when supplied.
+- `Owl::Steps::Api.local_paths(root:, task_id:)` — delegates to `Tasks::Api.local_paths` (steps live inside task YAML).
+
+Each returns `Result.ok(<Owl::<Domain>::Local::* instances>)` when the bound backend has a local filesystem view, or `Result.err(code: :no_local_view, ...)` otherwise.
+
+### Optional backend method
+
+Api calls `backend.local_paths_for(...)` through a `respond_to?`-guard:
+
+```ruby
+def local_paths(root:, key: nil)
+  with_backend(root) do |backend|
+    if backend.respond_to?(:local_paths_for)
+      backend.local_paths_for(key: key)
+    else
+      Owl::Result.err(
+        code: :no_local_view,
+        message: "Backend '#{backend.class.name}' has no local filesystem view.",
+        details: { backend: backend.class.name }
+      )
+    end
+  end
+end
+```
+
+A non-filesystem backend (SQLite, HTTP) simply does **not** implement `local_paths_for`; Api automatically returns `:no_local_view` Err. `local_paths_for` is therefore not on `Owl::<Domain>::Backend` — adding it to the interface module would make every backend implement a method that only filesystem can fulfill.
+
+### `:no_local_view` Err shape
+
+Stable contract — CLI commands branch on this:
+
+```ruby
+Result.err(
+  code: :no_local_view,
+  message: "Backend '<class name>' has no local filesystem view.",
+  details: { backend: '<class name>' }
+)
+```
+
+On `Result.ok`, CLI merges path keys into JSON output. On `Result.err(:no_local_view)`, CLI omits the path keys silently without failing. Any other Err code is a real error.
+
+### What goes in `local_paths_for` vs the public payload
+
+Filesystem-derived paths live exclusively in `local_paths_for` output. The public Api payload (`Result.ok` from `find`/`list`/`create`/etc.) is path-free after `strip_local`. Adding a new path-bearing key to a filesystem backend's main payload is a contract bug — the path belongs in `local_paths_for`.
+
+### Adding `local_paths` to a new domain
+
+1. Define `Owl::<Domain>::Local::*` `Data.define` structs for each filesystem extra (e.g. `TaskFile`, `Index`, `Pointer`, `WorkflowFile`, `ArtifactFile`).
+2. Add `local_paths_for(...)` to the Filesystem backend; return `Result.ok(<Local::* instances>)`.
+3. Add `Api.local_paths(...)` that uses the `respond_to?`-guard above.
+4. CLI command consumes `local_paths` only when printing paths; it never reads paths from the main Api payload.
+
 ## How to add a new backend
 
 1. Implement `Owl::<Domain>::Backends::<Name>` including `Owl::<Domain>::Backend`.

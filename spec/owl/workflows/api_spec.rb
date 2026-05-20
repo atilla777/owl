@@ -222,6 +222,22 @@ RSpec.describe Owl::Workflows::Api do
       end
     end
 
+    it '.find also strips source_path from the nested :source Hash' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/workflows.yaml", <<~YAML)
+          schema_version: 1
+          workflows:
+            feature:
+              source: "workflows/feature/workflow.yaml"
+        YAML
+        write("#{root}/.owl/workflows/feature/workflow.yaml", "id: feature\nkind: feature\nsteps: []\n")
+        result = described_class.find(root: root, key: 'feature')
+        expect(result).to be_ok
+        expect(result.value[:source]).to be_a(Hash)
+        expect(result.value[:source]).not_to include(:source_path)
+      end
+    end
+
     it '.scaffold omits path / local from the Ok payload' do
       with_tmp_project do |root|
         write("#{root}/.owl/workflows.yaml", described_class.default_template)

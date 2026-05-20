@@ -93,7 +93,9 @@ module Owl
         return result if result.err?
         return result unless result.value.is_a?(Hash)
 
-        Owl::Result.ok(result.value.except(*STRIPPED_PATH_KEYS))
+        stripped = result.value.except(*STRIPPED_PATH_KEYS)
+        stripped = stripped.merge(source: stripped[:source].except(:source_path)) if stripped[:source].is_a?(Hash)
+        Owl::Result.ok(stripped)
       end
 
       private_class_method :with_backend, :default_filesystem_backend, :strip_local

@@ -117,6 +117,8 @@ module Owl
 
         Owl::Result.ok(result.value.except(*STRIPPED_PATH_KEYS))
       end
+
+      private_class_method :with_backend, :strip_local
     end
   end
 end

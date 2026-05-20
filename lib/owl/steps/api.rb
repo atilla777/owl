@@ -152,6 +152,8 @@ module Owl
 
         (step['status'] || step[:status] || Internal::Statuses::DEFAULT).to_s
       end
+
+      private_class_method :strip_local
     end
   end
 end

@@ -209,4 +209,13 @@ RSpec.describe Owl::Steps::Api do
       end
     end
   end
+
+  describe 'internal helpers are private' do
+    # NOTE: current_status stays public — Steps::Internal::BundleBuilder calls it
+    # cross-internal. Only strip_local is privatized for symmetry with
+    # Workflows::Api and Artifacts::Api.
+    it 'does not expose strip_local as a public class method' do
+      expect(described_class).not_to respond_to(:strip_local)
+    end
+  end
 end
