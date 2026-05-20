@@ -52,7 +52,7 @@ Stop and return control to the human with a concrete decision request when:
 - `owl task ready-steps` returns empty but the workflow's terminal step is not done (the workflow graph has an unsatisfied dependency the human must unblock);
 - `git status` shows suspicious or unrelated files in the working tree, making the step's scope ambiguous;
 - the delegated step skill returns its own stop condition (e.g., `owl-step-run` could not infer the step's purpose from the supplied `context`);
-- a `composite_feature` parent reaches `aggregate_verify` while child tasks are still in progress (`owl task aggregate-status PARENT-ID --json` reports unready children);
+- a `composite_feature` parent reaches its `review` or `archive` step while child tasks are still in progress (`owl task aggregate-status PARENT-ID --json` reports unready children, or `owl archive PARENT-ID` returns `composite_with_unready_children`);
 - `owl publish` or `owl archive` would overwrite content that does not look like a `.backup-<timestamp>` candidate or that lives outside the current task tree;
 - the `owl` CLI returns a structured error (`task_workflow_missing`, `unknown_step_id`, `step_not_ready`, `composite_with_unready_children`, etc.) that the orchestrator cannot resolve through one obvious retry.
 
@@ -61,7 +61,7 @@ When stopping, report the active `TASK-ID`, the step that failed or blocked prog
 ## Notes
 
 - `owl step skip TASK-ID STEP --reason "..."` is allowed only for steps the workflow YAML marks optional. Do not skip required steps to make progress — fix the underlying issue or stop.
-- For `composite_feature` tasks: `decompose` spawns child tasks; `coordinate` tracks them; `aggregate_verify` rolls up child verification reports. Use `owl task tree TASK-ID --json` / `owl task children PARENT-ID --json` / `owl task aggregate-status PARENT-ID --json` to inspect the subtree. `owl archive PARENT-ID --json` archives the full subtree atomically — if any child is unready, it returns `composite_with_unready_children` rather than partial archive.
+- For `composite_feature` tasks the seeded workflow is `brief → design? → decompose → review → archive → commit_push`. `decompose` spawns child tasks; the parent's `review` step rolls up child status; `archive` runs atomically over the full subtree. Use `owl task tree TASK-ID --json` / `owl task children PARENT-ID --json` / `owl task aggregate-status PARENT-ID --json` to inspect the subtree. `owl archive PARENT-ID --json` archives the full subtree atomically — if any child is unready, it returns `composite_with_unready_children` rather than partial archive.
 - The full `bin/owl` command surface, JSON response shapes, and error semantics are documented in the `owl-cli` skill — consult that reference rather than parsing `owl --help`.
 - In the universal-step model, every seeded step's `skill:` binding resolves to `owl-step-run`; that skill reads per-step `context` from `owl step show` and produces the declared artifact without hardcoded step-type knowledge. The orchestrator's job is to pick the step and trust the binding.
 - Never read `.owl/`, `tasks/`, or `docs/` files directly. Always go through `owl ...` CLI. This is an architectural invariant of Owl.

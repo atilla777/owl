@@ -74,7 +74,7 @@ Do not use this skill for:
 6. **Q6 — `front_matter`**: ask which keys are required (default: `status`, `summary`). For each key ask `type` (string/object/array/boolean/integer/null) and optional `enum`.
 7. **Q7 — `template.body`**: ask for the default template body. The body is written in `settings.language.artifacts`. Headings inside the body should mirror `required_sections` (English) for byte-for-byte validation.
 8. **Q8 — confirm**: show the assembled YAML and ask for confirmation.
-9. **Persist**: pipe the body into `owl artifact-type new --id <id> --body -`. Then write the template body into `templates/default.md` through `owl artifact-type new --id <id> --body -` once more if the user supplied a custom template (otherwise the seeded minimal template is left in place).
+9. **Persist**: pipe the body into `owl artifact-type new --id <id> --body -`. The CLI auto-seeds a minimal `templates/default.md` next to the new `artifact.yaml`. v1 owl-author cannot push a custom template body — `owl artifact-type new --body -` writes `artifact.yaml`, not `templates/default.md`. If the user supplied a custom template body in Q7, tell them to edit `.owl/artifacts/<id>/templates/default.md` manually (registering a CLI surface for templates is a separate follow-up task).
 10. **Validate**: `owl artifact-type validate <id-or-path> --json`. On `ok: true`, summarize; on failure, surface errors.
 
 ### Mode C — Edit existing

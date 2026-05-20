@@ -29,6 +29,7 @@ Do not use this skill to plan task scope, decide step ordering, or interpret wor
   - `step` — the step payload (id, status, declared inputs, declared `creates` artifact key, optional `interactive: true`) without the `context` field.
   - `context` — the per-step instruction text (string or null when the step has no per-step context).
   - `overlays` — array of `{ source, body, warning }` project overlays (`.owl/overlays/<step>.md`, `docs/ai/<step>.md`, or explicit paths from `.owl/config.yaml: context_overlays.<step>`).
+  - `variant` — when the step declares `variants:` in the workflow YAML (today the seeded `brief` step exposes `feature` / `root_cause` / `problem_inventory`), the bundle resolves the selected variant. The `context` field already reflects the variant-specific `context_file`; do not re-read variant context separately. Variant selection is fixed in `task.yaml` at task creation (`owl task create --variant STEP=VARIANT`) or before the step starts (`owl step start --variant STEP=VARIANT`).
   - `artifact_template` — `{required_sections, frontmatter_schema}` for the step's declared artifact (null when the step produces no artifact).
   - `execution_mode` — workflow-level mode (`autonomous_after_brief`, `autonomous`, `interactive`, or null).
   - `task` — `{id, title, artifacts}` where `artifacts` is a hash `{ artifact_key => body }` of every artifact already written for this task.
@@ -56,7 +57,7 @@ Do not use this skill to plan task scope, decide step ordering, or interpret wor
    - Generate Markdown body that covers every entry of `artifact_template.required_sections` and a YAML frontmatter matching `artifact_template.frontmatter_schema`.
    - Write the file at the resolved path. Do not invent paths; do not write outside `tasks/<TASK-ID>/`.
    - Validate: `owl artifact validate TASK-ID ARTIFACT-KEY --json`. If `ok` is false, read `errors`, fix the body, re-validate. Do not proceed until `ok: true`.
-8. If the step has no artifact, execute the side effect described in `context` (for example, run the documented CLI subcommand, or perform the documented code change scoped to the task).
+8. If the step has no artifact, execute the side effect described in `context` (for example, run the documented CLI subcommand, or perform the documented code change scoped to the task). The seeded `archive` step is one such case: drive it through `owl archive TASK-ID --json` rather than treating it as an artifact step — the workflow YAML binds it to this skill, but the actual move is performed by `bin/owl archive`. Other side-effect steps (`commit_push`, `publish`, `merge_docs`) follow the same pattern: read the `context` for the exact CLI command to invoke.
 9. Complete the step: `owl step complete TASK-ID STEP-ID`. Owl re-runs the artifact validate gate here as a safety net.
 10. Return control to the orchestrator (or to the human if invoked directly). Do not chain to the next step unless explicitly asked.
 

@@ -333,21 +333,13 @@ Step описывает:
 
 Исполнитель конкретного шага.
 
-Примеры:
-
-```text
-owl.steps.brief
-owl.steps.specify
-owl.steps.design
-owl.steps.decompose
-owl.steps.coordinate
-owl.steps.plan
-owl.steps.apply
-owl.steps.verify
-owl.steps.aggregate_verify
-owl.steps.publish
-owl.steps.archive
-```
+> **Historical — superseded by the universal `owl-step-run` model.** Ранние черновики
+> предполагали отдельный skill на каждый шаг (`owl.steps.brief`,
+> `owl.steps.design`, …). Текущая реализация (см. `skills/owl-step-run/SKILL.md`)
+> использует один универсальный исполнитель: skill читает per-step `context` через
+> `owl step show` и пишет декларированный артефакт, без хардкода типа шага.
+> Per-step skills остаются возможной точкой расширения для кастомных workflow,
+> но seeded workflows связаны с `owl-step-run`.
 
 Skill не должен сам решать, какая задача текущая и куда писать файлы. Он должен получать эту информацию через CLI.
 

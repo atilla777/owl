@@ -39,20 +39,22 @@ docs/
   опубликованные доменные знания проекта
 ```
 
-Физические пути не должны быть зашиты в workflow. Workflow должен использовать логические storage roles:
+Физические пути не должны быть зашиты в workflow. Workflow должен использовать логические storage roles. Текущая реализация определяет шесть стандартных ролей в `lib/owl/storage/api.rb` (`STANDARD_ROLES`):
 
 ```text
-state
-artifact
-archive
-docs
+control       # .owl/ — workflows, artifact-types, overlays, конфиг
+local_state   # .owl/local/ — current.yaml и другая per-session машинная память
+index         # tasks/index.yaml — производный индекс задач
+tasks         # tasks/ — рабочие артефакты задач
+archive       # tasks/archive/ — завершённые задачи
+docs          # docs/ — опубликованные доменные знания
 ```
 
-Пример:
+Пример (актуальный seeded `workflows/feature/workflow.yaml`):
 
 ```yaml
 storage:
-  role: artifact
+  role: tasks
   path: "{{task.id}}/brief.md"
 ```
 
@@ -61,6 +63,11 @@ storage:
 ```yaml
 path: "tasks/TASK-0001/brief.md"
 ```
+
+> **Historical:** ранние черновики использовали логический набор `state | artifact | archive | docs`.
+> Реализация развела его до шести ролей выше, чтобы явно разделить read/write surface
+> (`tasks` vs `docs`), производный индекс (`index`), per-session машинную память
+> (`local_state`) и конфиг (`control`).
 
 ---
 
@@ -550,6 +557,13 @@ Depends on:
 ### 9.5. Feature workflow: `.owl/workflows/feature/workflow.yaml`
 
 Используется для одиночных, не требующих декомпозиции задач.
+
+> **Historical — per-step `skill:` биндинги (`owl.steps.brief`, `owl.steps.specify`, …)
+> в примере ниже описывают раннюю модель проекта. Текущая реализация привязывает
+> каждый шаг seeded-workflow к универсальному `owl-step-run` (см.
+> `skills/owl-step-run/SKILL.md`); per-step skills остаются доступной точкой
+> расширения для кастомных workflow, но seeded YAML использует общий исполнитель.
+> Актуальный seeded workflow — `workflows/feature/workflow.yaml` в репозитории.**
 
 ```yaml
 schema_version: 1
@@ -1141,18 +1155,22 @@ docs/
 
 ```bash
 owl workflow list --json
-owl workflow inspect feature --json
-owl workflow inspect composite_feature --json
+owl workflow show feature --json
+owl workflow show composite_feature --json
 owl workflow validate feature --json
-owl workflow validate --all --json
+owl workflow new --id <id> [--kind task|composite_task] [--from <existing>] [--body -] [--force]
 ```
 
-### 10.3. Artifacts
+> `owl workflow validate --all` пока не реализован — валидация выполняется по
+> отдельному id или path. См. `bin/owl workflow --help` для актуального набора.
+
+### 10.3. Artifact types
 
 ```bash
-owl artifact-types list --json
-owl artifact-types inspect spec --json
-owl artifact-types validate --json
+owl artifact-type list --json
+owl artifact-type show spec --json
+owl artifact-type validate spec --json
+owl artifact-type new --id <id> [--body -] [--force]
 ```
 
 ### 10.4. Tasks / work items
@@ -1172,12 +1190,13 @@ owl task use TASK-0001 --json
 
 owl task inspect TASK-0001 --json
 owl task ready-steps TASK-0001 --json
-owl task blockers TASK-0001 --json
-owl task conflicts TASK-0001 --json
+# Future / not yet implemented: owl task blockers, owl task conflicts.
+# Используй `owl status TASK-0001 --json` — он возвращает шаги с ready flag,
+# progress {done, total, pct} и blockers.
 
 # Index management
 owl task index rebuild --json
-owl task ready --json
+# Future / not yet implemented: owl task ready (snapshot из tasks/index.yaml).
 
 # Subtasks / tree
 owl task tree --json
@@ -1196,6 +1215,7 @@ owl task child create TASK-0001 \
 
 ```bash
 owl step invocation TASK-0001 specify --json
+owl step show TASK-0001 specify --json   # merged bundle: step + context + artifact_template + task
 owl step start TASK-0001 specify --json
 owl step complete TASK-0001 specify --json
 owl step skip TASK-0001 design --reason "Low risk" --json
@@ -1207,10 +1227,11 @@ owl step skip TASK-0001 design --reason "Low risk" --json
 owl artifact resolve TASK-0001 brief --json
 owl artifact resolve TASK-0001 specs --json
 owl artifact validate TASK-0001 specs --json
-
-owl artifact read TASK-0001 brief --json
-owl artifact write TASK-0001 brief --stdin --json
 ```
+
+> `owl artifact read` / `owl artifact write` пока не реализованы — артефакт читается
+> через `owl step show ... --json` (поле `task.artifacts`) и пишется напрямую в путь,
+> возвращённый `owl artifact resolve`, согласно `skills/owl-step-run/SKILL.md`.
 
 ### 10.7. Publish / archive
 
@@ -1222,7 +1243,9 @@ owl archive TASK-0001 --json
 ### 10.8. Validation
 
 ```bash
-owl state validate --json
 owl config validate --json
-owl index validate --json
 ```
+
+> Future / not yet implemented: `owl state validate`, `owl index validate`.
+> Текущая валидация state выполняется через `owl status TASK-ID --json` (агрегация шагов
+> и блокеров) и `owl task index rebuild --json` (перестроение индекса при дрейфе).

@@ -1,6 +1,12 @@
 # Owl — План реализации
 
-Этот документ описывает поэтапный план реализации Owl. Концептуальное описание — в [AGENTS.md](AGENTS.md), архитектура — в [ARCHITECTURE.md](ARCHITECTURE.md), требования — в [REQUIREMENTS.md](REQUIREMENTS.md).
+> **Status: исторический snapshot.** Этот документ описывал поэтапный план до MVP;
+> большинство этапов уже выполнено и оформлено в KOS как задачи проекта Owl.
+> Источник истины для актуальных workflow-шагов и артефактов — YAML под
+> `workflows/<id>/workflow.yaml` и `artifacts/<id>/artifact.yaml` в этом репозитории.
+> Документ оставлен в репо как контекст эволюции, не как живой план работ.
+
+Этот документ описывал поэтапный план реализации Owl. Концептуальное описание — в [AGENTS.md](AGENTS.md), архитектура — в [ARCHITECTURE.md](ARCHITECTURE.md), требования — в [REQUIREMENTS.md](REQUIREMENTS.md).
 
 ---
 
