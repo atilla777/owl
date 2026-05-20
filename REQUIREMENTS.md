@@ -442,38 +442,6 @@ workflows:
       - subtask
     priority: 45
 
-  hotfix:
-    enabled: true
-    version: "1.0"
-    source: "workflows/hotfix/workflow.yaml"
-    title: "Urgent bug fix"
-    aliases:
-      - hotfix
-      - urgent-fix
-      - production-bug
-    priority: 80
-
-  research:
-    enabled: true
-    version: "1.0"
-    source: "workflows/research/workflow.yaml"
-    title: "Research / investigation"
-    aliases:
-      - research
-      - spike
-      - investigation
-    priority: 30
-
-  refactor:
-    enabled: true
-    version: "1.0"
-    source: "workflows/refactor/workflow.yaml"
-    title: "Refactoring"
-    aliases:
-      - refactor
-      - cleanup
-      - restructure
-    priority: 40
 ```
 
 ---
@@ -487,195 +455,25 @@ artifacts:
   brief:
     source: "artifacts/brief/artifact.yaml"
 
-  spec:
-    source: "artifacts/spec/artifact.yaml"
-
   design:
     source: "artifacts/design/artifact.yaml"
+
+  plan:
+    source: "artifacts/plan/artifact.yaml"
+
+  review:
+    source: "artifacts/review/artifact.yaml"
 
   decomposition:
     source: "artifacts/decomposition/artifact.yaml"
 
-  tasks:
-    source: "artifacts/tasks/artifact.yaml"
-
   verification:
     source: "artifacts/verification/artifact.yaml"
-
-  patch_plan:
-    source: "artifacts/patch_plan/artifact.yaml"
-
-  research_findings:
-    source: "artifacts/research_findings/artifact.yaml"
 ```
 
 ---
 
-### 9.4. Artifact type: `.owl/artifacts/spec/artifact.yaml`
-
-```yaml
-schema_version: 1
-
-id: spec
-title: Domain specification
-kind: markdown
-
-default_template: "templates/default.md"
-
-description: >
-  Describes domain behavior, requirements, scenarios, business rules,
-  and acceptance criteria.
-
-front_matter:
-  required:
-    - artifact
-    - task_id
-    - workflow
-    - status
-
-validation:
-  required_sections:
-    - "Requirements"
-
-  required_patterns:
-    - pattern: "### Requirement:"
-      level: error
-      description: "Each requirement must be explicit."
-
-    - pattern: "#### Scenario:"
-      level: warning
-      description: "Requirements should have scenarios."
-
-agent_hints:
-  purpose: >
-    Create testable behavior requirements and domain rules.
-    Avoid implementation details unless they are necessary to clarify behavior.
-
-  must:
-    - "Describe observable behavior."
-    - "Use clear requirement names."
-    - "Include scenarios when possible."
-
-  avoid:
-    - "Do not create implementation tasks here."
-    - "Do not describe low-level code structure."
-```
-
----
-
-### 9.5. Spec template: `.owl/artifacts/spec/templates/default.md`
-
-```md
----
-artifact: spec
-task_id: "{{task.id}}"
-workflow: "{{task.workflow}}"
-status: draft
-domain: "{{domain}}"
----
-
-# {{domain_title}} Specification
-
-## Context
-
-Describe the domain area and why this change matters.
-
-## Requirements
-
-### Requirement: <requirement name>
-
-The system SHALL ...
-
-#### Scenario: <scenario name>
-
-- GIVEN ...
-- WHEN ...
-- THEN ...
-
-## Business Rules
-
-- ...
-
-## Edge cases
-
-- ...
-
-## Open Questions
-
-- ...
-```
-
----
-
-### 9.6. Artifact type: `.owl/artifacts/tasks/artifact.yaml`
-
-```yaml
-schema_version: 1
-
-id: tasks
-title: Implementation tasks
-kind: markdown
-
-default_template: "templates/default.md"
-
-validation:
-  required_sections:
-    - "Tasks"
-
-  required_patterns:
-    - pattern: "^- \\[ \\] [0-9]+\\."
-      level: warning
-      description: "Tasks should be written as numbered checkbox items."
-
-agent_hints:
-  purpose: >
-    Create a concrete implementation checklist that can be executed by an agent.
-
-  must:
-    - "Each task should be actionable."
-    - "Tasks should map to requirements where possible."
-    - "Tasks should include verification work."
-
-  avoid:
-    - "Do not include vague tasks like 'improve code'."
-```
-
----
-
-### 9.7. Tasks template: `.owl/artifacts/tasks/templates/default.md`
-
-```md
----
-artifact: tasks
-task_id: "{{task.id}}"
-workflow: "{{task.workflow}}"
-status: draft
----
-
-# Implementation Tasks
-
-## Tasks
-
-- [ ] 1. Analyze current implementation
-- [ ] 2. Update domain/model behavior
-- [ ] 3. Update controllers/services/UI if needed
-- [ ] 4. Add or update tests
-- [ ] 5. Run verification
-
-## Requirement Mapping
-
-| Task | Requirement |
-|---|---|
-| 1 | TBD |
-
-## Notes
-
--
-```
-
----
-
-### 9.8. Artifact type: `.owl/artifacts/decomposition/artifact.yaml`
+### 9.4. Artifact type: `.owl/artifacts/decomposition/artifact.yaml`
 
 ```yaml
 schema_version: 1
@@ -749,7 +547,7 @@ Depends on:
 
 ---
 
-### 9.9. Feature workflow: `.owl/workflows/feature/workflow.yaml`
+### 9.5. Feature workflow: `.owl/workflows/feature/workflow.yaml`
 
 Используется для одиночных, не требующих декомпозиции задач.
 
@@ -893,7 +691,7 @@ steps:
 
 ---
 
-### 9.10. Composite feature workflow: `.owl/workflows/composite_feature/workflow.yaml`
+### 9.6. Composite feature workflow: `.owl/workflows/composite_feature/workflow.yaml`
 
 Используется для крупных задач, которые разбиваются на child tasks.
 
@@ -1027,7 +825,7 @@ steps:
 
 ---
 
-### 9.11. Feature slice workflow: `.owl/workflows/feature_slice/workflow.yaml`
+### 9.7. Feature slice workflow: `.owl/workflows/feature_slice/workflow.yaml`
 
 Облегчённый workflow для child tasks.
 
@@ -1087,7 +885,7 @@ steps:
 
 ---
 
-### 9.12. Index: `tasks/index.yaml`
+### 9.8. Index: `tasks/index.yaml`
 
 `index.yaml` — производный (от реального состояния задач в папке `tasks/`) индекс ещё не завершённых задач.
 
@@ -1123,7 +921,7 @@ current_candidates:
 
 ---
 
-### 9.13. Composite task state: `tasks/TASK-0001/task.yaml`
+### 9.9. Composite task state: `tasks/TASK-0001/task.yaml`
 
 ```yaml
 schema_version: 1
@@ -1204,7 +1002,7 @@ locks:
 
 ---
 
-### 9.14. Child task state: `tasks/TASK-0002/task.yaml`
+### 9.10. Child task state: `tasks/TASK-0002/task.yaml`
 
 ```yaml
 schema_version: 1
@@ -1252,7 +1050,7 @@ artifacts:
 
 ---
 
-### 9.15. Standalone task state: `tasks/TASK-0010/task.yaml`
+### 9.11. Standalone task state: `tasks/TASK-0010/task.yaml`
 
 Пример обычной (не дочерней) задачи без декомпозиции — `kind: task`, без `parent_id`.
 
@@ -1262,14 +1060,14 @@ schema_version: 1
 id: TASK-0010
 kind: task
 title: Fix login redirect bug
-workflow: hotfix
+workflow: feature
 status: active
 priority: P0
 
 created_at: "2026-05-17T09:00:00+02:00"
 updated_at: "2026-05-17T09:30:00+02:00"
 
-branch: hotfix/login-redirect
+branch: feature/login-redirect
 
 domains:
   - auth
@@ -1280,31 +1078,33 @@ blocked_by:
     reason: "Waiting for production logs"
 
 steps:
-  issue:
+  brief:
     status: done
-  patch_plan:
+  plan:
     status: ready
-  tasks:
+  implement:
     status: pending
-  apply:
+  review_code:
     status: pending
-  verify:
+  merge_docs:
     status: pending
   archive:
     status: pending
+  commit_push:
+    status: pending
 
 artifacts:
-  issue:
+  brief:
     status: accepted
-    path: issue.md
-  patch_plan:
+    path: brief.md
+  plan:
     status: missing
-    path: patch-plan.md
+    path: plan.md
 ```
 
 ---
 
-### 9.16. Local current task: `.owl/local/current.yaml`
+### 9.12. Local current task: `.owl/local/current.yaml`
 
 ```yaml
 schema_version: 1

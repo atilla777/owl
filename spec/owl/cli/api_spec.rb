@@ -146,7 +146,7 @@ RSpec.describe Owl::Cli::Api do
   end
 
   describe 'owl workflow list --json' do
-    it 'returns the five seeded workflows on a freshly initialized project' do
+    it 'returns the two seeded workflows on a freshly initialized project' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
         exit_code, stdout, _stderr = run(['workflow', 'list', '--root', root.to_s, '--json'], cwd: root)
@@ -154,7 +154,7 @@ RSpec.describe Owl::Cli::Api do
         body = JSON.parse(stdout)
         expect(body['ok']).to be(true)
         expect(body['workflows'].map { |w| w['key'] }).to contain_exactly(
-          'feature', 'composite_feature', 'hotfix', 'research', 'refactor'
+          'feature', 'composite_feature'
         )
         expect(body['workflows']).to all(include('source_present' => true))
       end
@@ -192,8 +192,8 @@ RSpec.describe Owl::Cli::Api do
         expect(body['schema_version']).to eq(1)
         expect(body.dig('storage', 'active_profile')).to eq('default')
         expect(body.dig('storage', 'roles_present')).to include(*Owl::Storage::Api::STANDARD_ROLES)
-        expect(body.dig('workflows', 'count')).to eq(5)
-        expect(body.dig('artifacts', 'count')).to eq(12)
+        expect(body.dig('workflows', 'count')).to eq(2)
+        expect(body.dig('artifacts', 'count')).to eq(6)
         expect(body['errors']).to eq([])
       end
     end
@@ -545,16 +545,14 @@ RSpec.describe Owl::Cli::Api do
   end
 
   describe 'owl artifact-type list' do
-    it 'returns the twelve seeded artifact types on a fresh project' do
+    it 'returns the six seeded artifact types on a fresh project' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
         exit_code, stdout, _stderr = run(['artifact-type', 'list', '--root', root.to_s, '--json'], cwd: root)
         expect(exit_code).to eq(0)
         keys = JSON.parse(stdout)['artifact_types'].map { |a| a['key'] }
         expect(keys).to contain_exactly(
-          'brief', 'design', 'plan', 'review', 'spec', 'tasks',
-          'decomposition', 'verification', 'issue', 'patch_plan',
-          'research_findings', 'recommendation'
+          'brief', 'design', 'plan', 'review', 'decomposition', 'verification'
         )
       end
     end

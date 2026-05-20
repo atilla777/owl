@@ -112,14 +112,14 @@ RSpec.describe Owl::Tasks::Api do
             empty:
               source: "workflows/empty.yaml"
         YAML
-        write("#{root}/.owl/workflows/empty.yaml", "id: empty\nkind: research\n")
+        write("#{root}/.owl/workflows/empty.yaml", "id: empty\nkind: noop\n")
 
         result = described_class.create(root: root, workflow: 'empty', title: 'e')
         expect(result).to be_ok
         task_yaml = YAML.safe_load(Pathname.new("#{root}/tasks/TASK-0001/task.yaml").read)
         expect(task_yaml['steps']).to eq([])
         expect(task_yaml['artifacts']).to eq([])
-        expect(task_yaml['kind']).to eq('research')
+        expect(task_yaml['kind']).to eq('noop')
       end
     end
 
@@ -127,11 +127,11 @@ RSpec.describe Owl::Tasks::Api do
       with_tmp_project do |root|
         init_project(root)
         seed_feature_workflow(root)
-        result = described_class.create(root: root, workflow: 'feature', title: 't', kind: 'hotfix',
+        result = described_class.create(root: root, workflow: 'feature', title: 't', kind: 'custom_kind',
                                         parent_id: 'TASK-0042')
         expect(result).to be_ok
         task_yaml = YAML.safe_load(Pathname.new("#{root}/tasks/TASK-0001/task.yaml").read)
-        expect(task_yaml['kind']).to eq('hotfix')
+        expect(task_yaml['kind']).to eq('custom_kind')
         expect(task_yaml['parent_id']).to eq('TASK-0042')
       end
     end

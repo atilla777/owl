@@ -26,10 +26,8 @@ OWL_STEP_RUN_REQUIRED_COMMANDS = [
 ].freeze
 
 OWL_STEP_RUN_HARDCODED_STEP_IDS = %w[
-  brief specify design plan apply verify publish archive
-  decompose coordinate aggregate_verify
-  issue patch_plan tasks
-  question findings options recommendation
+  brief design plan implement review_code merge_docs archive commit_push
+  decompose review
 ].freeze
 
 OWL_ORCHESTRATOR_REQUIRED_SECTIONS = [

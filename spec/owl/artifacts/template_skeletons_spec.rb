@@ -15,13 +15,7 @@ SEEDED_ARTIFACT_TEST_WORKFLOW = {
   'plan' => 'feature',
   'review' => 'feature',
   'verification' => 'feature',
-  'spec' => 'refactor',
-  'tasks' => 'refactor',
-  'decomposition' => 'composite_feature',
-  'issue' => 'hotfix',
-  'patch_plan' => 'hotfix',
-  'research_findings' => 'research',
-  'recommendation' => 'research'
+  'decomposition' => 'composite_feature'
 }.freeze
 
 RSpec.describe 'Seeded artifact template skeletons' do

@@ -4,15 +4,13 @@ require 'owl/artifacts/api'
 
 RSpec.describe Owl::Artifacts::Api do
   describe '.registry' do
-    it 'returns Ok with the twelve seeded artifact entries on a fresh project' do
+    it 'returns Ok with the six seeded artifact entries on a fresh project' do
       with_tmp_project do |root|
         write("#{root}/.owl/artifacts.yaml", described_class.default_template)
         result = described_class.registry(root: root)
         expect(result).to be_ok
         expect(result.value[:entries].map { |e| e[:key] }).to contain_exactly(
-          'brief', 'design', 'plan', 'review', 'spec', 'tasks',
-          'decomposition', 'verification', 'issue', 'patch_plan',
-          'research_findings', 'recommendation'
+          'brief', 'design', 'plan', 'review', 'decomposition', 'verification'
         )
       end
     end
@@ -45,15 +43,13 @@ RSpec.describe Owl::Artifacts::Api do
   end
 
   describe '.list' do
-    it 'returns the twelve seeded artifacts (without source files until init writes them)' do
+    it 'returns the six seeded artifacts (without source files until init writes them)' do
       with_tmp_project do |root|
         write("#{root}/.owl/artifacts.yaml", described_class.default_template)
         result = described_class.list(root: root)
         expect(result).to be_ok
         expect(result.value.map { |e| e[:key] }).to contain_exactly(
-          'brief', 'design', 'plan', 'review', 'spec', 'tasks',
-          'decomposition', 'verification', 'issue', 'patch_plan',
-          'research_findings', 'recommendation'
+          'brief', 'design', 'plan', 'review', 'decomposition', 'verification'
         )
         expect(result.value).to all(include(source_present: false))
       end
@@ -64,24 +60,24 @@ RSpec.describe Owl::Artifacts::Api do
         write("#{root}/.owl/artifacts.yaml", <<~YAML)
           schema_version: 1
           artifacts:
-            spec:
-              source: "artifacts/spec/artifact.yaml"
+            brief:
+              source: "artifacts/brief/artifact.yaml"
         YAML
 
-        write("#{root}/.owl/artifacts/spec/artifact.yaml", <<~YAML)
-          id: spec
-          title: Domain specification
+        write("#{root}/.owl/artifacts/brief/artifact.yaml", <<~YAML)
+          id: brief
+          title: Brief
           kind: markdown
-          description: Domain spec artifact
+          description: Task brief artifact
         YAML
 
         result = described_class.list(root: root)
         expect(result).to be_ok
         entry = result.value.first
-        expect(entry[:key]).to eq('spec')
-        expect(entry[:title]).to eq('Domain specification')
+        expect(entry[:key]).to eq('brief')
+        expect(entry[:title]).to eq('Brief')
         expect(entry[:kind]).to eq('markdown')
-        expect(entry[:description]).to eq('Domain spec artifact')
+        expect(entry[:description]).to eq('Task brief artifact')
         expect(entry[:source_present]).to be(true)
       end
     end
@@ -114,12 +110,10 @@ RSpec.describe Owl::Artifacts::Api do
   end
 
   describe '.default_template' do
-    it 'creates a parseable YAML with the twelve seeded artifact entries' do
+    it 'creates a parseable YAML with the six seeded artifact entries' do
       parsed = YAML.safe_load(described_class.default_template)
       expect(parsed['artifacts'].keys).to contain_exactly(
-        'brief', 'design', 'plan', 'review', 'spec', 'tasks',
-        'decomposition', 'verification', 'issue', 'patch_plan',
-        'research_findings', 'recommendation'
+        'brief', 'design', 'plan', 'review', 'decomposition', 'verification'
       )
       expect(parsed['schema_version']).to eq(1)
       parsed['artifacts'].each_value do |entry|
@@ -129,13 +123,13 @@ RSpec.describe Owl::Artifacts::Api do
   end
 
   describe '.seeded_sources' do
-    it 'returns twelve artifact YAMLs + twelve Markdown skeletons' do
+    it 'returns six artifact YAMLs + six Markdown skeletons' do
       sources = described_class.seeded_sources
       yaml_files = sources.select { |f| f[:relative_path].end_with?('artifact.yaml') }
       markdown_files = sources.select { |f| f[:relative_path].end_with?('templates/default.md') }
 
-      expect(yaml_files.size).to eq(12)
-      expect(markdown_files.size).to eq(12)
+      expect(yaml_files.size).to eq(6)
+      expect(markdown_files.size).to eq(6)
 
       yaml_files.each do |file|
         parsed = YAML.safe_load(file[:contents])

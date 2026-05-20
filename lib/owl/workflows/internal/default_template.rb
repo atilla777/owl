@@ -25,21 +25,6 @@ module Owl
                 version: "1.0"
                 title: Composite feature
                 source: "workflows/composite_feature/workflow.yaml"
-              hotfix:
-                enabled: true
-                version: "1.0"
-                title: Hotfix
-                source: "workflows/hotfix/workflow.yaml"
-              research:
-                enabled: true
-                version: "1.0"
-                title: Research
-                source: "workflows/research/workflow.yaml"
-              refactor:
-                enabled: true
-                version: "1.0"
-                title: Refactor
-                source: "workflows/refactor/workflow.yaml"
           YAML
         end
 

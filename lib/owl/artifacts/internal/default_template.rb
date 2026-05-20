@@ -21,22 +21,10 @@ module Owl
                 source: "artifacts/plan/artifact.yaml"
               review:
                 source: "artifacts/review/artifact.yaml"
-              spec:
-                source: "artifacts/spec/artifact.yaml"
-              tasks:
-                source: "artifacts/tasks/artifact.yaml"
               decomposition:
                 source: "artifacts/decomposition/artifact.yaml"
               verification:
                 source: "artifacts/verification/artifact.yaml"
-              issue:
-                source: "artifacts/issue/artifact.yaml"
-              patch_plan:
-                source: "artifacts/patch_plan/artifact.yaml"
-              research_findings:
-                source: "artifacts/research_findings/artifact.yaml"
-              recommendation:
-                source: "artifacts/recommendation/artifact.yaml"
           YAML
         end
 
