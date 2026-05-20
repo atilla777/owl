@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 require 'pathname'
-require 'yaml'
+
+require_relative '../../config/api'
 
 module Owl
   module Context
@@ -38,23 +39,16 @@ module Owl
         end
 
         def config_paths(root:, step_id:)
-          config_file = root.join('.owl', 'config.yaml')
-          return [] unless config_file.file?
+          load_result = Owl::Config::Api.load(root: root.to_s)
+          return [] if load_result.err?
 
-          parsed = safe_load(config_file)
-          entries = Array(parsed.dig('context_overlays', step_id))
+          entries = Array(load_result.value.raw.dig('context_overlays', step_id.to_s))
           entries.filter_map { |rel| Pathname.new(rel.to_s) }.map do |rel|
             rel.absolute? ? rel : root.join(rel)
           end
         end
 
-        def safe_load(path)
-          YAML.safe_load(path.read, aliases: false) || {}
-        rescue Psych::SyntaxError
-          {}
-        end
-
-        private_class_method :convention_paths, :variant_paths, :config_paths, :safe_load
+        private_class_method :convention_paths, :variant_paths, :config_paths
       end
     end
   end

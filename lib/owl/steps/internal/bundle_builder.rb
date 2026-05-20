@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'pathname'
-
 require_relative '../../result'
 require_relative '../../artifacts/api'
 require_relative '../../context/api'
@@ -124,9 +122,9 @@ module Owl
           return nil if descriptor.err?
 
           path = descriptor.value[:path]
-          return nil unless path && File.exist?(path)
+          return nil unless path && Owl::Storage::Api.exists?(path: path)
 
-          read = Owl::Storage::Api.read(path: Pathname.new(path))
+          read = Owl::Storage::Api.read(path: path)
           read.ok? ? read.value : nil
         end
 

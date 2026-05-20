@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
-require 'pathname'
-
 require_relative '../../result'
+require_relative '../../storage/api'
 
 module Owl
   module Instructions
@@ -17,25 +16,27 @@ module Owl
         module_function
 
         def read(root:, skill_id:)
-          root_path = Pathname.new(root.to_s)
-          skill_path = root_path.join(SKILL_DIR, skill_id.to_s, SKILL_FILE)
+          skill_path = [root.to_s, SKILL_DIR, skill_id.to_s, SKILL_FILE].join('/')
 
-          unless skill_path.exist?
+          unless Owl::Storage::Api.exists?(path: skill_path)
             return Result.err(
               code: :skill_not_found,
               message: "Skill '#{skill_id}' not found at #{skill_path}",
-              details: { skill_id: skill_id.to_s, path: skill_path.to_s }
+              details: { skill_id: skill_id.to_s, path: skill_path }
             )
           end
 
-          contents = skill_path.read
-          command_path = root_path.join(COMMAND_DIR, "#{skill_id}.md")
+          read_result = Owl::Storage::Api.read(path: skill_path)
+          return read_result if read_result.err?
+
+          contents = read_result.value
+          command_path = [root.to_s, COMMAND_DIR, "#{skill_id}.md"].join('/')
 
           Result.ok(
             skill: {
               id: skill_id.to_s,
-              path: skill_path.to_s,
-              command_path: command_path.exist? ? command_path.to_s : nil
+              path: skill_path,
+              command_path: Owl::Storage::Api.exists?(path: command_path) ? command_path : nil
             },
             summary: extract_summary(contents)
           )

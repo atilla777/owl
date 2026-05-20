@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative 'gem_assets'
 require_relative 'paths'
 
 module Owl
@@ -8,27 +9,17 @@ module Owl
       module_function
 
       def load(source_dir:, target_prefix:, repo_root: Paths.repo_root)
-        base = File.join(repo_root, source_dir)
-        return [] unless Dir.exist?(base)
+        return [] unless GemAssets.directory?(source_dir, repo_root: repo_root)
 
-        base_with_sep = base.end_with?('/') ? base : "#{base}/"
-        Dir.glob(File.join(base, '**', '*'))
-           .select { |p| File.file?(p) }
-           .sort
-           .map do |path|
-             rel = path.delete_prefix(base_with_sep)
-             target = target_prefix.empty? ? rel : File.join(target_prefix, rel)
-             { relative_path: target, contents: File.read(path) }
-           end
+        GemAssets.files_under(dir: source_dir, repo_root: repo_root).map do |rel|
+          target = target_prefix.empty? ? rel : [target_prefix, rel].join('/')
+          contents = GemAssets.read([source_dir, rel].join('/'), repo_root: repo_root)
+          { relative_path: target, contents: contents }
+        end
       end
 
       def subdirectories(source_dir:, repo_root: Paths.repo_root)
-        base = File.join(repo_root, source_dir)
-        return [] unless Dir.exist?(base)
-
-        Dir.children(base)
-           .select { |name| File.directory?(File.join(base, name)) }
-           .sort
+        GemAssets.subdirectories(dir: source_dir, repo_root: repo_root)
       end
     end
   end

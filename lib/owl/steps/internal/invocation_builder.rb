@@ -2,6 +2,7 @@
 
 require_relative '../../result'
 require_relative '../../artifacts/api'
+require_relative '../../storage/api'
 require_relative '../../tasks/api'
 require_relative '../../workflows/api'
 
@@ -90,7 +91,7 @@ module Owl
             next unless descriptor.ok?
 
             path = descriptor.value[:path] || descriptor.value['path']
-            next unless path && File.exist?(path)
+            next unless path && Owl::Storage::Api.exists?(path: path)
 
             { child_id: child[:id], path: path }
           end

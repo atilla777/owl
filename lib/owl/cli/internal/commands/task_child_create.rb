@@ -4,6 +4,7 @@ require 'optparse'
 
 require_relative '../../../tasks/api'
 require_relative '../json_printer'
+require_relative '../user_file_reader'
 require_relative 'task_support'
 
 module Owl
@@ -52,14 +53,15 @@ module Owl
           def load_brief_body(path, stderr)
             return nil if path.nil?
 
-            unless File.exist?(path)
+            result = Owl::Cli::Internal::UserFileReader.read(path: path)
+            if result.err?
               return JsonPrinter.failure(
                 stderr,
                 code: :brief_file_missing,
                 message: "--brief file not found: #{path}"
               )
             end
-            File.read(path)
+            result.value
           end
 
           def parse_options(argv)
