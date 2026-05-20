@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require 'fileutils'
 require 'pathname'
 require 'time'
 
 require_relative '../../result'
+require_relative '../../storage/api'
 
 module Owl
   module Publish
@@ -30,7 +30,7 @@ module Owl
           source = Pathname.new(rule['source_path'])
           target = Pathname.new(rule['target_path'])
 
-          unless source.exist?
+          unless Owl::Storage::Api.exists?(path: source)
             return Result.err(
               code: :source_missing,
               message: "Source artifact does not exist: #{source}",
@@ -38,7 +38,7 @@ module Owl
             )
           end
 
-          action = target.exist? ? 'replaced' : 'created'
+          action = Owl::Storage::Api.exists?(path: target) ? 'replaced' : 'created'
           return build_result(rule: rule, action: action, backup_path: nil, dry_run: true) if dry_run
 
           write_rule(rule: rule, source: source, target: target, action: action,
@@ -61,7 +61,17 @@ module Owl
         end
 
         def create_backup(target:, backup_path:, index:)
-          FileUtils.copy_file(target.to_s, backup_path.to_s)
+          read_result = Owl::Storage::Api.read(path: target)
+          if read_result.err?
+            return Result.err(
+              code: :backup_failed,
+              message: "Failed to read target for backup '#{target}': #{read_result.message}",
+              details: { rule_index: index, target_path: target.to_s,
+                         backup_path: backup_path.to_s, error_class: read_result.code.to_s }
+            )
+          end
+
+          Owl::Storage::Api.write(path: backup_path, contents: read_result.value)
           nil
         rescue StandardError => e
           Result.err(
@@ -73,8 +83,17 @@ module Owl
         end
 
         def copy_to_target(source:, target:, backup_path:, index:)
-          FileUtils.mkdir_p(target.dirname.to_s)
-          target.write(source.read)
+          read_result = Owl::Storage::Api.read(path: source)
+          if read_result.err?
+            return Result.err(
+              code: :write_failed,
+              message: "Failed to read source '#{source}': #{read_result.message}",
+              details: { rule_index: index, target_path: target.to_s,
+                         backup_path: backup_path&.to_s, error_class: read_result.code.to_s }
+            )
+          end
+
+          Owl::Storage::Api.write(path: target, contents: read_result.value)
           nil
         rescue StandardError => e
           Result.err(

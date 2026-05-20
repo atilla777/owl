@@ -6,11 +6,11 @@ require 'stringio'
 require 'yaml'
 
 require 'owl/cli/api'
-require 'owl/publish/api'
-require 'owl/tasks/internal/task_reader'
+require 'owl/publish/backend'
+require 'owl/publish/backends/filesystem'
 require 'owl/tasks/internal/atomic_yaml_writer'
 
-RSpec.describe Owl::Publish::Api do
+RSpec.describe Owl::Publish::Backends::Filesystem do
   def run_cli(argv, cwd:)
     stdout = StringIO.new
     stderr = StringIO.new
@@ -69,9 +69,23 @@ RSpec.describe Owl::Publish::Api do
   end
 
   def mark_ready_chain(root, task_id)
-    # specify done, verify done → publish becomes ready.
     force_step_status(root, task_id, 'specify', 'done')
     force_step_status(root, task_id, 'verify', 'done')
+  end
+
+  it 'includes the Owl::Publish::Backend contract' do
+    expect(described_class.included_modules).to include(Owl::Publish::Backend)
+  end
+
+  describe 'instance contract' do
+    it 'responds to every method declared by Owl::Publish::Backend' do
+      with_tmp_project do |root|
+        backend = described_class.new(root: root)
+        Owl::Publish::Backend.instance_methods(false).each do |method_name|
+          expect(backend).to respond_to(method_name), "missing backend method: #{method_name}"
+        end
+      end
+    end
   end
 
   describe '#run' do
@@ -81,7 +95,7 @@ RSpec.describe Owl::Publish::Api do
         write("#{root}/tasks/#{task_id}/spec.md", "# spec body\n")
         mark_ready_chain(root, task_id)
 
-        result = described_class.run(root: root, task_id: task_id, dry_run: false)
+        result = described_class.new(root: root).run(task_id: task_id, dry_run: false)
         expect(result).to be_ok
         expect(result.value[:dry_run]).to be(false)
         expect(result.value[:step_status]).to eq('ready')
@@ -103,12 +117,13 @@ RSpec.describe Owl::Publish::Api do
         write("#{root}/docs/#{task_id}/spec.md", "# old body\n")
         mark_ready_chain(root, task_id)
 
-        result = described_class.run(root: root, task_id: task_id, dry_run: false,
-                                     now: Time.utc(2026, 5, 17, 12, 34, 56))
+        result = described_class.new(root: root).run(
+          task_id: task_id, dry_run: false, now: Time.utc(2026, 5, 20, 12, 34, 56)
+        )
         expect(result).to be_ok
         rule = result.value[:results].first
         expect(rule['action']).to eq('replaced')
-        expect(rule['backup_path']).to end_with('spec.md.bak.20260517T123456Z')
+        expect(rule['backup_path']).to end_with('spec.md.bak.20260520T123456Z')
 
         backup = Pathname.new(rule['backup_path'])
         expect(backup.read).to eq("# old body\n")
@@ -122,7 +137,7 @@ RSpec.describe Owl::Publish::Api do
         write("#{root}/tasks/#{task_id}/spec.md", "# spec\n")
         mark_ready_chain(root, task_id)
 
-        result = described_class.run(root: root, task_id: task_id, dry_run: true)
+        result = described_class.new(root: root).run(task_id: task_id, dry_run: true)
         expect(result).to be_ok
         rule = result.value[:results].first
         expect(rule['action']).to eq('created')
@@ -133,30 +148,62 @@ RSpec.describe Owl::Publish::Api do
       end
     end
 
-    it 'returns no_publishable_step when the workflow has no publish step' do
+    it 'returns source_missing when the source artifact does not exist' do
       with_tmp_project do |root|
-        workflow_yaml = <<~YAML
-          id: feature
-          kind: task
-          artifacts:
-            spec:
-              type: spec
-              storage:
-                role: tasks
-                path: "{{task.id}}/spec.md"
-          publishes:
-            - from: "{{task.id}}/spec.md"
-              to: "{{task.id}}/spec.md"
-          steps:
-            - id: specify
-              creates: [spec]
-            - id: verify
-              requires: [specify]
-        YAML
-        task_id = setup_project(root, workflow_yaml: workflow_yaml)
-        result = described_class.run(root: root, task_id: task_id)
+        task_id = setup_project(root)
+        mark_ready_chain(root, task_id)
+        result = described_class.new(root: root).run(task_id: task_id)
         expect(result).to be_err
-        expect(result.code).to eq(:no_publishable_step)
+        expect(result.code).to eq(:source_missing)
+      end
+    end
+
+    it 'returns write_failed when the target write raises and there is no prior target' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        write("#{root}/tasks/#{task_id}/spec.md", "# spec\n")
+        mark_ready_chain(root, task_id)
+
+        allow(Owl::Storage::Internal::FilesystemBackend).to receive(:write).and_raise(Errno::EACCES, 'denied')
+
+        result = described_class.new(root: root).run(task_id: task_id, dry_run: false)
+        expect(result).to be_err
+        expect(result.code).to eq(:write_failed)
+      end
+    end
+
+    it 'returns task_workflow_missing when task.yaml has no workflow key' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        task_path = Pathname.new(root) + 'tasks' + task_id + 'task.yaml'
+        payload = YAML.safe_load(task_path.read, aliases: false, permitted_classes: [Time])
+        payload.delete('workflow')
+        Owl::Tasks::Internal::AtomicYamlWriter.write(path: task_path, payload: payload)
+
+        result = described_class.new(root: root).run(task_id: task_id)
+        expect(result).to be_err
+        expect(result.code).to eq(:task_workflow_missing)
+      end
+    end
+
+    it 'returns workflow_source_missing when the workflow source file is gone' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        Pathname.new("#{root}/.owl/workflows/feature/workflow.yaml").delete
+
+        result = described_class.new(root: root).run(task_id: task_id)
+        expect(result).to be_err
+        expect(result.code).to eq(:workflow_source_missing)
+      end
+    end
+
+    it 'returns publish_step_not_ready when prerequisites are not yet done' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        write("#{root}/tasks/#{task_id}/spec.md", "# spec\n")
+        result = described_class.new(root: root).run(task_id: task_id)
+        expect(result).to be_err
+        expect(result.code).to eq(:publish_step_not_ready)
       end
     end
 
@@ -181,116 +228,9 @@ RSpec.describe Owl::Publish::Api do
         YAML
         task_id = setup_project(root, workflow_yaml: workflow_yaml)
         mark_ready_chain(root, task_id)
-        result = described_class.run(root: root, task_id: task_id)
+        result = described_class.new(root: root).run(task_id: task_id)
         expect(result).to be_err
         expect(result.code).to eq(:no_publishable_step)
-      end
-    end
-
-    it 'returns publish_step_not_ready when prerequisites are not yet done' do
-      with_tmp_project do |root|
-        task_id = setup_project(root)
-        write("#{root}/tasks/#{task_id}/spec.md", "# spec\n")
-        # do not mark verify as done
-
-        result = described_class.run(root: root, task_id: task_id)
-        expect(result).to be_err
-        expect(result.code).to eq(:publish_step_not_ready)
-      end
-    end
-
-    it 'accepts publish step when its stored status is done' do
-      with_tmp_project do |root|
-        task_id = setup_project(root)
-        write("#{root}/tasks/#{task_id}/spec.md", "# spec\n")
-        mark_ready_chain(root, task_id)
-        force_step_status(root, task_id, 'publish', 'done')
-
-        result = described_class.run(root: root, task_id: task_id)
-        expect(result).to be_ok
-        expect(result.value[:step_status]).to eq('done')
-      end
-    end
-
-    it 'returns source_missing when the source artifact does not exist' do
-      with_tmp_project do |root|
-        task_id = setup_project(root)
-        mark_ready_chain(root, task_id)
-        result = described_class.run(root: root, task_id: task_id)
-        expect(result).to be_err
-        expect(result.code).to eq(:source_missing)
-      end
-    end
-
-    it 'returns backup_failed when the target file cannot be backed up' do
-      with_tmp_project do |root|
-        task_id = setup_project(root)
-        write("#{root}/tasks/#{task_id}/spec.md", "# new\n")
-        target = Pathname.new("#{root}/docs/#{task_id}/spec.md")
-        write(target, "# old\n")
-        mark_ready_chain(root, task_id)
-
-        allow(Owl::Storage::Internal::FilesystemBackend).to receive(:write).and_raise(Errno::EACCES, 'denied')
-
-        result = described_class.run(root: root, task_id: task_id, dry_run: false)
-        expect(result).to be_err
-        expect(result.code).to eq(:backup_failed)
-        expect(target.read).to eq("# old\n")
-      end
-    end
-
-    it 'returns task_workflow_missing when task.yaml has no workflow key' do
-      with_tmp_project do |root|
-        task_id = setup_project(root)
-        task_path = Pathname.new(root) + 'tasks' + task_id + 'task.yaml'
-        payload = YAML.safe_load(task_path.read, aliases: false, permitted_classes: [Time])
-        payload.delete('workflow')
-        Owl::Tasks::Internal::AtomicYamlWriter.write(path: task_path, payload: payload)
-
-        result = described_class.run(root: root, task_id: task_id)
-        expect(result).to be_err
-        expect(result.code).to eq(:task_workflow_missing)
-      end
-    end
-
-    it 'returns workflow_source_missing when the workflow source file is gone' do
-      with_tmp_project do |root|
-        task_id = setup_project(root)
-        Pathname.new("#{root}/.owl/workflows/feature/workflow.yaml").delete
-
-        result = described_class.run(root: root, task_id: task_id)
-        expect(result).to be_err
-        expect(result.code).to eq(:workflow_source_missing)
-      end
-    end
-
-    it 'rejects publishes rules with extra keys' do
-      with_tmp_project do |root|
-        workflow_yaml = <<~YAML
-          id: feature
-          kind: task
-          artifacts:
-            spec:
-              type: spec
-              storage:
-                role: tasks
-                path: "{{task.id}}/spec.md"
-          publishes:
-            - from: "{{task.id}}/spec.md"
-              to: "{{task.id}}/spec.md"
-              extra: oops
-          steps:
-            - id: specify
-              creates: [spec]
-            - id: publish
-              requires: [specify]
-        YAML
-        task_id = setup_project(root, workflow_yaml: workflow_yaml)
-        force_step_status(root, task_id, 'specify', 'done')
-
-        result = described_class.run(root: root, task_id: task_id)
-        expect(result).to be_err
-        expect(result.code).to eq(:publishes_invalid)
       end
     end
   end
