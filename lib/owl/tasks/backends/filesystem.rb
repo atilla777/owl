@@ -48,12 +48,15 @@ module Owl
           Internal::TaskReader.read(tasks_root: paths_result.value[:tasks], task_id: task_id)
         end
 
-        def create(workflow:, title:, parent_id: nil, kind: nil)
+        def create(workflow:, title:, parent_id: nil, kind: nil, step_variants: nil)
           paths_result = Internal::Paths.resolve(root: @root)
           return paths_result if paths_result.err?
 
           snapshot_result = Internal::WorkflowSnapshot.snapshot(root: @root, workflow_key: workflow)
           return snapshot_result if snapshot_result.err?
+
+          variant_validation = validate_step_variants(snapshot_result.value, step_variants)
+          return variant_validation if variant_validation&.err?
 
           paths = paths_result.value
           task_id = Internal::IdGenerator.next_id(
@@ -66,6 +69,7 @@ module Owl
             title: title.to_s,
             parent_id: parent_id,
             kind: kind,
+            step_variants: step_variants,
             snapshot: snapshot_result.value
           )
           task_path = Internal::TaskWriter.write(
@@ -85,6 +89,39 @@ module Owl
             task_path: task_path.to_s,
             payload: payload,
             index_path: rebuild_result.value[:index_path]
+          )
+        end
+
+        def set_step_variant(task_id:, step_id:, variant:)
+          paths_result = Internal::Paths.resolve(root: @root)
+          return paths_result if paths_result.err?
+
+          tasks_root = paths_result.value[:tasks]
+          read = Internal::TaskReader.read(tasks_root: tasks_root, task_id: task_id)
+          return read if read.err?
+
+          payload = read.value[:payload]
+          variant_check = validate_variant_against_workflow(
+            payload: payload,
+            step_id: step_id,
+            variant: variant
+          )
+          return variant_check if variant_check&.err?
+
+          payload['step_variants'] ||= {}
+          payload['step_variants'][step_id.to_s] = variant.to_s
+
+          Internal::TaskWriter.write(
+            tasks_root: tasks_root,
+            task_id: task_id,
+            payload: payload
+          )
+
+          Result.ok(
+            task_id: task_id.to_s,
+            step_id: step_id.to_s,
+            variant: variant.to_s,
+            step_variants: payload['step_variants']
           )
         end
 
@@ -173,6 +210,79 @@ module Owl
         def create_via_self(root:, workflow:, title:, parent_id: nil, kind: nil)
           _ = root
           create(workflow: workflow, title: title, parent_id: parent_id, kind: kind)
+        end
+
+        def validate_step_variants(snapshot, raw)
+          return nil unless raw.is_a?(Hash) && !raw.empty?
+
+          steps_by_id = Array(snapshot[:steps]).each_with_object({}) do |step, acc|
+            next unless step.is_a?(Hash)
+
+            id = (step['id'] || step[:id]).to_s
+            acc[id] = step unless id.empty?
+          end
+
+          raw.each do |step_id, variant|
+            err = check_variant_against_step(steps_by_id[step_id.to_s], step_id, variant)
+            return err if err
+          end
+          nil
+        end
+
+        def validate_variant_against_workflow(payload:, step_id:, variant:)
+          workflow_key = payload.dig('workflow', 'key')
+          return unknown_workflow_error(workflow_key) unless workflow_key
+
+          lookup = Owl::Workflows::Api.find(root: @root, key: workflow_key)
+          return lookup if lookup.err?
+
+          source = lookup.value[:source]
+          body = source.is_a?(Hash) ? (source[:body] || source['body']) : nil
+          steps = body.is_a?(Hash) ? Array(body['steps'] || body[:steps]) : []
+          step = steps.find { |s| s.is_a?(Hash) && (s['id'] || s[:id]).to_s == step_id.to_s }
+
+          check_variant_against_step(step, step_id, variant)
+        end
+
+        def check_variant_against_step(step, step_id, variant)
+          return unknown_step_error(step_id) if step.nil?
+
+          variants = step['variants'] || step[:variants]
+          return step_without_variants_error(step_id) unless variants.is_a?(Hash) && !variants.empty?
+
+          variant_str = variant.to_s
+          return nil if variants.key?(variant_str)
+
+          Result.err(
+            code: :unknown_step_variant,
+            message: "Step '#{step_id}' has no variant '#{variant_str}' " \
+                     "(available: #{variants.keys.sort.inspect}).",
+            details: { step_id: step_id.to_s, variant: variant_str, available: variants.keys.sort }
+          )
+        end
+
+        def unknown_step_error(step_id)
+          Result.err(
+            code: :unknown_step_id,
+            message: "Step '#{step_id}' is not defined in this workflow.",
+            details: { step_id: step_id.to_s }
+          )
+        end
+
+        def step_without_variants_error(step_id)
+          Result.err(
+            code: :step_without_variants,
+            message: "Step '#{step_id}' does not declare a `variants:` block.",
+            details: { step_id: step_id.to_s }
+          )
+        end
+
+        def unknown_workflow_error(workflow_key)
+          Result.err(
+            code: :task_workflow_missing,
+            message: 'Task workflow.key is missing; cannot validate step variant.',
+            details: { workflow_key: workflow_key }
+          )
         end
       end
     end

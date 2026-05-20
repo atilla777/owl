@@ -146,7 +146,7 @@ module Owl
         Internal::GraphBuilder.build(steps)
       end
 
-      def definition(root:, workflow_key:, backend: nil)
+      def definition(root:, workflow_key:, backend: nil, step_variants: {})
         lookup = find(root: root, key: workflow_key)
         return lookup if lookup.err?
 
@@ -163,7 +163,8 @@ module Owl
           steps: steps,
           source_path: source[:source_path],
           root: root,
-          backend: backend
+          backend: backend,
+          step_variants: step_variants
         )
         return steps_lookup_result if steps_lookup_result.err?
 
@@ -184,14 +185,15 @@ module Owl
         )
       end
 
-      def build_steps_lookup(steps:, source_path:, root:, backend:)
+      def build_steps_lookup(steps:, source_path:, root:, backend:, step_variants: {})
         backend ||= resolve_backend(root: root)
         source_dir = Pathname.new(source_path.to_s).dirname
 
         context_result = Internal::StepContextResolver.call(
           steps: steps,
           backend: backend,
-          source_dir: source_dir
+          source_dir: source_dir,
+          step_variants: step_variants
         )
         return context_result if context_result.err?
 

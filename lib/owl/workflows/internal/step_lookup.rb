@@ -4,9 +4,9 @@ module Owl
   module Workflows
     module Internal
       module StepLookup
-        STRING_FIELDS = %w[id title skill kind context].freeze
+        STRING_FIELDS = %w[id title skill kind context default_variant].freeze
         ARRAY_FIELDS = %w[requires creates uses_if_present].freeze
-        BOOLEAN_FIELDS = %w[interactive].freeze
+        BOOLEAN_FIELDS = %w[interactive optional].freeze
 
         module_function
 
@@ -33,7 +33,17 @@ module Owl
             value = step.key?(field) ? step[field] : step[field.to_sym]
             normalized[field] = value == true unless value.nil?
           end
+          variants = step['variants'] || step[:variants]
+          normalized['variants'] = normalize_variants(variants) if variants.is_a?(Hash)
           normalized
+        end
+
+        def normalize_variants(variants)
+          variants.each_with_object({}) do |(name, body), acc|
+            next unless body.is_a?(Hash)
+
+            acc[name.to_s] = body.transform_keys(&:to_s)
+          end
         end
       end
     end

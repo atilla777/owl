@@ -12,12 +12,21 @@ module Owl
     module Api
       module_function
 
-      def create(root:, workflow:, title:, parent_id: nil, kind: nil)
+      def create(root:, workflow:, title:, parent_id: nil, kind: nil, step_variants: nil)
         resolve_backend(root: root).create(
           workflow: workflow,
           title: title,
           parent_id: parent_id,
-          kind: kind
+          kind: kind,
+          step_variants: step_variants
+        )
+      end
+
+      def set_step_variant(root:, task_id:, step_id:, variant:)
+        resolve_backend(root: root).set_step_variant(
+          task_id: task_id,
+          step_id: step_id,
+          variant: variant
         )
       end
 

@@ -31,7 +31,8 @@ module Owl
               workflow: options[:workflow],
               title: options[:title],
               parent_id: options[:parent_id],
-              kind: options[:kind]
+              kind: options[:kind],
+              step_variants: options[:step_variants]
             )
 
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
@@ -47,14 +48,22 @@ module Owl
           end
 
           def parse_options(argv)
-            options = { root: nil, workflow: nil, title: nil, parent_id: nil, kind: nil }
+            options = { root: nil, workflow: nil, title: nil, parent_id: nil, kind: nil, step_variants: {} }
             parser = OptionParser.new do |opts|
               opts.banner = 'Usage: owl task create --workflow KEY --title TITLE ' \
-                            '[--parent TASK-ID] [--kind KIND] [--root PATH] [--json]'
+                            '[--parent TASK-ID] [--kind KIND] [--variant STEP=NAME] [--root PATH] [--json]'
               opts.on('--workflow KEY', String) { |v| options[:workflow] = v }
               opts.on('--title TITLE', String) { |v| options[:title] = v }
               opts.on('--parent TASK-ID', String) { |v| options[:parent_id] = v }
               opts.on('--kind KIND', String) { |v| options[:kind] = v }
+              opts.on('--variant STEP=NAME', String) do |v|
+                step, name = v.split('=', 2)
+                if step.nil? || step.strip.empty? || name.nil? || name.strip.empty?
+                  raise OptionParser::ParseError, "--variant expects STEP=NAME, got #{v.inspect}"
+                end
+
+                options[:step_variants][step.strip] = name.strip
+              end
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

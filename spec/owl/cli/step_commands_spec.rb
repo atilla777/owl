@@ -219,4 +219,120 @@ RSpec.describe 'owl step ... and owl task ready-steps CLI subcommands' do
       end
     end
   end
+
+  describe 'step variants' do
+    def setup_variant_project(root)
+      run(['init', '--root', root.to_s], cwd: root)
+      write("#{root}/.owl/workflows.yaml", <<~YAML)
+        schema_version: 1
+        workflows:
+          feature:
+            enabled: true
+            source: "workflows/feature/workflow.yaml"
+      YAML
+      write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+        id: feature
+        kind: task
+        steps:
+          - id: brief
+            skill: owl-step-run
+            default_variant: feature
+            variants:
+              feature:
+                context_file: brief.feature.context.md
+              root_cause:
+                context_file: brief.root_cause.context.md
+          - id: implement
+            skill: owl-step-run
+            requires: [brief]
+        artifacts:
+          brief:
+            type: brief
+            storage:
+              role: tasks
+              path: "{{task.id}}/brief.md"
+      YAML
+      write("#{root}/.owl/workflows/feature/brief.feature.context.md", "# Purpose\nfeature default\n")
+      write("#{root}/.owl/workflows/feature/brief.root_cause.context.md", "# Purpose\nroot cause\n")
+    end
+
+    it 'task create --variant persists step_variants on the task' do
+      with_tmp_project do |root|
+        setup_variant_project(root)
+        exit_code, stdout, = run(
+          ['task', 'create', '--workflow', 'feature', '--title', 'fix it',
+           '--variant', 'brief=root_cause', '--root', root.to_s, '--json'],
+          cwd: root
+        )
+        expect(exit_code).to eq(0)
+        task = JSON.parse(stdout)['task']
+        expect(task['step_variants']).to eq('brief' => 'root_cause')
+      end
+    end
+
+    it 'task create --variant rejects unknown variant name' do
+      with_tmp_project do |root|
+        setup_variant_project(root)
+        exit_code, _stdout, stderr = run(
+          ['task', 'create', '--workflow', 'feature', '--title', 't',
+           '--variant', 'brief=ghost', '--root', root.to_s, '--json'],
+          cwd: root
+        )
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('unknown_step_variant')
+      end
+    end
+
+    it 'step start --variant writes the variant to task.yaml before flipping status' do
+      with_tmp_project do |root|
+        setup_variant_project(root)
+        run(['task', 'create', '--workflow', 'feature', '--title', 't', '--root', root.to_s], cwd: root)
+        exit_code, = run(
+          ['step', 'start', 'TASK-0001', 'brief', '--variant', 'root_cause', '--root', root.to_s, '--json'],
+          cwd: root
+        )
+        expect(exit_code).to eq(0)
+        task_yaml = YAML.safe_load(Pathname.new("#{root}/tasks/TASK-0001/task.yaml").read)
+        expect(task_yaml['step_variants']).to eq('brief' => 'root_cause')
+      end
+    end
+
+    it 'step show returns chosen variant and its context body' do
+      with_tmp_project do |root|
+        setup_variant_project(root)
+        run(['task', 'create', '--workflow', 'feature', '--title', 't',
+             '--variant', 'brief=root_cause', '--root', root.to_s], cwd: root)
+        exit_code, stdout, = run(['step', 'show', 'TASK-0001', 'brief', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        bundle = JSON.parse(stdout)['bundle']
+        expect(bundle.dig('step', 'variant')).to eq('root_cause')
+        expect(bundle['context']).to include('root cause')
+      end
+    end
+
+    it 'step show falls back to default_variant when none is chosen' do
+      with_tmp_project do |root|
+        setup_variant_project(root)
+        run(['task', 'create', '--workflow', 'feature', '--title', 't', '--root', root.to_s], cwd: root)
+        _, stdout, = run(['step', 'show', 'TASK-0001', 'brief', '--root', root.to_s, '--json'], cwd: root)
+        bundle = JSON.parse(stdout)['bundle']
+        expect(bundle.dig('step', 'variant')).to eq('feature')
+        expect(bundle['context']).to include('feature default')
+      end
+    end
+
+    it 'step show overlays include variant-specific docs/ai/<step>/<variant>.md' do
+      with_tmp_project do |root|
+        setup_variant_project(root)
+        Pathname.new("#{root}/docs/ai/brief").mkpath
+        File.write("#{root}/docs/ai/brief/root_cause.md", "# Root-cause rules\n")
+        run(['task', 'create', '--workflow', 'feature', '--title', 't',
+             '--variant', 'brief=root_cause', '--root', root.to_s], cwd: root)
+        _, stdout, = run(['step', 'show', 'TASK-0001', 'brief', '--root', root.to_s, '--json'], cwd: root)
+        bundle = JSON.parse(stdout)['bundle']
+        sources = bundle['overlays'].map { |o| o['source'] }
+        expect(sources).to include(a_string_matching(%r{docs/ai/brief/root_cause\.md\z}))
+      end
+    end
+  end
 end

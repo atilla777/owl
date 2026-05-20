@@ -14,16 +14,18 @@ module Owl
       # Resolve overlay markdown bodies for a given workflow step.
       #
       # Composition order:
-      #   1. convention paths (.owl/overlays/<step>.md, docs/ai/<step>.md)
-      #   2. explicit paths from .owl/config.yaml `context_overlays.<step>`
+      #   1. universal convention paths (.owl/overlays/<step>.md, docs/ai/<step>.md)
+      #   2. variant-specific convention paths when `variant:` is supplied
+      #      (.owl/overlays/<step>/<variant>.md, docs/ai/<step>/<variant>.md)
+      #   3. explicit paths from .owl/config.yaml `context_overlays.<step>`
       #
       # Empty files and missing paths are silently skipped. Files larger than
       # WARNING_THRESHOLD_BYTES are returned with `warning: :too_long` so the
       # caller can surface it in step logs.
       #
       # Returns Result.ok([{ source:, body:, warning: }, ...]).
-      def overlays_for(root:, step_id:)
-        paths = Internal::OverlayPaths.collect(root: root, step_id: step_id.to_s)
+      def overlays_for(root:, step_id:, variant: nil)
+        paths = Internal::OverlayPaths.collect(root: root, step_id: step_id.to_s, variant: variant)
         overlays = Internal::FilesystemSource.read_all(paths: paths)
         Result.ok(overlays)
       end

@@ -18,8 +18,9 @@ module Owl
           path
         end
 
-        def build_payload(task_id:, title:, snapshot:, parent_id: nil, kind: nil, now: Time.now.utc)
-          {
+        def build_payload(task_id:, title:, snapshot:, parent_id: nil, kind: nil, step_variants: nil,
+                          now: Time.now.utc)
+          payload = {
             'id' => task_id,
             'title' => title,
             'workflow' => snapshot[:workflow],
@@ -29,6 +30,23 @@ module Owl
             'steps' => snapshot[:steps],
             'artifacts' => snapshot[:artifacts]
           }
+          normalized = normalize_step_variants(step_variants)
+          payload['step_variants'] = normalized unless normalized.empty?
+          payload
+        end
+
+        def normalize_step_variants(raw)
+          return {} unless raw.is_a?(Hash)
+
+          raw.each_with_object({}) do |(k, v), acc|
+            next if k.nil? || v.nil?
+
+            key = k.to_s.strip
+            val = v.to_s.strip
+            next if key.empty? || val.empty?
+
+            acc[key] = val
+          end
         end
       end
     end

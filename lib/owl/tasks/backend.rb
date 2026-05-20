@@ -19,7 +19,11 @@ module Owl
         raise NotImplementedError
       end
 
-      def create(workflow:, title:, parent_id: nil, kind: nil)
+      def create(workflow:, title:, parent_id: nil, kind: nil, step_variants: nil)
+        raise NotImplementedError
+      end
+
+      def set_step_variant(task_id:, step_id:, variant:)
         raise NotImplementedError
       end
 

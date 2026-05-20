@@ -23,9 +23,16 @@ module Owl
         Internal::BundleBuilder.call(root: root, task_id: task_id, step_id: step_id)
       end
 
-      def start(root:, task_id:, step_id:)
+      def start(root:, task_id:, step_id:, variant: nil)
         paths = Owl::Tasks::Internal::Paths.resolve(root: root)
         return paths if paths.err?
+
+        if variant
+          set_result = Owl::Tasks::Api.set_step_variant(
+            root: root, task_id: task_id, step_id: step_id, variant: variant
+          )
+          return set_result if set_result.err?
+        end
 
         ready_result = Owl::Workflows::Api.ready_steps(root: root, task_id: task_id)
         return ready_result if ready_result.err?

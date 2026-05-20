@@ -29,7 +29,8 @@ module Owl
             result = Owl::Steps::Api.start(
               root: root,
               task_id: options[:task_id],
-              step_id: options[:step_id]
+              step_id: options[:step_id],
+              variant: options[:variant]
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
@@ -44,9 +45,10 @@ module Owl
           end
 
           def parse_options(argv)
-            options = { root: nil, task_id: nil, step_id: nil }
+            options = { root: nil, task_id: nil, step_id: nil, variant: nil }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl step start TASK-ID STEP-ID [--root PATH] [--json]'
+              opts.banner = 'Usage: owl step start TASK-ID STEP-ID [--variant NAME] [--root PATH] [--json]'
+              opts.on('--variant NAME', String) { |v| options[:variant] = v }
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

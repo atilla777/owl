@@ -31,7 +31,12 @@ module Owl
             )
           end
 
-          definition_result = Owl::Workflows::Api.definition(root: root, workflow_key: workflow_key)
+          step_variants = payload['step_variants'].is_a?(Hash) ? payload['step_variants'] : {}
+          definition_result = Owl::Workflows::Api.definition(
+            root: root,
+            workflow_key: workflow_key,
+            step_variants: step_variants
+          )
           return definition_result if definition_result.err?
 
           definition = definition_result.value
@@ -47,9 +52,12 @@ module Owl
           template_result = extract_artifact_template(root: root, task_id: task_id, step: step)
           return template_result if template_result.is_a?(Owl::Result::Err)
 
-          step_payload, context = split_step_payload(root: root, task_id: task_id, step: step, step_id: step_id)
+          chosen_variant = resolve_chosen_variant(step: step, step_id: step_id, step_variants: step_variants)
+          step_payload, context = split_step_payload(
+            root: root, task_id: task_id, step: step, step_id: step_id, chosen_variant: chosen_variant
+          )
           artifacts = extract_task_artifacts(root: root, task_id: task_id, definition: definition)
-          overlays = extract_overlays(root: root, step_id: step_id)
+          overlays = extract_overlays(root: root, step_id: step_id, variant: chosen_variant)
 
           Result.ok(
             step: step_payload,
@@ -61,11 +69,19 @@ module Owl
           )
         end
 
-        def split_step_payload(root:, task_id:, step:, step_id:)
+        def resolve_chosen_variant(step:, step_id:, step_variants:)
+          return nil unless step['variants'].is_a?(Hash)
+
+          chosen = step_variants[step_id.to_s] || step_variants[step_id.to_sym]
+          (chosen || step['default_variant']).to_s.empty? ? nil : (chosen || step['default_variant']).to_s
+        end
+
+        def split_step_payload(root:, task_id:, step:, step_id:, chosen_variant: nil)
           context = step['context']
           step_payload = step.reject { |k| k == 'context' }
           status = current_step_status(root: root, task_id: task_id, step_id: step_id)
           step_payload['status'] = status || Statuses::DEFAULT.to_s
+          step_payload['variant'] = chosen_variant if chosen_variant
           [step_payload, context]
         end
 
@@ -114,8 +130,8 @@ module Owl
           read.ok? ? read.value : nil
         end
 
-        def extract_overlays(root:, step_id:)
-          result = Owl::Context::Api.overlays_for(root: root, step_id: step_id)
+        def extract_overlays(root:, step_id:, variant: nil)
+          result = Owl::Context::Api.overlays_for(root: root, step_id: step_id, variant: variant)
           result.ok? ? result.value : []
         end
 
