@@ -19,20 +19,34 @@ RSpec.describe 'seeded feature workflow with owl-step-run (end-to-end)' do
     YAML.safe_load(workflow_yaml.read).fetch('steps').map { |step| step['id'] }
   end
 
+  def feature_steps(workflow_yaml)
+    YAML.safe_load(workflow_yaml.read).fetch('steps')
+  end
+
+  def context_files_for(step)
+    if step['variants'].is_a?(Hash) && !step['variants'].empty?
+      step['variants'].map { |_, body| body['context_file'] }
+    else
+      ["#{step['id']}.context.md"]
+    end
+  end
+
   it 'init seeds workflow + context files and owl step show resolves owl-step-run for every step' do
     with_tmp_project do |root|
       cli(['init', '--root', root.to_s], root)
 
       workflow_yaml = root + '.owl/workflows/feature/workflow.yaml'
       expect(workflow_yaml.exist?).to be(true)
-      step_ids = feature_step_ids(workflow_yaml)
+      steps = feature_steps(workflow_yaml)
 
-      step_ids.each do |step_id|
-        context_md = root + ".owl/workflows/feature/#{step_id}.context.md"
-        expect(context_md.exist?).to be(true), "missing #{context_md}"
-        body = context_md.read
-        expect(body).to include('# Purpose'),
-                        -> { "#{context_md} missing '# Purpose' heading" }
+      steps.each do |step|
+        context_files_for(step).each do |relative|
+          context_md = root + ".owl/workflows/feature/#{relative}"
+          expect(context_md.exist?).to be(true), "missing #{context_md}"
+          body = context_md.read
+          expect(body).to include('# Purpose'),
+                          -> { "#{context_md} missing '# Purpose' heading" }
+        end
       end
 
       task_create_args = ['task', 'create', '--workflow', 'feature', '--title', 'smoke',
@@ -41,7 +55,8 @@ RSpec.describe 'seeded feature workflow with owl-step-run (end-to-end)' do
       task_id = JSON.parse(stdout).dig('task', 'id')
       expect(task_id).to be_a(String)
 
-      step_ids.each do |step_id|
+      steps.each do |step|
+        step_id = step['id']
         result = Owl::Steps::Api.show(root: root, task_id: task_id, step_id: step_id)
         message = result.respond_to?(:message) ? result.message : nil
         expect(result).to be_ok, "owl step show failed for #{step_id}: #{message}"

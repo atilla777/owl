@@ -39,9 +39,19 @@ publishes:
 steps:
   - id: brief
     skill: owl-step-run
-    context_file: brief.context.md
     interactive: true
     creates: [brief]
+    default_variant: feature
+    variants:
+      feature:
+        context_file: brief.feature.context.md
+        title: "Collect feature requirements"
+      root_cause:
+        context_file: brief.root_cause.context.md
+        title: "Find bug root cause"
+      problem_inventory:
+        context_file: brief.problem_inventory.context.md
+        title: "Inventory refactor problems"
   - id: design
     skill: owl-step-run
     context_file: design.context.md

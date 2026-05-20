@@ -291,7 +291,8 @@ RSpec.describe Owl::Workflows::Api do
       context_files = sources.select { |f| f[:relative_path].end_with?('.context.md') }
       expect(context_files).not_to be_empty
       context_files.each do |file|
-        expect(file[:relative_path]).to match(%r{\A\.owl/workflows/[^/]+/[a-z_]+\.context\.md\z}),
+        # Accepts both `<step_id>.context.md` and `<step_id>.<variant>.context.md`.
+        expect(file[:relative_path]).to match(%r{\A\.owl/workflows/[^/]+/[a-z_]+(?:\.[a-z_]+)?\.context\.md\z}),
                                         -> { "unexpected context path: #{file[:relative_path]}" }
         expect(file[:contents]).to include('# Purpose')
       end

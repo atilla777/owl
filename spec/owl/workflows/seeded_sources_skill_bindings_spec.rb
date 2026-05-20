@@ -25,13 +25,23 @@ RSpec.describe Owl::Workflows::Internal::SeededSources do
     parsed_workflows.each do |path, workflow|
       workflow_dir = File.dirname(path)
       Array(workflow['steps']).each do |step|
-        expected_path = "#{workflow_dir}/#{step['id']}.context.md"
-        entry = files.find { |f| f[:relative_path] == expected_path }
-        expect(entry).not_to be_nil,
-                             -> { "missing seeded #{expected_path} for step #{step['id']}" }
-        expect(entry[:contents]).to include('# Purpose'),
-                                    -> { "#{expected_path} missing '# Purpose' heading" }
+        expected_paths = expected_context_paths_for(workflow_dir: workflow_dir, step: step)
+        expected_paths.each do |expected_path|
+          entry = files.find { |f| f[:relative_path] == expected_path }
+          expect(entry).not_to be_nil,
+                               -> { "missing seeded #{expected_path} for step #{step['id']}" }
+          expect(entry[:contents]).to include('# Purpose'),
+                                      -> { "#{expected_path} missing '# Purpose' heading" }
+        end
       end
+    end
+  end
+
+  def expected_context_paths_for(workflow_dir:, step:)
+    if step['variants'].is_a?(Hash) && !step['variants'].empty?
+      step['variants'].map { |_, body| "#{workflow_dir}/#{body['context_file']}" }
+    else
+      ["#{workflow_dir}/#{step['id']}.context.md"]
     end
   end
 
@@ -62,12 +72,17 @@ RSpec.describe Owl::Workflows::Internal::SeededSources do
                             -> { "non-owl-step-run bindings: #{describe_entries(mismatched, 'skill')}" }
     end
 
-    it 'binds a `context_file` named after the step id' do
+    it 'binds a `context_file` named after the step id (or a `variants:` block instead)' do
       mismatched = all_steps.reject do |entry|
-        entry[:step]['context_file'] == "#{entry[:step]['id']}.context.md"
+        step = entry[:step]
+        if step['variants'].is_a?(Hash)
+          step.key?('default_variant') && step['variants'].key?(step['default_variant'])
+        else
+          step['context_file'] == "#{step['id']}.context.md"
+        end
       end
       expect(mismatched).to be_empty,
-                            -> { "mismatched context_file bindings: #{describe_entries(mismatched, 'context_file')}" }
+                            -> { "mismatched context bindings: #{describe_entries(mismatched, 'context_file')}" }
     end
   end
 end
