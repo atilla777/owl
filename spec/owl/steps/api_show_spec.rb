@@ -278,6 +278,59 @@ RSpec.describe Owl::Steps::Api, '.show' do
     end
   end
 
+  describe 'step variants' do
+    def setup_variant_project(root)
+      init(root)
+      write_workflow_registry(root)
+      write_workflow_source(root, <<~YAML)
+        id: feature
+        kind: feature
+        artifacts: []
+        steps:
+          - id: brief
+            default_variant: feature
+            variants:
+              feature:
+                context_file: brief.feature.context.md
+              root_cause:
+                context_file: brief.root_cause.context.md
+      YAML
+      write("#{root}/.owl/workflows/feature/brief.feature.context.md", "# Purpose\nfeature default\n")
+      write("#{root}/.owl/workflows/feature/brief.root_cause.context.md", "# Purpose\nroot cause body\n")
+    end
+
+    it 'returns the chosen variant slug and its context body in the bundle' do
+      with_tmp_project do |root|
+        setup_variant_project(root)
+        stdout, = cli(
+          ['task', 'create', '--workflow', 'feature', '--title', 't',
+           '--variant', 'brief=root_cause', '--root', root.to_s, '--json'],
+          root
+        )
+        task_id = JSON.parse(stdout).dig('task', 'id')
+
+        bundle = described_class.show(root: root, task_id: task_id, step_id: 'brief').value
+        expect(bundle[:step]['variant']).to eq('root_cause')
+        expect(bundle[:context]).to include('root cause body')
+      end
+    end
+
+    it 'falls back to default_variant when the task has no variant fixed' do
+      with_tmp_project do |root|
+        setup_variant_project(root)
+        stdout, = cli(
+          ['task', 'create', '--workflow', 'feature', '--title', 't', '--root', root.to_s, '--json'],
+          root
+        )
+        task_id = JSON.parse(stdout).dig('task', 'id')
+
+        bundle = described_class.show(root: root, task_id: task_id, step_id: 'brief').value
+        expect(bundle[:step]['variant']).to eq('feature')
+        expect(bundle[:context]).to include('feature default')
+      end
+    end
+  end
+
   describe 'error propagation' do
     it 'propagates :task_not_found from Tasks::Api.inspect' do
       with_tmp_project do |root|

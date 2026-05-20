@@ -3,7 +3,6 @@
 require_relative '../../../result'
 require_relative '../../../tasks/api'
 require_relative '../../../workflows/api'
-require_relative 'status'
 
 module Owl
   module Cli
@@ -27,7 +26,7 @@ module Owl
             return workflow_find if workflow_find.err?
 
             workflow_steps = workflow_steps_for(workflow_find.value)
-            ready_ids = Status.ready_step_ids(root: root, task_id: task_id)
+            ready_ids = ready_step_ids(root: root, task_id: task_id)
             step_variants = payload['step_variants'].is_a?(Hash) ? payload['step_variants'] : {}
             steps_view = live_steps_view(
               payload: payload,
@@ -40,9 +39,26 @@ module Owl
               mode: :live,
               task: { id: task_id.to_s, title: payload['title'], workflow_key: workflow_key },
               steps: steps_view,
-              progress: Status.progress_view(payload['steps'] || []),
+              progress: progress_view(payload['steps'] || []),
               blockers: collect_blockers(steps_view)
             )
+          end
+
+          def ready_step_ids(root:, task_id:)
+            ready = Owl::Workflows::Api.ready_steps(root: root, task_id: task_id)
+            return [] if ready.err?
+
+            ready.value[:ready].map { |entry| entry[:id].to_s }
+          end
+
+          def progress_view(steps)
+            total = steps.size
+            done = steps.count do |step|
+              status = (step.is_a?(Hash) ? (step['status'] || step[:status]) : nil).to_s
+              DONE_STATUSES.include?(status)
+            end
+            pct = total.zero? ? 0.0 : ((done * 100.0) / total).round(1)
+            { done: done, total: total, pct: pct }
           end
 
           def missing_workflow_err(task_id)

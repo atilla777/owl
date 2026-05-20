@@ -61,6 +61,20 @@ Do not use this skill to plan task scope, decide step ordering, or interpret wor
 9. Complete the step: `owl step complete TASK-ID STEP-ID`. Owl re-runs the artifact validate gate here as a safety net.
 10. Return control to the orchestrator (or to the human if invoked directly). Do not chain to the next step unless explicitly asked.
 
+## Step variants
+
+A step can declare `variants:` in the workflow YAML to swap the per-step context for the same step id. The seeded `brief` step is the current example (variants `feature` / `root_cause` / `problem_inventory`).
+
+When the active task has a variant fixed for the step (via `owl task create --variant STEP=VARIANT` or `owl step start --variant VARIANT`), `owl step show TASK-ID STEP-ID --json` already reflects it in the bundle:
+
+- `bundle.step.variant` — the chosen variant slug (string). Absent when the step declares no variants.
+- `bundle.context` — already resolved against the variant's `context_file`. Do **not** open `workflow.yaml` and re-read `context_file` separately; the bundle is authoritative.
+- `bundle.overlays` — composed in this order: universal (`.owl/overlays/<step>.md`, `docs/ai/<step>.md`) → variant-specific (`.owl/overlays/<step>/<variant>.md`, `docs/ai/<step>/<variant>.md`) → explicit paths from `.owl/config.yaml: context_overlays.<step>`. Empty files and missing paths are silently skipped.
+
+If a step declares variants but the task did not fix one and the workflow has no `default_variant`, the step is not yet ready. Run `owl step start TASK-ID STEP-ID --variant VARIANT` (or `owl task create --variant`) before invoking this skill.
+
+Variant choice is workflow-data, not skill behavior — never branch on `bundle.step.variant` value inside this skill. The variant-specific instructions arrive through `bundle.context` and overlays.
+
 ## Stop Conditions
 
 Stop and report when:
