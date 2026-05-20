@@ -462,4 +462,43 @@ RSpec.describe Owl::Config::Api do
       end
     end
   end
+
+  describe 'backend routing' do
+    it 'delegates to the backend resolved by Owl::Internal::BackendResolver' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+
+        fake_backend = instance_double(Owl::Config::Backends::Filesystem)
+        allow(Owl::Internal::BackendResolver).to receive(:resolve)
+          .with(root: root, scope: :config)
+          .and_return(Owl::Result.ok(fake_backend))
+        allow(fake_backend).to receive(:load).and_return(Owl::Result.ok(:stub))
+
+        result = described_class.load(root: root)
+
+        expect(Owl::Internal::BackendResolver).to have_received(:resolve).with(root: root, scope: :config)
+        expect(fake_backend).to have_received(:load)
+        expect(result.value).to eq(:stub)
+      end
+    end
+
+    it 'returns Filesystem-served result even when settings.storage.backend is unknown' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            language:
+              communication: en
+            storage:
+              backend: imaginary
+        YAML
+        # Layer-C exception #2 keeps Config::Api.load reachable even with an
+        # invalid storage backend value — required for `owl config validate`
+        # to actually surface the schema error to the user.
+        result = described_class.validate(root: root)
+        expect(result).to be_err
+        codes = result.details[:errors].map { |e| e[:code] }
+        expect(codes).to include(:unsupported_settings_storage_backend)
+      end
+    end
+  end
 end

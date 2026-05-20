@@ -25,6 +25,9 @@ RSpec.describe Owl::Internal::BackendResolver do
     it_behaves_like 'returns the matching filesystem backend',
                     scope: :storage,
                     klass: Owl::Storage::Backends::Filesystem
+    it_behaves_like 'returns the matching filesystem backend',
+                    scope: :config,
+                    klass: Owl::Config::Backends::Filesystem
 
     it 'returns a storage filesystem backend when config explicitly selects "filesystem"' do
       with_tmp_project do |root|
@@ -154,6 +157,43 @@ RSpec.describe Owl::Internal::BackendResolver do
       with_tmp_project do |root|
         expect { described_class.resolve(root: root, scope: :artifacts) }
           .to raise_error(ArgumentError, /scope/)
+      end
+    end
+
+    # Layer-C bootstrap exception #2 (see BackendResolver module header):
+    # config domain is the bootstrap, so :config scope is always Filesystem.
+    it 'returns Filesystem for :config scope even when settings.storage.backend is unknown' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            storage:
+              backend: imaginary
+        YAML
+        result = described_class.resolve(root: root, scope: :config)
+        expect(result).to be_a(Owl::Result::Ok)
+        expect(result.value).to be_a(Owl::Config::Backends::Filesystem)
+      end
+    end
+
+    # Bootstrap re-entrancy regression: BackendResolver.read_backend_name must
+    # NOT route through Owl::Config::Api — that would create the cycle "selecting
+    # the backend depends on Config::Api, which depends on the backend".
+    it 'does not invoke Owl::Config::Api when reading the backend name' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            storage:
+              backend: filesystem
+        YAML
+
+        allow(Owl::Config::Api).to receive(:load).and_raise('Config::Api must not be called by BackendResolver')
+        allow(Owl::Config::Api).to receive(:validate).and_raise('Config::Api must not be called by BackendResolver')
+        allow(Owl::Config::Api).to receive(:snapshot).and_raise('Config::Api must not be called by BackendResolver')
+        allow(Owl::Config::Api).to receive(:read_key).and_raise('Config::Api must not be called by BackendResolver')
+
+        result = described_class.resolve(root: root, scope: :storage)
+        expect(result).to be_a(Owl::Result::Ok)
+        expect(result.value).to be_a(Owl::Storage::Backends::Filesystem)
       end
     end
   end
