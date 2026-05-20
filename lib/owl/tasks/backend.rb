@@ -58,10 +58,6 @@ module Owl
       def child_create(parent_id:, workflow:, title:, brief_body: nil)
         raise NotImplementedError
       end
-
-      def split(task_id:, kind: 'composite_task')
-        raise NotImplementedError
-      end
     end
   end
 end

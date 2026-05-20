@@ -80,7 +80,6 @@ owl task child create TASK-0001 \
   --workflow feature_slice \
   --json
 
-owl task split TASK-0001 --json
 owl task aggregate-status TASK-0001 --json
 owl task ready --json   # читает tasks/index.yaml, при необходимости пересобирая
 ```
@@ -1387,7 +1386,6 @@ owl task parent TASK-0002 --json
 owl task aggregate-status TASK-0001 --json
 
 # Декомпозиция: создание подзадач
-owl task split TASK-0001 --json
 owl task child create TASK-0001 \
   --title "Add backend endpoint" \
   --workflow feature_slice \

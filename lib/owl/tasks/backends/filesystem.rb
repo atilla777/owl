@@ -12,7 +12,6 @@ require_relative '../internal/index_reader'
 require_relative '../internal/index_rebuilder'
 require_relative '../internal/parent_resolver'
 require_relative '../internal/paths'
-require_relative '../internal/splitter'
 require_relative '../internal/task_reader'
 require_relative '../internal/task_writer'
 require_relative '../internal/tree_builder'
@@ -167,10 +166,6 @@ module Owl
             creator: method(:create_via_self),
             brief_body: brief_body
           )
-        end
-
-        def split(task_id:, kind: 'composite_task')
-          Internal::Splitter.call(root: @root, task_id: task_id, kind: kind)
         end
 
         private

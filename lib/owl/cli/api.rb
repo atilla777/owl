@@ -31,7 +31,6 @@ require_relative 'internal/commands/task_inspect'
 require_relative 'internal/commands/task_list'
 require_relative 'internal/commands/task_parent'
 require_relative 'internal/commands/task_ready_steps'
-require_relative 'internal/commands/task_split'
 require_relative 'internal/commands/task_tree'
 require_relative 'internal/commands/task_use'
 require_relative 'internal/commands/workflow_list'
@@ -74,7 +73,6 @@ module Owl
           task parent             Show parent task (or null) for a TASK-ID.
           task aggregate-status   Aggregate state for a composite task (JSON).
           task child create       Create a child task under a composite parent.
-          task split              Convert a task into a composite_task (kind change).
           step start              Mark a ready step as running.
           step complete           Mark a running step as done.
           step skip               Mark a step as skipped (--reason required).
@@ -190,8 +188,7 @@ module Owl
         'tree' => Internal::Commands::TaskTree,
         'children' => Internal::Commands::TaskChildren,
         'parent' => Internal::Commands::TaskParent,
-        'aggregate-status' => Internal::Commands::TaskAggregateStatus,
-        'split' => Internal::Commands::TaskSplit
+        'aggregate-status' => Internal::Commands::TaskAggregateStatus
       }.freeze
 
       def dispatch_task(args, stdout:, stderr:, cwd:, env:)

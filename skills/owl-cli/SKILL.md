@@ -19,7 +19,7 @@ The `owl` CLI is the **only** sanctioned interface to `.owl/` and `tasks/` state
 Use this skill when another skill needs to:
 
 - resolve or initialise an Owl project layout
-- list, create, inspect, switch, or split tasks
+- list, create, inspect, or switch tasks
 - inspect or rebuild the task index, walk parent/child trees, or aggregate composite status
 - compute ready steps, package step invocations or step+context+artifact bundles
 - start, complete, or skip a step
@@ -72,7 +72,6 @@ Representative commands:
 - `owl task parent TASK-ID --json`
 - `owl task aggregate-status PARENT-ID --json`
 - `owl task child create --parent PARENT-ID --workflow KEY --title "..." [--json]`
-- `owl task split TASK-ID --workflow KEY [--json]`
 - `owl step start TASK-ID STEP-ID`
 - `owl step complete TASK-ID STEP-ID`
 - `owl step skip TASK-ID STEP-ID --reason "..."`
@@ -116,7 +115,6 @@ A few endpoints return shapes that have surprised agents in the past — always 
 - `owl task inspect TASK-ID --json` — read the full `task.yaml` payload.
 - `owl task use TASK-ID` — set `.owl/local/current.yaml` pointer.
 - `owl task current --json` — read current task pointer.
-- `owl task split TASK-ID --workflow KEY [--json]` — convert a task into a `composite_task`.
 - `owl task index rebuild --json` — rebuild `tasks/index.yaml` from on-disk `task.yaml` files.
 - `owl task tree [TASK-ID] --json` / `owl task children PARENT-ID --json` / `owl task parent TASK-ID --json` — traverse parent/child relationships.
 - `owl task aggregate-status PARENT-ID --json` — aggregate state for a composite parent.

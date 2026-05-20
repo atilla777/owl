@@ -388,7 +388,7 @@ Skill `owl.steps.decompose`:
 ```text
 - читает brief/specs/design;
 - создаёт artifact decomposition.md;
-- через CLI (owl task child create / owl task split) порождает child tasks;
+- через CLI (owl task child create) порождает child tasks;
 - проставляет parent_id и dependencies между child tasks.
 ```
 

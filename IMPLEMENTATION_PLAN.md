@@ -256,7 +256,6 @@ question → findings → options → recommendation
      --title "..." \
      --workflow feature_slice \
      --json
-   owl task split TASK-0001 --json
 
 3. Реализовать step skill owl.steps.decompose:
    - читает brief/specs/design;

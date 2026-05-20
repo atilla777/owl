@@ -66,10 +66,6 @@ module Owl
         )
       end
 
-      def split(root:, task_id:, kind: 'composite_task')
-        resolve_backend(root: root).split(task_id: task_id, kind: kind)
-      end
-
       def archive(root:, task_id:, now: Time.now.utc)
         resolve_backend(root: root).archive_task(task_id: task_id, now: now)
       end

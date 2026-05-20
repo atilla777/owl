@@ -5,7 +5,7 @@ require 'stringio'
 
 require 'owl/cli/api'
 
-RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/split CLI subcommands' do
+RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create CLI subcommands' do
   def run(argv, cwd:)
     stdout = StringIO.new
     stderr = StringIO.new
@@ -63,7 +63,6 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
         expect(stderr).to include('task parent')
         expect(stderr).to include('task aggregate-status')
         expect(stderr).to include('task child create')
-        expect(stderr).to include('task split')
       end
     end
   end
@@ -236,18 +235,4 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create/s
     end
   end
 
-  describe 'owl task split' do
-    it 'flips a task into composite_task' do
-      with_tmp_project do |root|
-        init_with_workflows(root)
-        run(['task', 'create', '--workflow', 'feature', '--title', 'T', '--root', root.to_s], cwd: root)
-
-        exit_code, stdout, = run(['task', 'split', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
-        expect(exit_code).to eq(0)
-        body = JSON.parse(stdout)
-        expect(body['changed']).to be(true)
-        expect(body['kind']).to eq('composite_task')
-      end
-    end
-  end
 end
