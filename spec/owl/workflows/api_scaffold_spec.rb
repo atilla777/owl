@@ -195,5 +195,139 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
         expect(result.code).to eq(:workflow_source_missing)
       end
     end
+
+    describe 'step variants' do
+      it 'accepts a step with `variants` and a matching `default_variant`' do
+        with_tmp_project do |root|
+          seed_project(root)
+          body = <<~YAML
+            id: variant_ok
+            kind: task
+            title: V
+            artifacts: {}
+            steps:
+              - id: brief
+                skill: owl-step-run
+                default_variant: feature
+                variants:
+                  feature:
+                    context_file: brief.feature.context.md
+                  root_cause:
+                    context_file: brief.root_cause.context.md
+          YAML
+          result = described_class.scaffold(root: root, id: 'variant_ok', body: body)
+          expect(result).to be_ok
+        end
+      end
+
+      it 'rejects `variants` without `default_variant`' do
+        with_tmp_project do |root|
+          seed_project(root)
+          body = <<~YAML
+            id: no_default
+            kind: task
+            artifacts: {}
+            steps:
+              - id: brief
+                skill: owl-step-run
+                variants:
+                  feature:
+                    context_file: brief.feature.context.md
+          YAML
+          result = described_class.scaffold(root: root, id: 'no_default', body: body)
+          expect(result).to be_err
+          expect(result.code).to eq(:workflow_validation_failed)
+          messages = result.details[:errors].map { |e| e[:message] }
+          expect(messages.join("\n")).to match(/default_variant.*required/)
+        end
+      end
+
+      it 'rejects `default_variant` that is not a key in `variants`' do
+        with_tmp_project do |root|
+          seed_project(root)
+          body = <<~YAML
+            id: ghost_default
+            kind: task
+            artifacts: {}
+            steps:
+              - id: brief
+                skill: owl-step-run
+                default_variant: missing
+                variants:
+                  feature:
+                    context_file: brief.feature.context.md
+          YAML
+          result = described_class.scaffold(root: root, id: 'ghost_default', body: body)
+          expect(result).to be_err
+          expect(result.code).to eq(:workflow_validation_failed)
+          messages = result.details[:errors].map { |e| e[:message] }
+          expect(messages.join("\n")).to match(/not a key in `variants`/)
+        end
+      end
+
+      it 'rejects `default_variant` without `variants`' do
+        with_tmp_project do |root|
+          seed_project(root)
+          body = <<~YAML
+            id: orphan_default
+            kind: task
+            artifacts: {}
+            steps:
+              - id: brief
+                skill: owl-step-run
+                default_variant: feature
+          YAML
+          result = described_class.scaffold(root: root, id: 'orphan_default', body: body)
+          expect(result).to be_err
+          expect(result.code).to eq(:workflow_validation_failed)
+          messages = result.details[:errors].map { |e| e[:message] }
+          expect(messages.join("\n")).to match(/default_variant.*requires a `variants:`/)
+        end
+      end
+
+      it 'rejects mixing `variants` with step-level `context_file`' do
+        with_tmp_project do |root|
+          seed_project(root)
+          body = <<~YAML
+            id: mixed
+            kind: task
+            artifacts: {}
+            steps:
+              - id: brief
+                skill: owl-step-run
+                context_file: brief.context.md
+                default_variant: feature
+                variants:
+                  feature:
+                    context_file: brief.feature.context.md
+          YAML
+          result = described_class.scaffold(root: root, id: 'mixed', body: body)
+          expect(result).to be_err
+          expect(result.code).to eq(:workflow_validation_failed)
+          messages = result.details[:errors].map { |e| e[:message] }
+          expect(messages.join("\n")).to match(/variants.*mutually exclusive/)
+        end
+      end
+
+      it 'rejects a variant missing `context_file`' do
+        with_tmp_project do |root|
+          seed_project(root)
+          body = <<~YAML
+            id: no_cf
+            kind: task
+            artifacts: {}
+            steps:
+              - id: brief
+                skill: owl-step-run
+                default_variant: feature
+                variants:
+                  feature: {}
+          YAML
+          result = described_class.scaffold(root: root, id: 'no_cf', body: body)
+          expect(result).to be_err
+          expect(result.code).to eq(:workflow_validation_failed)
+        end
+      end
+    end
   end
 end

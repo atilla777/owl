@@ -120,4 +120,82 @@ RSpec.describe Owl::Workflows::Internal::StepContextResolver do
     expect(result).to be_ok
     expect(result.value).to eq('a' => 'symbol ok')
   end
+
+  describe 'with variants' do
+    let(:variant_step) do
+      {
+        'id' => 'brief',
+        'default_variant' => 'feature',
+        'variants' => {
+          'feature' => { 'context_file' => 'brief.feature.context.md' },
+          'root_cause' => { 'context_file' => 'brief.root_cause.context.md' }
+        }
+      }
+    end
+
+    it 'resolves via the default_variant when no override is supplied' do
+      allow(backend).to receive(:read_step_context).with(
+        source_dir: source_dir,
+        step_id: 'brief',
+        relative_path: 'brief.feature.context.md'
+      ).and_return(Owl::Result.ok('default body'))
+
+      result = described_class.call(steps: [variant_step], backend: backend, source_dir: source_dir)
+      expect(result).to be_ok
+      expect(result.value).to eq('brief' => 'default body')
+    end
+
+    it 'resolves via the chosen variant when step_variants is supplied' do
+      allow(backend).to receive(:read_step_context).with(
+        source_dir: source_dir,
+        step_id: 'brief',
+        relative_path: 'brief.root_cause.context.md'
+      ).and_return(Owl::Result.ok('rc body'))
+
+      result = described_class.call(
+        steps: [variant_step],
+        backend: backend,
+        source_dir: source_dir,
+        step_variants: { 'brief' => 'root_cause' }
+      )
+      expect(result).to be_ok
+      expect(result.value).to eq('brief' => 'rc body')
+    end
+
+    it 'returns :unknown_step_variant when the override is not a declared variant' do
+      result = described_class.call(
+        steps: [variant_step],
+        backend: backend,
+        source_dir: source_dir,
+        step_variants: { 'brief' => 'ghost' }
+      )
+      expect(result).to be_err
+      expect(result.code).to eq(:unknown_step_variant)
+      expect(result.details).to include(step_id: 'brief', variant: 'ghost')
+      expect(result.details[:available]).to contain_exactly('feature', 'root_cause')
+    end
+
+    it 'returns :missing_step_variant when neither default_variant nor override are set' do
+      step = variant_step.dup
+      step.delete('default_variant')
+
+      result = described_class.call(steps: [step], backend: backend, source_dir: source_dir)
+      expect(result).to be_err
+      expect(result.code).to eq(:missing_step_variant)
+      expect(result.details[:step_id]).to eq('brief')
+    end
+
+    it 'returns :invalid_step_context_file when the chosen variant has empty context_file' do
+      step = {
+        'id' => 'brief',
+        'default_variant' => 'broken',
+        'variants' => { 'broken' => { 'context_file' => '' } }
+      }
+
+      result = described_class.call(steps: [step], backend: backend, source_dir: source_dir)
+      expect(result).to be_err
+      expect(result.code).to eq(:invalid_step_context_file)
+      expect(result.details[:variant]).to eq('broken')
+    end
+  end
 end

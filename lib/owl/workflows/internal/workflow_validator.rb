@@ -121,6 +121,56 @@ module Owl
           if context && !context.is_a?(String)
             errors << error_at("#{path}/context", '`context` must be a string when present.')
           end
+          errors.concat(validate_step_variants(step, path))
+          errors
+        end
+
+        def validate_step_variants(step, path)
+          variants = step['variants']
+          default_variant = step['default_variant']
+
+          if default_variant && variants.nil?
+            return [error_at("#{path}/default_variant",
+                             '`default_variant` requires a `variants:` block on the step.')]
+          end
+          return [] if variants.nil?
+
+          errors = []
+          unless variants.is_a?(Hash) && !variants.empty?
+            return [error_at("#{path}/variants",
+                             '`variants` must be a non-empty mapping of variant keys to variant bodies.')]
+          end
+
+          if step['context'] || step['context_file']
+            errors << error_at(path,
+                               '`variants` is mutually exclusive with the step-level `context` / `context_file`.')
+          end
+
+          variants.each do |name, body|
+            vpath = "#{path}/variants/#{name}"
+            unless body.is_a?(Hash)
+              errors << error_at(vpath, 'Each variant must be a mapping.')
+              next
+            end
+            cf = body['context_file']
+            unless cf.is_a?(String) && !cf.strip.empty?
+              errors << error_at("#{vpath}/context_file",
+                                 '`context_file` is required on each variant and must be a non-empty string.')
+            end
+          end
+
+          unless default_variant.is_a?(String) && !default_variant.strip.empty?
+            errors << error_at("#{path}/default_variant",
+                               '`default_variant` is required when `variants:` is set and must be a non-empty string.')
+            return errors
+          end
+
+          unless variants.key?(default_variant)
+            errors << error_at("#{path}/default_variant",
+                               "`default_variant: #{default_variant}` is not a key in `variants` " \
+                               "(available: #{variants.keys.sort.inspect}).")
+          end
+
           errors
         end
 

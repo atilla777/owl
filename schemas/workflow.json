@@ -60,7 +60,38 @@
         "context_file": {
           "type": "string",
           "minLength": 1,
-          "description": "Relative path (from the workflow source directory) to a Markdown file containing per-step context. Resolved through Workflows::Backend. Mutually exclusive with `context`."
+          "description": "Relative path (from the workflow source directory) to a Markdown file containing per-step context. Resolved through Workflows::Backend. Mutually exclusive with `context` and `variants`."
+        },
+        "variants": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/step_variant" },
+          "description": "Declared alternative implementations of this step. When present, the running task chooses one (via `--variant <name>` or `default_variant`) and the resolver loads that variant's `context_file`. Mutually exclusive with the step's own `context` / `context_file`."
+        },
+        "default_variant": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Variant key used when the running task does not select one explicitly. Required when `variants` is present, must be one of its keys."
+        }
+      }
+    },
+    "step_variant": {
+      "type": "object",
+      "required": ["context_file"],
+      "additionalProperties": true,
+      "properties": {
+        "context_file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative path to the Markdown context file for this variant, resolved like the step-level `context_file`."
+        },
+        "title": {
+          "type": "string",
+          "description": "Optional human-readable label for the variant (used by orchestrator UIs to present a chooser)."
+        },
+        "interactive": {
+          "type": "boolean",
+          "description": "Override the step-level `interactive` flag for this variant only."
         }
       }
     },
