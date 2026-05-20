@@ -159,4 +159,74 @@ RSpec.describe Owl::Storage::Api do
     end
   end
 
+  describe 'facade routing' do
+    let(:simple_profile) do
+      { 'roles' => { 'tasks' => { 'path' => '{{project.root}}/tasks' } } }
+    end
+
+    it 'routes .resolve through BackendResolver with scope: :storage' do
+      with_tmp_project do |root|
+        spy_backend = instance_double(Owl::Storage::Backends::Filesystem)
+        allow(spy_backend).to receive(:resolve).and_return(Owl::Result.ok(Pathname.new("#{root}/x")))
+        allow(Owl::Internal::BackendResolver).to receive(:resolve).and_return(Owl::Result.ok(spy_backend))
+
+        described_class.resolve(role: 'tasks', profile: simple_profile, root: root)
+
+        expect(Owl::Internal::BackendResolver).to have_received(:resolve).with(root: root, scope: :storage)
+        expect(spy_backend).to have_received(:resolve).with(role: 'tasks', profile: an_instance_of(Hash), vars: {})
+      end
+    end
+
+    it 'propagates BackendResolver Result.err from .resolve' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            storage:
+              backend: imaginary
+        YAML
+
+        result = described_class.resolve(role: 'tasks', profile: simple_profile, root: root)
+
+        expect(result).to be_err
+        expect(result.code).to eq(:unknown_backend)
+        expect(result.details).to eq(scope: :storage, backend_name: 'imaginary')
+      end
+    end
+
+    it 'bypasses BackendResolver for .detect_root (Layer-C bootstrap)' do
+      with_tmp_project do |root|
+        Pathname.new("#{root}/.owl").mkpath
+        nested = Pathname.new("#{root}/lib/deep")
+        nested.mkpath
+        allow(Owl::Internal::BackendResolver).to receive(:resolve)
+
+        result = described_class.detect_root(start: nested.to_s)
+
+        expect(result).to be_ok
+        expect(result.value).to eq(root.expand_path)
+        expect(Owl::Internal::BackendResolver).not_to have_received(:resolve)
+      end
+    end
+
+    it 'bypasses BackendResolver for .read / .write / .mkdir_p / .exists? (Layer-C v1)' do
+      with_tmp_project do |root|
+        allow(Owl::Internal::BackendResolver).to receive(:resolve)
+
+        write_result = described_class.write(path: "#{root}/payload.txt", contents: 'data')
+        expect(write_result).to be_ok
+
+        expect(described_class.exists?(path: "#{root}/payload.txt")).to be(true)
+        expect(described_class.exists?(path: "#{root}/missing.txt")).to be(false)
+
+        read_result = described_class.read(path: "#{root}/payload.txt")
+        expect(read_result).to be_ok
+        expect(read_result.value).to eq('data')
+
+        mkdir_result = described_class.mkdir_p(path: "#{root}/x/y/z")
+        expect(mkdir_result).to be_ok
+
+        expect(Owl::Internal::BackendResolver).not_to have_received(:resolve)
+      end
+    end
+  end
 end

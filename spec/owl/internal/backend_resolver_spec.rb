@@ -22,6 +22,38 @@ RSpec.describe Owl::Internal::BackendResolver do
     it_behaves_like 'returns the matching filesystem backend',
                     scope: :workflows,
                     klass: Owl::Workflows::Backends::Filesystem
+    it_behaves_like 'returns the matching filesystem backend',
+                    scope: :storage,
+                    klass: Owl::Storage::Backends::Filesystem
+
+    it 'returns a storage filesystem backend when config explicitly selects "filesystem"' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            storage:
+              backend: filesystem
+        YAML
+        result = described_class.resolve(root: root, scope: :storage)
+        expect(result).to be_a(Owl::Result::Ok)
+        expect(result.value).to be_a(Owl::Storage::Backends::Filesystem)
+      end
+    end
+
+    it 'returns :unknown_backend for :storage scope when config picks an unrecognised name' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", <<~YAML)
+          settings:
+            storage:
+              backend: imaginary
+        YAML
+        result = described_class.resolve(root: root, scope: :storage)
+        expect(result).to be_a(Owl::Result::Err)
+        expect(result.code).to eq(:unknown_backend)
+        expect(result.message).to include('storage')
+        expect(result.message).to include('imaginary')
+        expect(result.details).to eq(scope: :storage, backend_name: 'imaginary')
+      end
+    end
 
     it 'treats explicit settings.storage.backend: "filesystem" as Filesystem' do
       with_tmp_project do |root|
