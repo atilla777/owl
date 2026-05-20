@@ -323,48 +323,20 @@ RSpec.describe Owl::Tasks::Api do
     end
   end
 
-  describe '.resolve_backend' do
-    it 'returns Backends::Filesystem when config does not declare a backend' do
+  describe 'backend resolution via Owl::Internal::BackendResolver' do
+    it 'returns Result.err(:unknown_backend) from .create when backend is unrecognised' do
       with_tmp_project do |root|
         init_project(root)
-        backend = described_class.resolve_backend(root: root)
-        expect(backend).to be_a(Owl::Tasks::Backends::Filesystem)
-      end
-    end
-
-    it 'returns Backends::Filesystem when settings.storage.backend is "filesystem"' do
-      with_tmp_project do |root|
-        init_project(root)
-        write("#{root}/.owl/config.yaml",
-              File.read("#{root}/.owl/config.yaml") + "settings:\n  storage:\n    backend: filesystem\n")
-        backend = described_class.resolve_backend(root: root)
-        expect(backend).to be_a(Owl::Tasks::Backends::Filesystem)
-      end
-    end
-
-    it 'raises UnknownBackendError on an unrecognised backend' do
-      with_tmp_project do |root|
-        init_project(root)
+        seed_feature_workflow(root)
         write("#{root}/.owl/config.yaml",
               File.read("#{root}/.owl/config.yaml") + "settings:\n  storage:\n    backend: imaginary\n")
-        expect { described_class.resolve_backend(root: root) }
-          .to raise_error(Owl::Tasks::UnknownBackendError, /imaginary/)
-      end
-    end
 
-    it 'falls back to Filesystem when config.yaml is missing' do
-      with_tmp_project do |root|
-        backend = described_class.resolve_backend(root: root)
-        expect(backend).to be_a(Owl::Tasks::Backends::Filesystem)
-      end
-    end
-
-    it 'falls back to Filesystem when config.yaml has malformed YAML' do
-      with_tmp_project do |root|
-        FileUtils.mkdir_p("#{root}/.owl")
-        write("#{root}/.owl/config.yaml", ":\n  : broken")
-        backend = described_class.resolve_backend(root: root)
-        expect(backend).to be_a(Owl::Tasks::Backends::Filesystem)
+        result = described_class.create(root: root, workflow: 'feature', title: 'doomed')
+        expect(result).to be_a(Owl::Result::Err)
+        expect(result.code).to eq(:unknown_backend)
+        expect(result.message).to include('tasks')
+        expect(result.message).to include('imaginary')
+        expect(result.details).to include(scope: :tasks, backend_name: 'imaginary')
       end
     end
   end

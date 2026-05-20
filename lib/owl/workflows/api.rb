@@ -4,6 +4,7 @@ require 'pathname'
 require 'yaml'
 
 require_relative '../result'
+require_relative '../internal/backend_resolver'
 require_relative '../tasks/internal/paths'
 require_relative '../tasks/internal/task_reader'
 require_relative 'backend'
@@ -186,7 +187,12 @@ module Owl
       end
 
       def build_steps_lookup(steps:, source_path:, root:, backend:, step_variants: {})
-        backend ||= resolve_backend(root: root)
+        if backend.nil?
+          backend_result = Owl::Internal::BackendResolver.resolve(root: root, scope: :workflows)
+          return backend_result if backend_result.err?
+
+          backend = backend_result.value
+        end
         source_dir = Pathname.new(source_path.to_s).dirname
 
         context_result = Internal::StepContextResolver.call(
@@ -238,35 +244,6 @@ module Owl
           workflow_key: workflow_key,
           ready: ready
         )
-      end
-
-      def resolve_backend(root:)
-        backend_name = read_backend_name(root: root)
-        case backend_name
-        when nil, 'filesystem'
-          Backends::Filesystem.new(root: root)
-        else
-          raise UnknownBackendError, "Unknown Owl workflows backend: #{backend_name.inspect}"
-        end
-      end
-
-      def read_backend_name(root:)
-        config_path = Pathname.new(root.to_s) + '.owl/config.yaml'
-        return nil unless config_path.exist?
-
-        raw = YAML.safe_load(config_path.read, aliases: false)
-        return nil unless raw.is_a?(Hash)
-
-        settings = raw['settings']
-        return nil unless settings.is_a?(Hash)
-
-        storage = settings['storage']
-        return nil unless storage.is_a?(Hash)
-
-        backend = storage['backend']
-        backend.is_a?(String) && !backend.empty? ? backend : nil
-      rescue Psych::SyntaxError
-        nil
       end
 
       def workflow_source_path(root:, id:)
@@ -362,7 +339,7 @@ module Owl
         [source[:body], path]
       end
 
-      private_class_method :workflow_source_missing_error, :build_steps_lookup, :read_backend_name,
+      private_class_method :workflow_source_missing_error, :build_steps_lookup,
                            :workflow_source_path, :resolve_scaffold_body, :safe_parse,
                            :load_for_validate, :load_from_path, :load_from_registry
     end

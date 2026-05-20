@@ -5,6 +5,7 @@ require 'yaml'
 
 require_relative '../../result'
 require_relative '../../artifacts/api'
+require_relative '../../validation/internal/schema_check'
 require_relative 'graph_builder'
 
 module Owl
@@ -12,7 +13,6 @@ module Owl
     module Internal
       module WorkflowValidator
         ALLOWED_KINDS = %w[task composite_task].freeze
-        SKILL_PATTERN = /\A[Oo]wl-step-[a-z_]+\z/
 
         module_function
 
@@ -27,6 +27,9 @@ module Owl
             )
           end
 
+          Owl::Validation::Internal::SchemaCheck.walk('workflow.json', body).each do |e|
+            errors << error_at(e[:path], e[:message], code: e[:keyword])
+          end
           errors.concat(validate_top_level(body))
           errors.concat(validate_steps(body, root))
 
@@ -93,7 +96,6 @@ module Owl
           end
 
           errors.concat(validate_step_creates(steps, declared_artifacts))
-          errors.concat(validate_step_skill_pattern(steps))
           errors.concat(validate_artifact_refs(body, root))
 
           errors
@@ -193,21 +195,6 @@ module Owl
                 "/steps/#{idx}/creates/#{ci}",
                 "Step '#{step['id']}' declares `creates: #{key}` but workflow `artifacts:` does not include '#{key}'."
               )
-            end
-          end
-          errors
-        end
-
-        def validate_step_skill_pattern(steps)
-          errors = []
-          steps.each_with_index do |step, idx|
-            next unless step.is_a?(Hash)
-
-            skill = step['skill']
-            next if skill.nil?
-
-            unless skill.is_a?(String) && skill.match?(SKILL_PATTERN)
-              errors << error_at("/steps/#{idx}/skill", '`skill` must match /^owl-step-[a-z_]+$/ when present.')
             end
           end
           errors

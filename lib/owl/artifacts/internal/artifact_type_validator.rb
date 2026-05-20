@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../result'
+require_relative '../../validation/internal/schema_check'
 
 module Owl
   module Artifacts
@@ -21,6 +22,9 @@ module Owl
             )
           end
 
+          Owl::Validation::Internal::SchemaCheck.walk('artifact.json', body).each do |e|
+            errors << error_at(e[:path], e[:message])
+          end
           errors.concat(validate_top_level(body))
           errors.concat(validate_front_matter(body['front_matter']))
           errors.concat(validate_validation_block(body['validation']))

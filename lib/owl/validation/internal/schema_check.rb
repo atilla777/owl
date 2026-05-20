@@ -1,0 +1,25 @@
+# frozen_string_literal: true
+
+require 'json'
+
+require_relative '../../internal/paths'
+require_relative 'json_schema_walker'
+
+module Owl
+  module Validation
+    module Internal
+      module SchemaCheck
+        module_function
+
+        def schema(name)
+          (@schemas ||= {})[name] ||=
+            JSON.parse(File.read(File.join(Owl::Internal::Paths.schemas_dir, name)))
+        end
+
+        def walk(name, body)
+          JsonSchemaWalker.validate(schema(name), body)
+        end
+      end
+    end
+  end
+end
