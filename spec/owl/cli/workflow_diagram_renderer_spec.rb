@@ -136,4 +136,44 @@ RSpec.describe Owl::Cli::Internal::Commands::WorkflowDiagramRenderer do
       expect { described_class.render(mode: :weird) }.to raise_error(ArgumentError)
     end
   end
+
+  describe '.render with step variants' do
+    let(:variant_step) do
+      {
+        id: 'brief', status: 'pending', ready: true, current: true, optional: false,
+        requires: [], creates: ['brief'],
+        variants: %w[feature root_cause problem_inventory],
+        default_variant: 'feature',
+        chosen_variant: 'root_cause'
+      }
+    end
+
+    it 'prints a variants sub-line marking [default] and the chosen one' do
+      data = {
+        mode: :live,
+        task: { id: 'TASK-0001', title: 't', workflow_key: 'feature' },
+        steps: [variant_step],
+        progress: { done: 0, total: 1, pct: 0.0 },
+        blockers: []
+      }
+      out = described_class.render(data)
+      expect(out).to include('variants: feature [default]  ·  root_cause ←  ·  problem_inventory')
+    end
+
+    it 'omits the chosen-variant marker in abstract mode' do
+      step = variant_step.merge(chosen_variant: nil, current: false, ready: false)
+      data = { mode: :abstract, workflow_key: 'feature', steps: [step] }
+      out = described_class.render(data)
+      expect(out).to include('variants: feature [default]  ·  root_cause  ·  problem_inventory')
+      expect(out).not_to include('←')
+    end
+
+    it 'prints nothing extra for steps without variants' do
+      step = { id: 'plain', status: 'pending', ready: false, current: false, optional: false,
+               requires: [], creates: [] }
+      data = { mode: :abstract, workflow_key: 'feature', steps: [step] }
+      out = described_class.render(data)
+      expect(out).not_to include('variants:')
+    end
+  end
 end

@@ -219,29 +219,8 @@ project-root/
         workflow.yaml
         README.md
 
-      feature_slice/
-        workflow.yaml
-        README.md
-
-      hotfix/
-        workflow.yaml
-        README.md
-
-      research/
-        workflow.yaml
-        README.md
-
-      refactor/
-        workflow.yaml
-        README.md
-
     artifacts/
       brief/
-        artifact.yaml
-        templates/
-          default.md
-
-      spec/
         artifact.yaml
         templates/
           default.md
@@ -251,27 +230,22 @@ project-root/
         templates/
           default.md
 
+      plan/
+        artifact.yaml
+        templates/
+          default.md
+
+      review/
+        artifact.yaml
+        templates/
+          default.md
+
       decomposition/
         artifact.yaml
         templates/
           default.md
 
-      tasks/
-        artifact.yaml
-        templates/
-          default.md
-
       verification/
-        artifact.yaml
-        templates/
-          default.md
-
-      patch_plan/
-        artifact.yaml
-        templates/
-          default.md
-
-      research_findings/
         artifact.yaml
         templates/
           default.md
@@ -315,11 +289,10 @@ project-root/
       tasks.md
       verification.md
 
-    TASK-0004/                       # standalone hotfix
+    TASK-0004/                       # standalone bug-fix task (brief variant: root_cause)
       task.yaml                      # kind: task
-      issue.md
-      patch-plan.md
-      tasks.md
+      brief.md
+      plan.md
       verification.md
 
     archive/
@@ -422,9 +395,9 @@ owl step invocation TASK-0001 specify --json
     }
   },
   "step": {
-    "id": "specify",
-    "title": "Create proposed domain specs",
-    "skill": "owl.steps.specify"
+    "id": "design",
+    "title": "Sketch design for the brief",
+    "skill": "owl-step-run"
   },
   "inputs": {
     "artifacts": {
@@ -435,34 +408,30 @@ owl step invocation TASK-0001 specify --json
     },
     "docs": {
       "domain_spec": {
-        "uri": "file:///project/docs/user-export/spec.md",
+        "uri": "file:///project/docs/user-export/design.md",
         "exists": false
       }
     }
   },
   "outputs": {
     "artifacts": {
-      "specs": {
-        "type": "spec",
-        "uri_pattern": "file:///project/tasks/TASK-0001/specs/**/*.md",
-        "suggested_uri": "file:///project/tasks/TASK-0001/specs/user-export/spec.md",
-        "template_uri": "file:///project/.owl/artifacts/spec/templates/default.md"
+      "design": {
+        "type": "design",
+        "uri": "file:///project/tasks/TASK-0001/design.md",
+        "template_uri": "file:///project/.owl/artifacts/design/templates/default.md"
       }
     }
   },
   "validation": {
-    "artifact_type": "spec",
+    "artifact_type": "design",
     "required_sections": [
-      "Requirements"
-    ],
-    "required_patterns": [
-      "### Requirement:",
-      "#### Scenario:"
+      "API",
+      "Behavior"
     ]
   },
   "rules": {
     "must": [
-      "Create or update the proposed spec artifact.",
+      "Create or update the design artifact.",
       "Do not modify application code.",
       "Do not mark the step complete until validation passes."
     ]

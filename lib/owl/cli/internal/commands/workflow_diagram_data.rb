@@ -28,7 +28,13 @@ module Owl
 
             workflow_steps = workflow_steps_for(workflow_find.value)
             ready_ids = Status.ready_step_ids(root: root, task_id: task_id)
-            steps_view = live_steps_view(payload: payload, workflow_steps: workflow_steps, ready_ids: ready_ids)
+            step_variants = payload['step_variants'].is_a?(Hash) ? payload['step_variants'] : {}
+            steps_view = live_steps_view(
+              payload: payload,
+              workflow_steps: workflow_steps,
+              ready_ids: ready_ids,
+              step_variants: step_variants
+            )
 
             Owl::Result.ok(
               mode: :live,
@@ -52,9 +58,13 @@ module Owl
             definition && definition['steps'] ? Array(definition['steps']) : []
           end
 
-          def live_steps_view(payload:, workflow_steps:, ready_ids:)
-            steps = build_step_views(task_steps: payload['steps'] || [], workflow_steps: workflow_steps,
-                                     ready_ids: ready_ids)
+          def live_steps_view(payload:, workflow_steps:, ready_ids:, step_variants: {})
+            steps = build_step_views(
+              task_steps: payload['steps'] || [],
+              workflow_steps: workflow_steps,
+              ready_ids: ready_ids,
+              step_variants: step_variants
+            )
             current_id = ready_ids.first
             steps.each { |step| step[:current] = (step[:id] == current_id) }
             steps
@@ -74,15 +84,11 @@ module Owl
             workflow_steps = definition && definition['steps'] ? Array(definition['steps']) : []
 
             steps_view = workflow_steps.map do |ws|
-              {
-                id: ws['id'].to_s,
+              base_step_view(ws).merge(
                 status: 'pending',
                 ready: false,
-                current: false,
-                optional: ws['optional'] == true,
-                requires: Array(ws['requires']).map(&:to_s),
-                creates: Array(ws['creates']).map(&:to_s)
-              }
+                current: false
+              )
             end
 
             Owl::Result.ok(
@@ -92,7 +98,7 @@ module Owl
             )
           end
 
-          def build_step_views(task_steps:, workflow_steps:, ready_ids:)
+          def build_step_views(task_steps:, workflow_steps:, ready_ids:, step_variants: {})
             workflow_by_id = workflow_steps.to_h { |ws| [ws['id'].to_s, ws] }
             order = workflow_steps.map { |ws| ws['id'].to_s }
             task_by_id = task_steps.each_with_object({}) do |ts, h|
@@ -104,16 +110,33 @@ module Owl
               ws = workflow_by_id[id] || {}
               ts = task_by_id[id] || {}
               status = (ts['status'] || ts[:status] || 'pending').to_s
-              {
-                id: id,
+              chosen = (step_variants[id] || ws['default_variant'])&.to_s
+              chosen = nil if chosen.nil? || chosen.empty? || !ws['variants'].is_a?(Hash)
+              base_step_view(ws).merge(
                 status: status,
                 ready: ready_ids.include?(id),
                 current: false,
-                optional: ws['optional'] == true,
-                requires: Array(ws['requires']).map(&:to_s),
-                creates: Array(ws['creates']).map(&:to_s)
-              }
+                chosen_variant: chosen
+              )
             end
+          end
+
+          def base_step_view(ws)
+            {
+              id: ws['id'].to_s,
+              optional: ws['optional'] == true,
+              requires: Array(ws['requires']).map(&:to_s),
+              creates: Array(ws['creates']).map(&:to_s),
+              variants: variant_keys(ws),
+              default_variant: ws['default_variant']
+            }
+          end
+
+          def variant_keys(ws)
+            variants = ws['variants']
+            return [] unless variants.is_a?(Hash)
+
+            variants.keys.map(&:to_s)
           end
         end
       end

@@ -70,7 +70,7 @@ module Owl
           def step_lines(steps)
             return [] if steps.nil? || steps.empty?
 
-            steps.map { |step| step_line(step) }
+            steps.flat_map { |step| [step_line(step), *variant_lines(step)] }
           end
 
           def step_line(step)
@@ -84,6 +84,21 @@ module Owl
             suffix_parts << "requires: #{step[:requires].join(', ')}" if step[:requires]&.any? && pending?(step)
             suffix = suffix_parts.empty? ? '' : "    #{suffix_parts.join('    ')}"
             "  #{marker} #{padded_id}#{suffix}"
+          end
+
+          def variant_lines(step)
+            variants = Array(step[:variants])
+            return [] if variants.empty?
+
+            default = step[:default_variant].to_s
+            chosen = step[:chosen_variant].to_s
+            labels = variants.map do |name|
+              marker = +name.to_s
+              marker << ' [default]' if name.to_s == default
+              marker << ' ←' if !chosen.empty? && name.to_s == chosen
+              marker
+            end
+            ["    variants: #{labels.join('  ·  ')}"]
           end
 
           def step_marker(step)

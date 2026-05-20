@@ -60,7 +60,7 @@ Representative commands:
 - `owl init [--root PATH] [--force]`
 - `owl workflow list --json`
 - `owl config validate --json`
-- `owl task create --workflow KEY --title "..." [--parent PARENT-ID] [--json]`
+- `owl task create --workflow KEY --title "..." [--parent PARENT-ID] [--variant STEP=NAME] [--json]`
 - `owl task list --json`
 - `owl task inspect TASK-ID --json`
 - `owl task use TASK-ID`
@@ -72,7 +72,7 @@ Representative commands:
 - `owl task parent TASK-ID --json`
 - `owl task aggregate-status PARENT-ID --json`
 - `owl task child create --parent PARENT-ID --workflow KEY --title "..." [--json]`
-- `owl step start TASK-ID STEP-ID`
+- `owl step start TASK-ID STEP-ID [--variant NAME]`
 - `owl step complete TASK-ID STEP-ID`
 - `owl step skip TASK-ID STEP-ID --reason "..."`
 - `owl step invocation TASK-ID STEP-ID --json`
@@ -91,6 +91,7 @@ The list above is intentionally explicit so agents do not need CLI discovery for
 A few endpoints return shapes that have surprised agents in the past — always iterate the actual JSON structure rather than guessing top-level keys:
 
 - `owl task ready-steps TASK-ID --json` returns `{ready_steps: [...]}`. Each entry has `id`, `skill`, and dependencies metadata.
+- `owl step show TASK-ID STEP-ID --json` returns a step bundle whose `step` block carries `variants:` (map) and `default_variant:` when the step declares them, plus the resolved `variant:` for the running task. Use `--variant NAME` on `owl step start` (or `--variant STEP=NAME` on `owl task create`) to choose a non-default variant; the chosen `context_file` and overlay `<step>/<variant>.md` files are then loaded automatically.
 - `owl status TASK-ID --json` returns an agent-friendly summary: `steps` (each with a `ready` flag), `progress {done, total, pct}`, `blockers`, and `children` (for composite tasks).
 - `owl task tree --json` and `owl task children PARENT-ID --json` return recursive `{children: [...]}` shapes; walk via recursive descent, not just the top level.
 - `owl archive TASK-ID --json` for a composite parent that has unready children returns `composite_with_unready_children` and lists missing children steps — handle this branch before treating the call as a failure.
@@ -124,7 +125,7 @@ A few endpoints return shapes that have surprised agents in the past — always 
 - `owl task ready-steps TASK-ID --json` — compute the next ready steps from the workflow graph.
 - `owl step invocation TASK-ID STEP-ID --json` — full StepInvocation: paths, templates, validation rules, matching skill id.
 - `owl step show TASK-ID STEP-ID --json` — merged step + context + artifact_template + task bundle (preferred for `owl-step-run`).
-- `owl step start TASK-ID STEP-ID` — mark a ready step as running.
+- `owl step start TASK-ID STEP-ID [--variant NAME]` — mark a ready step as running; `--variant` is required when the step declares `variants:` and no choice was made at task-create time (or to override one).
 - `owl step complete TASK-ID STEP-ID` — mark a running step as done; re-runs artifact validation as a safety net.
 - `owl step skip TASK-ID STEP-ID --reason "..."` — mark an optional step as skipped.
 - `owl instructions TASK-ID [--step-id STEP] --json` — package the next ready step with its `SKILL.md` summary.

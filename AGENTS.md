@@ -25,16 +25,13 @@ composite_feature (большая задача с декомпозицией):
 
 feature_slice (дочерняя задача):
   plan → apply → verify
-
-hotfix:
-  issue → patch-plan → tasks → apply → verify → archive
-
-research:
-  question → findings → options → recommendation
-
-refactor:
-  intent → impact → plan → apply → verify
 ```
+
+Сценарии «исправить баг» и «отрефакторить кусок» не имеют собственного
+workflow — это варианты шага `brief` внутри `feature` /
+`composite_feature` (см. раздел «Step variants» в README). Дальше задача
+идёт по тому же стандартному графу: `brief → design → plan → implement →
+review_code → ...`.
 
 Owl должен позволять описывать такие workflow декларативно — через YAML-схемы. Оркестратор читает схему workflow, понимает текущую задачу, определяет следующий доступный шаг, вызывает соответствующий skill/агента, а агент создаёт или обновляет нужный артефакт.
 
@@ -107,27 +104,20 @@ Skills не должны сами угадывать пути, текущую з
 
 Описание типа задачи.
 
-Например:
+Сейчас seed-набор:
 
 ```text
 feature
 composite_feature
-feature_slice
-hotfix
-research
-refactor
-migration
-bugfix
 ```
+
+Произвольные пользовательские workflow создаются командой `owl workflow new`.
 
 Каждый workflow имеет отдельную YAML-схему:
 
 ```text
 .owl/workflows/feature/workflow.yaml
 .owl/workflows/composite_feature/workflow.yaml
-.owl/workflows/feature_slice/workflow.yaml
-.owl/workflows/hotfix/workflow.yaml
-.owl/workflows/research/workflow.yaml
 ```
 
 Workflow описывает:
@@ -168,17 +158,15 @@ Workflow описывает:
 
 Артефакт — результат одного или нескольких шагов workflow.
 
-Примеры:
+Примеры (seed-набор):
 
 ```text
 brief.md
-spec.md
 design.md
+plan.md
+review.md
 decomposition.md
-tasks.md
 verification.md
-patch-plan.md
-research-findings.md
 ```
 
 Артефакт обычно является Markdown-файлом, но его тип и правила описываются отдельно.
@@ -187,7 +175,7 @@ research-findings.md
 
 Переиспользуемый тип артефакта.
 
-Например, `tasks` может использоваться в `feature`, `hotfix`, `refactor`, `migration`.
+Например, `brief` используется в `feature` и `composite_feature` — это переиспользование одного описания артефакта между разными workflow.
 
 Тип артефакта описывает:
 
@@ -203,8 +191,8 @@ research-findings.md
 Хранится, например:
 
 ```text
-.owl/artifacts/tasks/artifact.yaml
-.owl/artifacts/tasks/templates/default.md
+.owl/artifacts/brief/artifact.yaml
+.owl/artifacts/brief/templates/default.md
 ```
 
 ### Work item (task)
@@ -216,7 +204,7 @@ research-findings.md
 ```text
 TASK-0001 Add user CSV export
 TASK-0002 Fix login redirect bug
-TASK-0003 Research payment provider options
+TASK-0003 Refactor billing module
 ```
 
 Задача имеет поле `kind`, которое определяет её роль в дереве:
@@ -453,8 +441,6 @@ Workflow хранится отдельно для каждого типа зад
 ```text
 .owl/workflows/feature/workflow.yaml
 .owl/workflows/composite_feature/workflow.yaml
-.owl/workflows/feature_slice/workflow.yaml
-.owl/workflows/hotfix/workflow.yaml
 ```
 
 ### Решение 4
@@ -462,8 +448,8 @@ Workflow хранится отдельно для каждого типа зад
 Переиспользуемые артефакты описываются отдельно.
 
 ```text
-.owl/artifacts/spec/artifact.yaml
-.owl/artifacts/tasks/artifact.yaml
+.owl/artifacts/brief/artifact.yaml
+.owl/artifacts/design/artifact.yaml
 .owl/artifacts/decomposition/artifact.yaml
 ```
 

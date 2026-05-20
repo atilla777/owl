@@ -181,56 +181,34 @@ Skill не должен сам вычислять пути.
 ```text
 feature
 composite_feature
-feature_slice
-hotfix
-research
-refactor
 ```
 
 Реализовать artifact types:
 
 ```text
 brief
-spec
 design
+plan
+review
 decomposition
-tasks
 verification
-issue
-patch_plan
-research_findings
-recommendation
 ```
 
 Минимальный feature workflow:
 
 ```text
-brief → specify → design? → plan → apply → verify → publish → archive
+brief → design? → plan → implement → review_code → merge_docs → archive → commit_push
 ```
 
 Минимальный composite_feature workflow:
 
 ```text
-brief → specify → design? → decompose → coordinate → aggregate_verify → publish → archive
+brief → design? → decompose → review → archive → commit_push
 ```
 
-Минимальный feature_slice workflow (для child tasks):
-
-```text
-plan → apply → verify
-```
-
-Минимальный hotfix workflow:
-
-```text
-issue → patch_plan → tasks → apply → verify → archive
-```
-
-Минимальный research workflow:
-
-```text
-question → findings → options → recommendation
-```
+Шаг `brief` имеет варианты (`feature` / `root_cause` / `problem_inventory`)
+— бывшие hotfix- и refactor-сценарии теперь живут как варианты `brief`,
+а не отдельные workflow.
 
 ---
 

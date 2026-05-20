@@ -13,8 +13,10 @@ companion KOS application.
 ## What Owl is
 
 - A spec-driven workflow runner — every task has a typed workflow
-  (`feature`, `composite_feature`, `feature_slice`, `hotfix`, `research`,
-  `refactor`) declared as a graph of steps in `.owl/workflows/`.
+  (`feature` for a single feature, `composite_feature` for one
+  decomposed into child tasks) declared as a graph of steps in
+  `.owl/workflows/`. Bug-fix and refactor framings are step **variants**
+  of `brief` (see "Step variants" below), not separate workflows.
 - A pluggable backend over filesystem state — `.owl/` (control plane),
   `tasks/` (active work), `tasks/archive/` (closed work), `docs/` (published
   domain docs). Backends are abstracted so the same surface can later run on
@@ -81,6 +83,34 @@ Adding a new step type does not require a new Ruby skill — drop a new
 `<step-id>.context.md` next to `workflow.yaml` and reference it via
 `context_file:`. Inline `context: "..."` is also supported when the prompt
 is short.
+
+### Step variants
+
+A step can declare alternative implementations via a `variants:` block.
+At runtime the task records its choice (`step_variants: { brief: ... }`
+in `task.yaml`); the resolver picks the corresponding `context_file`
+and the overlay collector also loads
+`.owl/overlays/<step>/<variant>.md` and `docs/ai/<step>/<variant>.md`
+on top of the universal `<step>.md` overlays.
+
+```yaml
+steps:
+  - id: brief
+    skill: owl-step-run
+    default_variant: feature
+    variants:
+      feature:           # collect requirements (default)
+        context_file: brief.feature.context.md
+      root_cause:        # bug-fix framing — RCA brief
+        context_file: brief.root_cause.context.md
+      problem_inventory: # refactor framing — problem list
+        context_file: brief.problem_inventory.context.md
+```
+
+Choose the variant at task create time (`--variant brief=root_cause`)
+or at step start (`owl step start TASK brief --variant root_cause`).
+Downstream steps read `brief.variant` from the artifact's front matter
+and adapt their own instructions.
 
 ## Skill layering
 
