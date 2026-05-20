@@ -78,21 +78,23 @@ module Owl
             entry = result.value[:entry]
             source = result.value[:source]
 
-            JsonPrinter.success(stdout, {
-                                  ok: true,
-                                  id: entry[:key],
-                                  source: entry[:source],
-                                  source_present: source[:present],
-                                  source_path: source[:source_path],
-                                  registry_entry: {
-                                    enabled: entry[:enabled],
-                                    title: entry[:title],
-                                    aliases: entry[:aliases],
-                                    priority: entry[:priority],
-                                    version: entry[:version]
-                                  },
-                                  definition: source[:body]
-                                })
+            payload = {
+              ok: true,
+              id: entry[:key],
+              source: entry[:source],
+              source_present: source[:present]
+            }
+            paths = Owl::Workflows::Api.local_paths(root: root, key: key)
+            payload[:source_path] = paths.value.source_path if paths.ok?
+            payload[:registry_entry] = {
+              enabled: entry[:enabled],
+              title: entry[:title],
+              aliases: entry[:aliases],
+              priority: entry[:priority],
+              version: entry[:version]
+            }
+            payload[:definition] = source[:body]
+            JsonPrinter.success(stdout, payload)
           end
 
           def print_live_json(stdout:, payload:)

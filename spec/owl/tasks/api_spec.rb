@@ -38,6 +38,36 @@ RSpec.describe Owl::Tasks::Api do
     YAML
   end
 
+  def seed_composite_and_feature_workflows(root)
+    write("#{root}/.owl/workflows.yaml", <<~YAML)
+      schema_version: 1
+      workflows:
+        composite_feature:
+          enabled: true
+          source: "workflows/composite_feature/workflow.yaml"
+        feature:
+          enabled: true
+          source: "workflows/feature/workflow.yaml"
+    YAML
+    write("#{root}/.owl/workflows/composite_feature/workflow.yaml", <<~YAML)
+      id: composite_feature
+      kind: composite_task
+      steps:
+        - id: brief
+          kind: noop
+      artifacts:
+        brief:
+          type: brief
+    YAML
+    write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+      id: feature
+      kind: feature
+      steps:
+        - id: noop
+          kind: noop
+    YAML
+  end
+
   describe '.create' do
     it 'returns project_root_not_found when .owl/config.yaml is missing' do
       with_tmp_project do |root|
@@ -337,6 +367,146 @@ RSpec.describe Owl::Tasks::Api do
         expect(result.message).to include('tasks')
         expect(result.message).to include('imaginary')
         expect(result.details).to include(scope: :tasks, backend_name: 'imaginary')
+      end
+    end
+  end
+
+  describe 'public DTO is free of filesystem path keys' do
+    it '.list omits index_path / task_path / local from the Ok payload' do
+      with_tmp_project do |root|
+        init_project(root)
+        result = described_class.list(root: root)
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:index_path, :task_path, :local, :path)
+        expect(result.value.keys).to contain_exactly(:schema_version, :tasks)
+      end
+    end
+
+    it '.create omits task_path / index_path / local from the Ok payload' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        result = described_class.create(root: root, workflow: 'feature', title: 'x')
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:task_path, :index_path, :local, :path)
+      end
+    end
+
+    it '.inspect omits path / local from the Ok payload' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'x')
+        result = described_class.inspect(root: root, task_id: 'TASK-0001')
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:path, :local, :task_path)
+      end
+    end
+
+    it '.current omits pointer_path / task_path / local from the Ok payload' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'x')
+        described_class.use(root: root, task_id: 'TASK-0001')
+        result = described_class.current(root: root)
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:pointer_path, :task_path, :local, :path)
+      end
+    end
+
+    it '.use omits path / local from the Ok payload' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'x')
+        result = described_class.use(root: root, task_id: 'TASK-0001')
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:path, :local, :pointer_path)
+      end
+    end
+
+    it '.rebuild_index omits index_path / local from the Ok payload' do
+      with_tmp_project do |root|
+        init_project(root)
+        result = described_class.rebuild_index(root: root)
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:index_path, :local)
+      end
+    end
+
+    it '.child_create omits task_path / index_path / local from the Ok payload' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_composite_and_feature_workflows(root)
+        parent = described_class.create(root: root, workflow: 'composite_feature', title: 'p')
+        result = described_class.child_create(
+          root: root, parent_id: parent.value[:task_id], workflow: 'feature', title: 'c'
+        )
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:task_path, :index_path, :local, :path)
+      end
+    end
+  end
+
+  describe '.local_paths' do
+    it 'without task_id returns Ok with Local::Index and Local::Pointer' do
+      with_tmp_project do |root|
+        init_project(root)
+        result = described_class.local_paths(root: root)
+        expect(result).to be_ok
+        expect(result.value[:index]).to be_a(Owl::Tasks::Local::Index)
+        expect(result.value[:index].index_path).to eq("#{root}/tasks/index.yaml")
+        expect(result.value[:pointer]).to be_a(Owl::Tasks::Local::Pointer)
+        expect(result.value[:pointer].pointer_path).to eq("#{root}/.owl/local/current.yaml")
+      end
+    end
+
+    it 'with task_id returns Ok with Local::TaskFile + Local::Index + Local::Pointer' do
+      with_tmp_project do |root|
+        init_project(root)
+        result = described_class.local_paths(root: root, task_id: 'TASK-0001')
+        expect(result).to be_ok
+        expect(result.value[:task_file]).to be_a(Owl::Tasks::Local::TaskFile)
+        expect(result.value[:task_file].task_path).to eq("#{root}/tasks/TASK-0001/task.yaml")
+        expect(result.value[:index]).to be_a(Owl::Tasks::Local::Index)
+        expect(result.value[:pointer]).to be_a(Owl::Tasks::Local::Pointer)
+      end
+    end
+
+    it 'propagates backend resolution errors' do
+      with_tmp_project do |root|
+        init_project(root)
+        write("#{root}/.owl/config.yaml",
+              File.read("#{root}/.owl/config.yaml") + "settings:\n  storage:\n    backend: imaginary\n")
+        result = described_class.local_paths(root: root)
+        expect(result).to be_err
+        expect(result.code).to eq(:unknown_backend)
+      end
+    end
+
+    it 'returns Err(:no_local_view) when backend has no local view' do
+      stub_backend = Class.new do
+        def self.name
+          'StubBackend'
+        end
+      end.new
+      allow(Owl::Internal::BackendResolver).to receive(:resolve)
+        .with(root: '/anywhere', scope: :tasks)
+        .and_return(Owl::Result.ok(stub_backend))
+
+      result = described_class.local_paths(root: '/anywhere')
+      expect(result).to be_err
+      expect(result.code).to eq(:no_local_view)
+      expect(result.details[:backend]).to eq('StubBackend')
+    end
+
+    it 'propagates Paths.resolve errors when project root is missing' do
+      with_tmp_project do |root|
+        # No init_project — no .owl/config.yaml
+        result = described_class.local_paths(root: root)
+        expect(result).to be_err
+        expect(result.code).to eq(:config_missing)
       end
     end
   end

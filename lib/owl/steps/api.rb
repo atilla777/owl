@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../result'
+require_relative '../tasks/api'
 require_relative '../tasks/internal/paths'
 require_relative '../tasks/internal/task_reader'
 require_relative '../workflows/api'
@@ -13,6 +14,11 @@ require_relative 'internal/status_writer'
 module Owl
   module Steps
     module Api
+      # Keys that filesystem-backend payloads expose as transitional path
+      # carriers. They are stripped from the public DTO so backends without a
+      # local filesystem view can satisfy the same contract.
+      STRIPPED_PATH_KEYS = %i[path local].freeze
+
       module_function
 
       def invocation(root:, task_id:, step_id:)
@@ -47,12 +53,12 @@ module Owl
           )
         end
 
-        Internal::StatusWriter.update(
-          tasks_root: paths.value[:tasks],
-          task_id: task_id,
-          step_id: step_id,
-          attributes: { 'status' => 'running' }
-        )
+        strip_local(Internal::StatusWriter.update(
+                      tasks_root: paths.value[:tasks],
+                      task_id: task_id,
+                      step_id: step_id,
+                      attributes: { 'status' => 'running' }
+                    ))
       end
 
       def complete(root:, task_id:, step_id:)
@@ -79,12 +85,12 @@ module Owl
         validation = Internal::OutputValidator.call(root: root, task_id: task_id, step_id: step_id)
         return validation if validation.err?
 
-        Internal::StatusWriter.update(
-          tasks_root: paths.value[:tasks],
-          task_id: task_id,
-          step_id: step_id,
-          attributes: { 'status' => 'done' }
-        )
+        strip_local(Internal::StatusWriter.update(
+                      tasks_root: paths.value[:tasks],
+                      task_id: task_id,
+                      step_id: step_id,
+                      attributes: { 'status' => 'done' }
+                    ))
       end
 
       def skip(root:, task_id:, step_id:, reason:)
@@ -117,12 +123,23 @@ module Owl
           )
         end
 
-        Internal::StatusWriter.update(
-          tasks_root: paths.value[:tasks],
-          task_id: task_id,
-          step_id: step_id,
-          attributes: { 'status' => 'skipped', 'skip_reason' => reason_text }
-        )
+        strip_local(Internal::StatusWriter.update(
+                      tasks_root: paths.value[:tasks],
+                      task_id: task_id,
+                      step_id: step_id,
+                      attributes: { 'status' => 'skipped', 'skip_reason' => reason_text }
+                    ))
+      end
+
+      def local_paths(root:, task_id:)
+        Owl::Tasks::Api.local_paths(root: root, task_id: task_id)
+      end
+
+      def strip_local(result)
+        return result if result.err?
+        return result unless result.value.is_a?(Hash)
+
+        Owl::Result.ok(result.value.except(*STRIPPED_PATH_KEYS))
       end
 
       def current_status(tasks_root, task_id, step_id)

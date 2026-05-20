@@ -11,19 +11,24 @@ RSpec.describe Owl::Artifacts::Api, '.scaffold and .validate' do
     end
   end
 
+  def artifact_paths(root, id)
+    described_class.local_paths(root: root, key: id).value
+  end
+
   describe '.scaffold' do
     it 'writes the minimal seed when no body is supplied' do
       with_tmp_project do |root|
         seed_project(root)
         result = described_class.scaffold(root: root, id: 'sample')
         expect(result).to be_ok
-        parsed = YAML.safe_load_file(result.value[:path])
+        paths = artifact_paths(root, 'sample')
+        parsed = YAML.safe_load_file(paths.source_path)
         expect(parsed['id']).to eq('sample')
         expect(parsed['title']).to eq('sample')
         expect(parsed['kind']).to eq('markdown')
         expect(parsed.dig('front_matter', 'required')).to eq(%w[status summary])
         expect(parsed.dig('validation', 'required_sections')).to eq(['Summary'])
-        expect(File.exist?(result.value[:template_path])).to be(true)
+        expect(File.exist?(paths.template_path)).to be(true)
       end
     end
 
@@ -44,7 +49,7 @@ RSpec.describe Owl::Artifacts::Api, '.scaffold and .validate' do
         body = "id: over_at\ntitle: Forced\nkind: markdown\nvalidation:\n  required_sections: [Summary]\n"
         result = described_class.scaffold(root: root, id: 'over_at', body: body, force: true)
         expect(result).to be_ok
-        parsed = YAML.safe_load_file(result.value[:path])
+        parsed = YAML.safe_load_file(artifact_paths(root, 'over_at').source_path)
         expect(parsed['title']).to eq('Forced')
       end
     end
@@ -83,8 +88,8 @@ RSpec.describe Owl::Artifacts::Api, '.scaffold and .validate' do
     it 'validates a fresh artifact-type by path' do
       with_tmp_project do |root|
         seed_project(root)
-        scaffold = described_class.scaffold(root: root, id: 'fresh_at')
-        result = described_class.validate(root: root, id_or_path: scaffold.value[:path])
+        described_class.scaffold(root: root, id: 'fresh_at')
+        result = described_class.validate(root: root, id_or_path: artifact_paths(root, 'fresh_at').source_path)
         expect(result).to be_ok
         expect(result.value[:valid]).to be(true)
       end

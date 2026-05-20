@@ -28,16 +28,17 @@ module Owl
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
             payload = result.value
-            JsonPrinter.success(stdout, {
-                                  ok: true,
-                                  id: payload[:type],
-                                  source_path: payload[:source_path],
-                                  template_path: payload[:template_path],
-                                  template_present: payload[:template_present],
-                                  definition: payload[:body],
-                                  validation: payload[:validation],
-                                  front_matter: payload[:front_matter]
-                                })
+            out = { ok: true, id: payload[:type] }
+            paths = Owl::Artifacts::Api.local_paths(root: root, key: id)
+            if paths.ok?
+              out[:source_path] = paths.value.source_path
+              out[:template_path] = paths.value.template_path
+            end
+            out[:template_present] = payload[:template_present]
+            out[:definition] = payload[:body]
+            out[:validation] = payload[:validation]
+            out[:front_matter] = payload[:front_matter]
+            JsonPrinter.success(stdout, out)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end

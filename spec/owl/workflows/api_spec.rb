@@ -206,6 +206,100 @@ RSpec.describe Owl::Workflows::Api do
     end
   end
 
+  describe 'public DTO is free of filesystem path keys' do
+    it '.find omits source_path / local from the Ok payload' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/workflows.yaml", <<~YAML)
+          schema_version: 1
+          workflows:
+            feature:
+              source: "workflows/feature/workflow.yaml"
+        YAML
+        write("#{root}/.owl/workflows/feature/workflow.yaml", "id: feature\nkind: feature\nsteps: []\n")
+        result = described_class.find(root: root, key: 'feature')
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:local, :source_path, :path)
+      end
+    end
+
+    it '.scaffold omits path / local from the Ok payload' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/workflows.yaml", described_class.default_template)
+        result = described_class.scaffold(root: root, id: 'demo', kind: 'task')
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:path, :local)
+      end
+    end
+
+    it '.validate omits source_path / local from the Ok payload' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/workflows.yaml", described_class.default_template)
+        write("#{root}/.owl/artifacts.yaml", Owl::Artifacts::Api.default_template)
+        Owl::Artifacts::Api.seeded_sources.each do |source|
+          write("#{root}/#{source[:relative_path]}", source[:contents])
+        end
+        described_class.seeded_sources.each do |source|
+          write("#{root}/#{source[:relative_path]}", source[:contents])
+        end
+        result = described_class.validate(root: root, id_or_path: 'feature')
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:source_path, :local, :path)
+      end
+    end
+  end
+
+  describe '.local_paths' do
+    it 'with key returns Ok(Local::WorkflowFile) for a registered workflow' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/workflows.yaml", <<~YAML)
+          schema_version: 1
+          workflows:
+            feature:
+              source: "workflows/feature/workflow.yaml"
+        YAML
+        write("#{root}/.owl/workflows/feature/workflow.yaml", "id: feature\nkind: feature\nsteps: []\n")
+        result = described_class.local_paths(root: root, key: 'feature')
+        expect(result).to be_ok
+        expect(result.value).to be_a(Owl::Workflows::Local::WorkflowFile)
+        expect(result.value.source_path).to eq("#{root}/.owl/workflows/feature/workflow.yaml")
+      end
+    end
+
+    it 'with key returns Ok(Local::WorkflowFile) using convention path for unregistered workflow' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/workflows.yaml", described_class.default_template)
+        result = described_class.local_paths(root: root, key: 'fresh')
+        expect(result).to be_ok
+        expect(result.value.source_path).to eq("#{root}/.owl/workflows/fresh/workflow.yaml")
+      end
+    end
+
+    it 'without key returns Err(:no_local_view)' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/workflows.yaml", described_class.default_template)
+        result = described_class.local_paths(root: root)
+        expect(result).to be_err
+        expect(result.code).to eq(:no_local_view)
+      end
+    end
+
+    it 'returns Err(:no_local_view) when backend lacks local_paths_for' do
+      stub_backend = Class.new do
+        def self.name
+          'StubBackend'
+        end
+      end.new
+      allow(Owl::Internal::BackendResolver).to receive(:resolve)
+        .with(root: '/x', scope: :workflows)
+        .and_return(Owl::Result.ok(stub_backend))
+
+      result = described_class.local_paths(root: '/x', key: 'k')
+      expect(result).to be_err
+      expect(result.code).to eq(:no_local_view)
+      expect(result.details[:backend]).to eq('StubBackend')
+    end
+  end
+
   describe '.seeded_sources' do
     it 'returns two workflow source YAMLs (relative_path + contents)' do
       sources = described_class.seeded_sources

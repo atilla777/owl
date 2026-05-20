@@ -36,7 +36,10 @@ module Owl
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            JsonPrinter.success(stdout, { ok: true }.merge(result.value))
+            payload = { ok: true }.merge(result.value)
+            paths = Owl::Workflows::Api.local_paths(root: root, key: result.value[:id])
+            payload[:path] = paths.value.source_path if paths.ok?
+            JsonPrinter.success(stdout, payload)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end

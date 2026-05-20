@@ -167,4 +167,46 @@ RSpec.describe Owl::Steps::Api do
       end
     end
   end
+
+  describe 'public DTO is free of filesystem path keys' do
+    it '.start omits :path / :local from the Ok payload' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        result = described_class.start(root: root, task_id: task_id, step_id: 'a')
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:path, :local)
+      end
+    end
+
+    it '.complete omits :path / :local from the Ok payload' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        described_class.start(root: root, task_id: task_id, step_id: 'a')
+        result = described_class.complete(root: root, task_id: task_id, step_id: 'a')
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:path, :local)
+      end
+    end
+
+    it '.skip omits :path / :local from the Ok payload' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        result = described_class.skip(root: root, task_id: task_id, step_id: 'a', reason: 'no-op')
+        expect(result).to be_ok
+        expect(result.value.keys).not_to include(:path, :local)
+      end
+    end
+  end
+
+  describe '.local_paths' do
+    it 'delegates to Owl::Tasks::Api.local_paths and returns the same Local::* shape' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        result = described_class.local_paths(root: root, task_id: task_id)
+        expect(result).to be_ok
+        expect(result.value[:task_file]).to be_a(Owl::Tasks::Local::TaskFile)
+        expect(result.value[:task_file].task_path).to eq("#{root}/tasks/#{task_id}/task.yaml")
+      end
+    end
+  end
 end

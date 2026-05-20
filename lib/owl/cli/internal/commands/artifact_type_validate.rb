@@ -34,13 +34,15 @@ module Owl
               )
             end
 
-            JsonPrinter.success(stdout, {
-                                  ok: true,
-                                  valid: true,
-                                  id: result.value[:id],
-                                  source_path: result.value[:source_path],
-                                  errors: result.value[:errors]
-                                })
+            payload = {
+              ok: true,
+              valid: true,
+              id: result.value[:id]
+            }
+            paths = Owl::Artifacts::Api.local_paths(root: root, key: result.value[:id])
+            payload[:source_path] = paths.value.source_path if paths.ok?
+            payload[:errors] = result.value[:errors]
+            JsonPrinter.success(stdout, payload)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end

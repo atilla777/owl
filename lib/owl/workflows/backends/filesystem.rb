@@ -6,6 +6,7 @@ require 'yaml'
 require_relative '../../result'
 require_relative '../../storage/api'
 require_relative '../backend'
+require_relative '../local'
 require_relative '../internal/default_template'
 require_relative '../internal/graph_builder'
 require_relative '../internal/ready_resolver'
@@ -75,7 +76,11 @@ module Owl
           end
 
           source_info = Internal::SourceLoader.load(root: @root, source: entry[:source])
-          Result.ok(entry: entry, source: source_info)
+          Result.ok(
+            entry: entry,
+            source: source_info,
+            local: Owl::Workflows::Local::WorkflowFile.new(source_path: source_info[:source_path].to_s)
+          )
         end
 
         def default_template
@@ -116,7 +121,12 @@ module Owl
 
           Owl::Storage::Api.write(path: path, contents: body_str)
 
-          Result.ok(id: id_str, path: path.to_s, kind: parsed['kind'] || kind.to_s)
+          Result.ok(
+            id: id_str,
+            path: path.to_s,
+            kind: parsed['kind'] || kind.to_s,
+            local: Owl::Workflows::Local::WorkflowFile.new(source_path: path.to_s)
+          )
         end
 
         def validate(id_or_path:)
@@ -127,7 +137,13 @@ module Owl
           result = Internal::WorkflowValidator.validate(root: @root, body: body, source_path: source_path)
           return result if result.err?
 
-          Result.ok(valid: true, id: body['id'], source_path: source_path.to_s, errors: [])
+          Result.ok(
+            valid: true,
+            id: body['id'],
+            source_path: source_path.to_s,
+            errors: [],
+            local: Owl::Workflows::Local::WorkflowFile.new(source_path: source_path.to_s)
+          )
         end
 
         def graph(workflow_key:)
@@ -233,6 +249,24 @@ module Owl
           end
 
           read_result
+        end
+
+        def local_paths_for(key: nil)
+          if key.nil?
+            return Result.err(
+              code: :no_local_view,
+              message: 'Workflows local view requires a workflow key.',
+              details: { backend: self.class.name }
+            )
+          end
+
+          lookup = find(key: key)
+          source_path = if lookup.ok?
+                          lookup.value[:source][:source_path].to_s
+                        else
+                          workflow_source_path(id: key).to_s
+                        end
+          Result.ok(Owl::Workflows::Local::WorkflowFile.new(source_path: source_path))
         end
 
         private

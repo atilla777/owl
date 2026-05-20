@@ -30,11 +30,10 @@ module Owl
             result = Owl::Tasks::Api.use(root: root, task_id: task_id)
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            JsonPrinter.success(stdout, {
-                                  ok: true,
-                                  task_id: result.value[:task_id],
-                                  pointer_path: result.value[:path]
-                                })
+            payload = { ok: true, task_id: result.value[:task_id] }
+            paths = Owl::Tasks::Api.local_paths(root: root, task_id: task_id)
+            payload[:pointer_path] = paths.value[:pointer].pointer_path if paths.ok?
+            JsonPrinter.success(stdout, payload)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end

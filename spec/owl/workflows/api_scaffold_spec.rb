@@ -16,13 +16,17 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
     end
   end
 
+  def workflow_source_path(root, id)
+    described_class.local_paths(root: root, key: id).value.source_path
+  end
+
   describe '.scaffold' do
     it 'writes the seeded task minimal seed when no body is supplied' do
       with_tmp_project do |root|
         seed_project(root)
         result = described_class.scaffold(root: root, id: 'sample', kind: 'task')
         expect(result).to be_ok
-        path = result.value[:path]
+        path = workflow_source_path(root, 'sample')
         expect(File.exist?(path)).to be(true)
         parsed = YAML.safe_load_file(path)
         expect(parsed['id']).to eq('sample')
@@ -36,7 +40,7 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
         seed_project(root)
         result = described_class.scaffold(root: root, id: 'sample_c', kind: 'composite_task')
         expect(result).to be_ok
-        parsed = YAML.safe_load_file(result.value[:path])
+        parsed = YAML.safe_load_file(workflow_source_path(root, 'sample_c'))
         expect(parsed['kind']).to eq('composite_task')
         expect(parsed['artifacts']).to include('decomposition')
       end
@@ -58,7 +62,7 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
         described_class.scaffold(root: root, id: 'over', kind: 'task')
         result = described_class.scaffold(root: root, id: 'over', kind: 'composite_task', force: true)
         expect(result).to be_ok
-        parsed = YAML.safe_load_file(result.value[:path])
+        parsed = YAML.safe_load_file(workflow_source_path(root, 'over'))
         expect(parsed['kind']).to eq('composite_task')
       end
     end
@@ -98,7 +102,7 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
         seed_project(root)
         result = described_class.scaffold(root: root, id: 'cloned', from: 'feature')
         expect(result).to be_ok
-        cloned = YAML.safe_load_file(result.value[:path])
+        cloned = YAML.safe_load_file(workflow_source_path(root, 'cloned'))
         expect(cloned['id']).to eq('cloned')
         expect(cloned['steps'].size).to be > 1
       end
@@ -128,8 +132,8 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
     it 'validates a fresh definition by absolute path' do
       with_tmp_project do |root|
         seed_project(root)
-        scaffold = described_class.scaffold(root: root, id: 'fresh', kind: 'task')
-        result = described_class.validate(root: root, id_or_path: scaffold.value[:path])
+        described_class.scaffold(root: root, id: 'fresh', kind: 'task')
+        result = described_class.validate(root: root, id_or_path: workflow_source_path(root, 'fresh'))
         expect(result).to be_ok
         expect(result.value[:valid]).to be(true)
       end

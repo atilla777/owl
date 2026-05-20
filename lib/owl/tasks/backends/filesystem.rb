@@ -2,6 +2,7 @@
 
 require_relative '../../result'
 require_relative '../backend'
+require_relative '../local'
 require_relative '../internal/aggregate_status'
 require_relative '../internal/archive/orchestrator'
 require_relative '../internal/child_creator'
@@ -20,7 +21,7 @@ require_relative '../internal/workflow_snapshot'
 module Owl
   module Tasks
     module Backends
-      class Filesystem
+      class Filesystem # rubocop:disable Metrics/ClassLength
         include Owl::Tasks::Backend
 
         def initialize(root:)
@@ -37,7 +38,8 @@ module Owl
           Result.ok(
             index_path: paths_result.value[:index].to_s,
             schema_version: index_result.value[:schema_version],
-            tasks: index_result.value[:tasks]
+            tasks: index_result.value[:tasks],
+            local: { index: Owl::Tasks::Local::Index.new(index_path: paths_result.value[:index].to_s) }
           )
         end
 
@@ -45,7 +47,12 @@ module Owl
           paths_result = Internal::Paths.resolve(root: @root)
           return paths_result if paths_result.err?
 
-          Internal::TaskReader.read(tasks_root: paths_result.value[:tasks], task_id: task_id)
+          read = Internal::TaskReader.read(tasks_root: paths_result.value[:tasks], task_id: task_id)
+          return read if read.err?
+
+          Result.ok(read.value.merge(
+                      local: { task_file: Owl::Tasks::Local::TaskFile.new(task_path: read.value[:path]) }
+                    ))
         end
 
         def create(workflow:, title:, parent_id: nil, kind: nil, step_variants: nil)
@@ -88,7 +95,11 @@ module Owl
             task_id: task_id,
             task_path: task_path.to_s,
             payload: payload,
-            index_path: rebuild_result.value[:index_path]
+            index_path: rebuild_result.value[:index_path],
+            local: {
+              task_file: Owl::Tasks::Local::TaskFile.new(task_path: task_path.to_s),
+              index: Owl::Tasks::Local::Index.new(index_path: rebuild_result.value[:index_path])
+            }
           )
         end
 
@@ -164,7 +175,11 @@ module Owl
             set_at: pointer_result.value[:set_at],
             pointer_path: pointer_result.value[:path],
             payload: read_result.value[:payload],
-            task_path: read_result.value[:path]
+            task_path: read_result.value[:path],
+            local: {
+              task_file: Owl::Tasks::Local::TaskFile.new(task_path: read_result.value[:path]),
+              pointer: Owl::Tasks::Local::Pointer.new(pointer_path: pointer_result.value[:path])
+            }
           )
         end
 
@@ -178,20 +193,30 @@ module Owl
           )
           return read_result if read_result.err?
 
-          Internal::CurrentPointer.write(
+          write_result = Internal::CurrentPointer.write(
             local_state_root: paths_result.value[:local_state],
             task_id: task_id
           )
+          return write_result if write_result.err?
+
+          Result.ok(write_result.value.merge(
+                      local: { pointer: Owl::Tasks::Local::Pointer.new(pointer_path: write_result.value[:path]) }
+                    ))
         end
 
         def rebuild_index
           paths_result = Internal::Paths.resolve(root: @root)
           return paths_result if paths_result.err?
 
-          Internal::IndexRebuilder.rebuild(
+          rebuild_result = Internal::IndexRebuilder.rebuild(
             tasks_root: paths_result.value[:tasks],
             index_path: paths_result.value[:index]
           )
+          return rebuild_result if rebuild_result.err?
+
+          Result.ok(rebuild_result.value.merge(
+                      local: { index: Owl::Tasks::Local::Index.new(index_path: rebuild_result.value[:index_path]) }
+                    ))
         end
 
         def child_create(parent_id:, workflow:, title:, brief_body: nil)
@@ -203,6 +228,30 @@ module Owl
             creator: method(:create_via_self),
             brief_body: brief_body
           )
+        end
+
+        def local_paths_for(task_id: nil)
+          paths_result = Internal::Paths.resolve(root: @root)
+          return paths_result if paths_result.err?
+
+          paths = paths_result.value
+          if task_id.nil?
+            Result.ok(
+              index: Owl::Tasks::Local::Index.new(index_path: paths[:index].to_s),
+              pointer: Owl::Tasks::Local::Pointer.new(
+                pointer_path: Internal::CurrentPointer.pointer_path(local_state_root: paths[:local_state]).to_s
+              )
+            )
+          else
+            task_path = Internal::TaskReader.task_yaml_path(tasks_root: paths[:tasks], task_id: task_id)
+            Result.ok(
+              task_file: Owl::Tasks::Local::TaskFile.new(task_path: task_path.to_s),
+              index: Owl::Tasks::Local::Index.new(index_path: paths[:index].to_s),
+              pointer: Owl::Tasks::Local::Pointer.new(
+                pointer_path: Internal::CurrentPointer.pointer_path(local_state_root: paths[:local_state]).to_s
+              )
+            )
+          end
         end
 
         private

@@ -34,12 +34,14 @@ module Owl
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            JsonPrinter.success(stdout, {
-                                  ok: true,
-                                  task_id: options[:task_id],
-                                  step: result.value[:step],
-                                  task_path: result.value[:path]
-                                })
+            payload = {
+              ok: true,
+              task_id: options[:task_id],
+              step: result.value[:step]
+            }
+            paths = Owl::Steps::Api.local_paths(root: root, task_id: options[:task_id])
+            payload[:task_path] = paths.value[:task_file].task_path if paths.ok?
+            JsonPrinter.success(stdout, payload)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end

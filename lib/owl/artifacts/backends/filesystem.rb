@@ -6,6 +6,7 @@ require 'yaml'
 require_relative '../../result'
 require_relative '../../storage/api'
 require_relative '../backend'
+require_relative '../local'
 require_relative '../internal/artifact_type_loader'
 require_relative '../internal/artifact_type_validator'
 require_relative '../internal/default_template'
@@ -66,7 +67,15 @@ module Owl
             )
           end
 
-          Internal::ArtifactTypeLoader.load(root: @root, type_key: key, registry_entry: entry)
+          loader_result = Internal::ArtifactTypeLoader.load(root: @root, type_key: key, registry_entry: entry)
+          return loader_result if loader_result.err?
+
+          Result.ok(loader_result.value.merge(
+                      local: Owl::Artifacts::Local::ArtifactType.new(
+                        source_path: loader_result.value[:source_path],
+                        template_path: loader_result.value[:template_path]
+                      )
+                    ))
         end
 
         def resolve(task_id:, artifact_key:)
@@ -119,7 +128,15 @@ module Owl
             Owl::Storage::Api.write(path: template_path, contents: Internal::DefaultTemplate.minimal_artifact_template)
           end
 
-          Result.ok(id: id_str, path: path.to_s, template_path: template_path.to_s)
+          Result.ok(
+            id: id_str,
+            path: path.to_s,
+            template_path: template_path.to_s,
+            local: Owl::Artifacts::Local::ArtifactType.new(
+              source_path: path.to_s,
+              template_path: template_path.to_s
+            )
+          )
         end
 
         def validate(id_or_path:)
@@ -130,7 +147,42 @@ module Owl
           result = Internal::ArtifactTypeValidator.validate(body: body, source_path: source_path)
           return result if result.err?
 
-          Result.ok(valid: true, id: body['id'], source_path: source_path.to_s, errors: [])
+          Result.ok(
+            valid: true,
+            id: body['id'],
+            source_path: source_path.to_s,
+            errors: [],
+            local: Owl::Artifacts::Local::ArtifactType.new(
+              source_path: source_path.to_s,
+              template_path: nil
+            )
+          )
+        end
+
+        def local_paths_for(key: nil)
+          if key.nil?
+            return Result.err(
+              code: :no_local_view,
+              message: 'Artifacts local view requires an artifact-type key.',
+              details: { backend: self.class.name }
+            )
+          end
+
+          lookup = find(key: key)
+          if lookup.ok?
+            return Result.ok(Owl::Artifacts::Local::ArtifactType.new(
+                               source_path: lookup.value[:source_path],
+                               template_path: lookup.value[:template_path]
+                             ))
+          end
+
+          # Fall back to convention paths for unregistered keys.
+          source_path = artifact_source_path(id: key).to_s
+          template_path = (Pathname.new(source_path).dirname + 'templates' + 'default.md').to_s
+          Result.ok(Owl::Artifacts::Local::ArtifactType.new(
+                      source_path: source_path,
+                      template_path: template_path
+                    ))
         end
 
         private
