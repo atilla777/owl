@@ -34,6 +34,9 @@ RSpec.describe Owl::Internal::BackendResolver do
     it_behaves_like 'returns the matching filesystem backend',
                     scope: :publish,
                     klass: Owl::Publish::Backends::Filesystem
+    it_behaves_like 'returns the matching filesystem backend',
+                    scope: :validation,
+                    klass: Owl::Validation::Backends::Filesystem
 
     it 'returns a storage filesystem backend when config explicitly selects "filesystem"' do
       with_tmp_project do |root|

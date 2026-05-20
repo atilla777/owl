@@ -2,7 +2,7 @@
 
 require 'json'
 
-require_relative '../../internal/paths'
+require_relative '../../internal/gem_assets'
 require_relative 'json_schema_walker'
 
 module Owl
@@ -13,7 +13,7 @@ module Owl
 
         def schema(name)
           (@schemas ||= {})[name] ||=
-            JSON.parse(File.read(File.join(Owl::Internal::Paths.schemas_dir, name)))
+            JSON.parse(Owl::Internal::GemAssets.read(File.join('schemas', name)))
         end
 
         def walk(name, body)

@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
-require 'pathname'
-
 require_relative '../../result'
 require_relative '../../artifacts/api'
+require_relative '../../storage/api'
 require_relative 'front_matter_parser'
 require_relative 'front_matter_validator'
 require_relative 'patterns_checker'
@@ -32,9 +31,12 @@ module Owl
 
         def validate(descriptor)
           path = descriptor[:path]
-          return [missing_artifact_violation(path)] unless descriptor[:exists] && path && File.file?(path.to_s)
+          return [missing_artifact_violation(path)] unless descriptor[:exists] && path && exists?(path)
 
-          body = File.read(path.to_s)
+          read_result = Owl::Storage::Api.read(path: path)
+          return [missing_artifact_violation(path)] if read_result.err?
+
+          body = read_result.value
           fm_result = FrontMatterParser.parse(body)
           violations = []
           violations.concat(front_matter_violations(descriptor, fm_result))
@@ -46,6 +48,10 @@ module Owl
           violations.concat(PatternsChecker.check(fm_result[:body], patterns))
 
           violations
+        end
+
+        def exists?(path)
+          Owl::Storage::Api.exists?(path: path)
         end
 
         def front_matter_violations(descriptor, fm_result)

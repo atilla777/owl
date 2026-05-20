@@ -9,6 +9,7 @@ require_relative '../config/backends/filesystem'
 require_relative '../publish/backends/filesystem'
 require_relative '../storage/backends/filesystem'
 require_relative '../tasks/backends/filesystem'
+require_relative '../validation/backends/filesystem'
 require_relative '../workflows/backends/filesystem'
 
 module Owl
@@ -31,6 +32,15 @@ module Owl
     # same cycle as exception #1. This also keeps `Owl::Config::Api.validate`
     # able to surface schema errors (e.g. `unsupported_settings_storage_backend`)
     # instead of failing earlier with `:unknown_backend`.
+    #
+    # Layer-C bootstrap exception #3: gem-shipped assets (bundled JSON schemas,
+    # workflow/artifact seed sources, etc.) are read by `Owl::Internal::GemAssets`
+    # rather than `Owl::Storage::Api`. Those files live in the gem install
+    # directory, not in any project storage role, so routing them through a
+    # storage backend would be a category error. `Owl::Validation::Internal::
+    # SchemaCheck` is the first caller; non-bootstrap modules that need to read
+    # bundled gem assets should funnel through `GemAssets` instead of replicating
+    # raw `File.read` on absolute paths.
     module BackendResolver
       module_function
 
@@ -54,12 +64,13 @@ module Owl
 
       def filesystem_backend(scope:, root:)
         case scope
-        when :artifacts then Owl::Artifacts::Backends::Filesystem.new(root: root)
-        when :config    then Owl::Config::Backends::Filesystem.new(root: root)
-        when :publish   then Owl::Publish::Backends::Filesystem.new(root: root)
-        when :storage   then Owl::Storage::Backends::Filesystem.new(root: root)
-        when :tasks     then Owl::Tasks::Backends::Filesystem.new(root: root)
-        when :workflows then Owl::Workflows::Backends::Filesystem.new(root: root)
+        when :artifacts  then Owl::Artifacts::Backends::Filesystem.new(root: root)
+        when :config     then Owl::Config::Backends::Filesystem.new(root: root)
+        when :publish    then Owl::Publish::Backends::Filesystem.new(root: root)
+        when :storage    then Owl::Storage::Backends::Filesystem.new(root: root)
+        when :tasks      then Owl::Tasks::Backends::Filesystem.new(root: root)
+        when :validation then Owl::Validation::Backends::Filesystem.new(root: root)
+        when :workflows  then Owl::Workflows::Backends::Filesystem.new(root: root)
         else
           raise ArgumentError, "Unknown BackendResolver scope: #{scope.inspect}"
         end
