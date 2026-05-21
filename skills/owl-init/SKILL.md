@@ -17,8 +17,30 @@ The wizard is the **only** sanctioned UX for creating the initial `settings:` bl
 
 ## When To Use
 
-- The user is on a brand-new project that has just run `owl init` (or is about to) and needs to choose runtime settings (language, storage backend, role paths, optional workflows).
-- The user asks to "initialize owl", "configure owl", "run the owl wizard", or supplies a fresh repository with empty `.owl/config.yaml` settings.
+`owl init` already seeds a **fully working** `.owl/config.yaml` with
+sensible defaults (`settings.language.communication: en`, filesystem
+storage, both seeded workflows registered). This wizard is therefore
+**not a prerequisite for using Owl** — it is an optional customization
+step. Use it when:
+
+- The user has explicitly asked to "initialize / configure owl", "run
+  the owl wizard", or pick non-default language / storage paths.
+- The user wants to filter the enabled-workflow list via
+  `settings.workflows.enabled` (the seeded empty list `[]` means
+  *allow all*, not *block all*; the real workflow registration is in
+  `.owl/workflows.yaml`).
+
+**Skip this wizard** when the user only asked to install Owl and has
+not requested customization — proceed directly to first-task creation
+(`Skill(skill: "owl-task-create")` or `owl task create --workflow
+feature --title "..."`). Confirm in one sentence that defaults are in
+place; do not stop the install asking the user to type `/owl-init`.
+
+This skill is **agent-invokable**: the agent loads it through the
+harness `Skill` tool and uses `AskUserQuestion` to collect user
+answers in-chat. The `/owl-init` slash command is the equivalent
+human-typing handle for the same skill; never tell the user "you must
+type this" — invoke the skill yourself when the wizard is appropriate.
 
 Do not use this skill to:
 

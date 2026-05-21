@@ -24,10 +24,22 @@ gem install ./owl-cli-*.gem
 # in your target project
 cd /path/to/your/project
 owl init               # materialize .owl/, skills, commands, seeded workflows
-/owl-init              # in Claude Code: run the configuration wizard
+                       # → ready to use: workflows `feature` and `composite_feature`
+                       #   are enabled, default language is `en`.
+
+# Optional — customize language, storage paths, enabled-workflow filter.
+# Inside Claude Code (agent loads the `owl-init` skill, asks via AskUserQuestion):
+/owl-init
+
+# Create the first task and drive it end-to-end (agent-invokable):
 /owl-task-create feature "My first feature"
-/owl-orchestrator      # drive the task end-to-end
+/owl-orchestrator
 ```
+
+The `/owl-*` slash commands are not user-only — they are the human-typing
+handle for skills the AI agent invokes itself via its `Skill` tool. User
+interactivity inside a skill happens through the harness Q&A surface
+(`AskUserQuestion`), not by waiting for the user to type the command.
 
 See [For AI agents: installing Owl in a target project](#for-ai-agents-installing-owl-in-a-target-project)
 for the full install recipe.
@@ -396,12 +408,26 @@ If any file is missing, re-run `owl init --force` or copy from
 `skills/<name>/SKILL.md` in this repository by hand. **Do not invent
 SKILL.md content** — the seeded versions are the contract.
 
-### 6. Configure runtime settings
+### 6. Configure runtime settings (optional)
 
-From the target project root, run the wizard:
+`owl init` already seeded a working `.owl/config.yaml` with sensible
+defaults — communication language `en`, filesystem storage, both
+seeded workflows enabled. **The agent does not need to run the wizard
+to start working.** Skip directly to step 7 if the user has not asked
+for customization.
+
+Run the wizard when the user wants to change language, storage role
+paths, or filter the enabled-workflow list. The wizard is a **skill
+the agent invokes itself** — it is *not* a command the user must type:
 
 ```
-/owl-init
+agent → Skill(skill: "owl-init")        # or, equivalently, /owl-init
+        ↓
+        wizard runs `AskUserQuestion`   # user answers in the chat
+        ↓
+        wizard runs `owl config set settings.* …` for each answer
+        ↓
+        wizard runs `owl config validate --json` and prints a summary
 ```
 
 The wizard speaks English until `settings.language.communication` is
@@ -414,9 +440,12 @@ recorded, then switches to that language. It asks for:
 5. storage role paths (accept defaults or per-role override)
 6. enabled workflows (multi-select; empty list = allow all)
 
-Every answer is persisted via `owl config set settings.* VALUE`. After
-the last prompt the wizard runs `owl config validate --json` and
-prints a summary.
+Every answer is persisted via `owl config set settings.* VALUE`. The
+`settings.workflows.enabled` key is an *optional filter* — an empty
+list (the seeded default) means **all registered workflows are
+allowed**, not "no workflows". The actual workflow registration lives
+in `.owl/workflows.yaml` (seeded by `owl init`); `owl workflow list
+--json` is the authoritative check.
 
 ### 7. Validate the install
 
@@ -429,7 +458,37 @@ owl artifact-type list --json  # → brief, design, plan, review, verification, 
 If any of these returns `ok: false` or an empty list, stop and ask
 the user — do not "fix" it by editing `.owl/` files directly.
 
-### 8. Project-level invariants the agent must respect
+### 8. Finish setup: confirm with the user and create the first task
+
+At this point the install is complete and Owl is fully operational.
+The agent finishes by checking with the user one of two ways:
+
+- **The user has already named a task** ("set up Owl and start working
+  on X"): create the task directly and hand it to the orchestrator.
+
+  ```bash
+  owl task create --workflow feature --title "<X>" --json
+  # → then invoke the orchestrator skill yourself: Skill(skill: "owl-orchestrator")
+  ```
+
+- **The user only asked to install Owl**: confirm install completion
+  in one sentence, list the seeded workflows (`owl workflow list
+  --json`), and ask the user — via `AskUserQuestion` — what the first
+  task should be. Do not stop with "now you must type `/owl-task-create`";
+  the agent itself creates the task once the user answers.
+
+  Equivalent skill-level entry point: `Skill(skill: "owl-task-create")`
+  (slash-command handle: `/owl-task-create feature "..."`).
+
+The general rule for an agent installing Owl: every `/owl-*` slash
+command in this README is a handle for a skill **the agent can invoke
+itself** through the `Skill` tool. User interaction inside a skill
+happens through `AskUserQuestion`, not by waiting for the user to
+type the slash command. Do not end an install with "the rest is
+manual" — finish setup yourself, ask the user only for the product
+decisions the wizard / first-task creation actually require.
+
+### 9. Project-level invariants the agent must respect
 
 - **`bin/owl` is the only interface.** Never `cat` / `grep` / `find`
   through `.owl/`, `tasks/`, or `docs/`. If a command you need is
