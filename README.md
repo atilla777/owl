@@ -1,42 +1,116 @@
 # Owl
 
-Owl is a personal CLI for AI-assisted, spec-driven development workflows. It
-manages tasks, workflow state, artifacts, and the publishing pipeline that
-turns task-local specs into durable domain documentation. Everything flows
-through one CLI (`bin/owl`); agents talk to Owl via slash commands and skills
-rather than touching project files directly.
+Owl is a personal CLI that lets AI agents drive software work through
+**typed, declarative workflows**. You describe a task (a feature, a bug
+investigation, a refactor, a composite initiative), and Owl walks an agent
+through the right steps in order — collect a brief, write a design, plan,
+implement, verify, review, publish docs, archive — producing a small set
+of well-formed Markdown artifacts at every step.
 
-This README is the practical orientation; the durable project intent and
-invariants live in the `Owl Project Constitution` knowledge article in the
-companion KOS application.
+Everything goes through a single CLI (`owl`, packaged as the
+`owl-cli` Ruby gem). Agents never touch `.owl/` or `tasks/` files
+directly; they read and mutate state via `owl <subcommand> --json`.
+That single rule is what makes Owl swappable underneath (filesystem
+today, SQLite / Obsidian / remote tomorrow) and safe to delegate to
+LLMs.
 
-## What Owl is
+## Quick start
 
-- A spec-driven workflow runner — every task has a typed workflow
-  (`feature` for a single feature, `composite_feature` for one
-  decomposed into child tasks) declared as a graph of steps in
-  `.owl/workflows/`. Bug-fix and refactor framings are step **variants**
-  of `brief` (see "Step variants" below), not separate workflows.
-- A pluggable backend over filesystem state — `.owl/` (control plane),
-  `tasks/` (active work), `tasks/archive/` (closed work), `docs/` (published
-  domain docs). Backends are abstracted so the same surface can later run on
-  SQLite, Obsidian, or a remote store.
-- A skill harness for agents — a thin set of universal skills
-  (`owl-cli`, `owl-step-run`, `owl-orchestrator`) drive any workflow without
-  step-type-specific code; specialisation lives in per-step
-  `.context.md` files alongside the workflow.
+```bash
+# from this repository
+gem build owl-cli.gemspec
+gem install ./owl-cli-*.gem
 
-## Architecture (v1)
+# in your target project
+cd /path/to/your/project
+owl init               # materialize .owl/, skills, commands, seeded workflows
+/owl-init              # in Claude Code: run the configuration wizard
+/owl-task-create feature "My first feature"
+/owl-orchestrator      # drive the task end-to-end
+```
+
+See [For AI agents: installing Owl in a target project](#for-ai-agents-installing-owl-in-a-target-project)
+for the full install recipe.
+
+## What Owl gives you
+
+- **Workflow-driven task lifecycle.** Built-in `feature` and
+  `composite_feature` workflows; each is a graph of typed steps. Bug
+  and refactor framings are not separate workflows — they are
+  **variants** of the `brief` step.
+- **Declarative artifacts.** Every step declares which artifact(s) it
+  produces; each artifact type has a Markdown template, a required-
+  section list, and frontmatter schema. Artifacts are validated on
+  step completion.
+- **Universal step model.** All steps share one executor skill
+  (`owl-step-run`). The per-step prompt lives in a `.context.md` file
+  next to the workflow YAML. Adding a new step type = dropping a new
+  Markdown file, no Ruby code.
+- **Composite tasks.** A `composite_feature` decomposes into child
+  tasks linked by `parent_id`; the parent tracks aggregate readiness
+  and archives the whole subtree atomically.
+- **Publishing pipeline.** A workflow can declare `publishes:` rules
+  to copy approved artifacts from a task tree into `docs/` (durable
+  domain documentation).
+- **Pluggable storage.** Storage roles (`tasks`, `docs`, `archive`,
+  `control`, `local_state`, `index`) live in `.owl/config.yaml`;
+  workflow YAML never hard-codes physical paths.
+- **Slash-command surface for agents.** `owl init`, `owl-task-create`,
+  `owl-task-next`, `owl-orchestrator`, `owl-step-run`, `owl-author`
+  are installed into `.claude/` so any Claude Code session in the
+  project can drive Owl end-to-end.
+
+## How it works
+
+```
+                ┌──────────────────┐
+   user / LLM ──▶  /owl-* slash    │
+                │  commands        │
+                └────────┬─────────┘
+                         ▼
+                ┌──────────────────┐
+                │  Owl skills      │  owl-orchestrator → owl-step-run
+                │  (.claude/skills)│  (decide / execute)
+                └────────┬─────────┘
+                         ▼
+                ┌──────────────────┐
+                │  bin/owl CLI     │  the ONLY interface to project state
+                │  --json contract │
+                └────────┬─────────┘
+                         ▼
+   ┌──────────────┬──────────────┬──────────────┬──────────────┐
+   │  .owl/       │  tasks/      │  docs/       │  tasks/      │
+   │  control     │  active      │  published   │  archive/    │
+   │  plane       │  work        │  domain docs │  closed work │
+   └──────────────┴──────────────┴──────────────┴──────────────┘
+```
+
+The loop is always the same:
+
+1. **Create a task** with a workflow key (`feature`, `composite_feature`)
+   and a title — optionally choosing a `brief` variant.
+2. **Ask the orchestrator** for the next ready step
+   (`owl task ready-steps`).
+3. **Execute the step.** `owl step show TASK-ID STEP-ID --json` returns
+   a self-contained bundle — step config + the resolved per-step prompt
+   + the artifact template + the task spec. `owl-step-run` follows the
+   prompt and writes the artifact at the resolved path.
+4. **Complete the step.** Owl re-validates the artifact (required
+   sections, frontmatter schema, regex rules) before advancing.
+5. **Loop** until the workflow's terminal step (`archive` /
+   `commit_push`) is done.
+
+## Architecture
 
 Code is organised by domain under `lib/owl/<domain>/` with three layers:
 
 ```
 +------------+   +-------------------------+   +---------------------+
 |  bin/owl   |-->|  Owl::<Domain>::Api     |-->| Owl::<Domain>::     |
-|  (CLI thin |   |  (public facade,        |   |  Internal::*        |
-|  adapter)  |   |   Result::Ok / Err)     |   |  (business logic)   |
-+------------+   +-------------------------+   +---------------------+
-                            |
+|  (thin     |   |  (public facade,        |   |  Internal::*        |
+|  CLI       |   |   Result::Ok / Err)     |   |  (business logic)   |
+|  adapter)  |   +-------------------------+   +---------------------+
++------------+              |
                             v
                 +-------------------------+
                 |  Owl::<Domain>::Backend |  filesystem default;
@@ -44,243 +118,41 @@ Code is organised by domain under `lib/owl/<domain>/` with three layers:
                 +-------------------------+
 ```
 
-Key invariants (excerpt from the Constitution — see `CLAUDE.md` for the full
-KOS knowledge link):
+Returns use `Owl::Result::Ok` / `Owl::Result::Err` (`Data.define`).
+Dependencies are stdlib by default (`dry-rb`, `interactor`, etc.
+require explicit approval).
 
-- `.owl/` is the control plane; `tasks/` is the work zone (flat layout, parent
-  / child wired by `parent_id` in `task.yaml`); `docs/` holds published
-  domain documentation.
-- Storage roles (`tasks`, `docs`, `control`, `local_state`, `index`,
-  `archive`) live in `.owl/config.yaml` so workflow YAML never hardcodes
-  physical paths.
-- Storage / Tasks / Workflows go through a backend interface; filesystem is
-  one implementation. Skills and the public `bin/owl` CLI never read or
-  write `.owl/` or `tasks/` directly.
-- Returns use `Owl::Result::Ok` / `Owl::Result::Err` (stdlib `Data.define`).
-  Dependencies are stdlib; `dry-rb`, `interactor`, `trailblazer` and
-  comparable libraries require explicit approval.
+### Where the files live
 
-## Universal step model
+After `owl init`, an Owl-managed project has this shape:
 
-Every workflow step is executed by the universal `owl-step-run` skill. The
-step-specific prompt lives in a file alongside the workflow YAML:
+| Location                                  | Purpose                                                                 |
+| ----------------------------------------- | ----------------------------------------------------------------------- |
+| `bin/owl`                                 | CLI entrypoint — the only sanctioned interface to project state.        |
+| `.owl/config.yaml`                        | Control plane — storage role paths, language, enabled workflows.        |
+| `.owl/workflows.yaml`                     | Workflow registry — `key → source path` for each enabled workflow.      |
+| `.owl/artifacts.yaml`                     | Artifact-type registry — `key → source path` for each artifact type.    |
+| `.owl/workflows/<id>/workflow.yaml`       | Declared workflow (steps, artifacts, publishes, variants).              |
+| `.owl/workflows/<id>/<step>.context.md`   | Per-step prompt the universal executor follows.                         |
+| `.owl/artifacts/<type>/artifact.yaml`     | Artifact-type definition (frontmatter schema, required sections).       |
+| `.owl/artifacts/<type>/templates/*.md`    | Markdown templates for each artifact type.                              |
+| `.owl/overlays/<step>.md`                 | Cross-workflow overlay merged into the step prompt (one per step id).   |
+| `.owl/local/current.yaml`                 | "Current task" pointer (per-clone, not committed).                      |
+| `tasks/<TASK-ID>/task.yaml`               | Task state — workflow key, step statuses, variants, parent_id.          |
+| `tasks/<TASK-ID>/{brief,design,plan,…}.md`| Active task artifacts.                                                  |
+| `tasks/index.yaml`                        | Cached task index (rebuildable via `owl task index rebuild`).           |
+| `tasks/archive/<date>-<TASK-ID>-<slug>/`  | Archived tasks (composite subtrees archived atomically).                |
+| `docs/`                                   | Published domain documentation (output of `owl publish`).               |
+| `docs/ai/<step>/<variant>.md`             | Optional variant-specific overlay merged on top of `.owl/overlays/`.    |
+| `.claude/skills/owl-*/SKILL.md`           | Owl skills loaded by Claude Code sessions.                              |
+| `.claude/skills/_owl_conventions.md`      | Shared conventions doc referenced by every Owl skill.                   |
+| `.claude/commands/owl-*.md`               | Slash commands that load the skills above.                              |
 
-```yaml
-# .owl/workflows/feature/workflow.yaml (excerpt)
-steps:
-  - id: brief
-    skill: owl-step-run
-    context_file: brief.context.md
-    creates: [brief]
-```
+### Repo-root seeds
 
-`bin/owl step show TASK-ID brief --json` returns a merged bundle of the
-step config, the resolved `context` body, the artifact template
-(required sections + frontmatter schema), and the parent task's spec.
-`owl-step-run` consumes that bundle and produces the declared artifact.
-
-Adding a new step type does not require a new Ruby skill — drop a new
-`<step-id>.context.md` next to `workflow.yaml` and reference it via
-`context_file:`. Inline `context: "..."` is also supported when the prompt
-is short.
-
-### Step variants
-
-A step can declare alternative implementations via a `variants:` block.
-At runtime the task records its choice (`step_variants: { brief: ... }`
-in `task.yaml`); the resolver picks the corresponding `context_file`
-and the overlay collector also loads
-`.owl/overlays/<step>/<variant>.md` and `docs/ai/<step>/<variant>.md`
-on top of the universal `<step>.md` overlays.
-
-```yaml
-steps:
-  - id: brief
-    skill: owl-step-run
-    default_variant: feature
-    variants:
-      feature:           # collect requirements (default)
-        context_file: brief.feature.context.md
-      root_cause:        # bug-fix framing — RCA brief
-        context_file: brief.root_cause.context.md
-      problem_inventory: # refactor framing — problem list
-        context_file: brief.problem_inventory.context.md
-```
-
-Choose the variant at task create time (`--variant brief=root_cause`)
-or at step start (`owl step start TASK brief --variant root_cause`).
-Downstream steps read `brief.variant` from the artifact's front matter
-and adapt their own instructions.
-
-## Skill layering
-
-Five universal skills are seeded into `.claude/skills/` by `owl init`:
-
-| Skill              | Layer        | Job                                                                       |
-| ------------------ | ------------ | ------------------------------------------------------------------------- |
-| `owl-cli`          | CLI wrapper  | Canonical interface to `bin/owl`.                                         |
-| `owl-step-run`     | Executor     | Runs any ready step from `owl step show` bundle.                          |
-| `owl-orchestrator` | Coordinator  | Picks the next ready step, delegates execution.                           |
-| `owl-init`         | Bootstrap    | One-shot wizard that fills `.owl/config.yaml` `settings:` via Q&A + CLI.  |
-| `owl-author`       | Authoring    | Q&A skill that creates / edits workflow + artifact-type definitions.      |
-
-Three slash-commands (`owl-task-create`, `owl-task-status`, `owl-task-next`)
-sit next to the skills under `.claude/commands/`.
-
-No skill reads `.owl/`, `tasks/`, or `docs/` directly. The `bin/owl` CLI is
-the only sanctioned interface to Owl project state.
-
-## CLI surface
-
-Use `bin/owl <subcommand> --json` for machine output. Common subcommands:
-
-- `owl init [--root PATH] [--force]` — materialise `.owl/`, seeded
-  workflows + per-step `.context.md`, seeded skills, starter artifact
-  templates.
-- `owl workflow list --json` — list declared workflows.
-- `owl workflow new --id ID [--kind task|composite_task] [--from TEMPLATE_ID] [--body -] [--force] [--json]` —
-  scaffold a new workflow source at `.owl/workflows/<id>/workflow.yaml`. Default body
-  is a minimal seed; pass `--body -` to pipe a full YAML body on stdin (the CLI
-  validates before writing and writes nothing on failure). Does not modify
-  `.owl/workflows.yaml` — registration is an explicit follow-up step.
-- `owl workflow validate ID-OR-PATH [--json]` — validate a workflow by registry id
-  or by source path (JSON Schema-style shape check + graph + cycle + artifact-ref check).
-- `owl workflow show ID [--json]` — full registry entry + parsed YAML body for a
-  registered workflow.
-- `owl artifact-type list [--json]` — list declared artifact types.
-- `owl artifact-type new --id ID [--body -] [--force] [--json]` — scaffold a new
-  artifact-type source at `.owl/artifacts/<id>/artifact.yaml` plus a minimal
-  `templates/default.md`. Same validate-before-write semantics as `workflow new`.
-- `owl artifact-type validate ID-OR-PATH [--json]` — validate an artifact-type
-  definition by registry id or path.
-- `owl artifact-type show ID [--json]` — full definition body for a registered
-  artifact-type.
-- `owl config get KEY [--json]` — read a value at a `settings.*` dot-path.
-- `owl config set KEY VALUE [--json]` — write a value at a `settings.*`
-  dot-path; the call validates the resulting config before writing and
-  rolls back on failure. JSON-array literals (`'["a","b"]'`) are accepted
-  for list values.
-- `owl config show [--json]` — full `settings:` + storage roles snapshot.
-- `owl config validate --json` — JSON Schema check for `.owl/config.yaml`.
-- `owl task create --workflow KEY --title "..." [--json]` /
-  `owl task child create --parent ID --workflow KEY --title "..."` —
-  spawn a task or child task.
-- `owl task list / inspect / use / current / tree / children / parent /
-  aggregate-status / split / index rebuild` — task discovery and lifecycle.
-- `owl task ready-steps TASK-ID --json` — next ready steps from the
-  workflow graph.
-- `owl step show TASK-ID STEP-ID --json` — merged step + context +
-  artifact_template + task bundle (preferred for `owl-step-run`).
-- `owl step start / complete / skip` — step transitions.
-- `owl step invocation TASK-ID STEP-ID --json` — raw StepInvocation
-  payload used by `owl instructions`.
-- `owl artifact resolve / validate` — task-scoped artifact path and
-  template validation.
-- `owl publish TASK-ID --json` — apply the workflow's `publishes` rules
-  to copy approved artifacts under `docs/`.
-- `owl archive TASK-ID --json` — move a finished task (and its subtree
-  for composites) under `tasks/archive/<date>-<TASK-ID>-<slug>/`.
-- `owl instructions TASK-ID [--step-id STEP] --json` — package the next
-  ready step with its SKILL.md summary for agent delegation.
-- `owl status TASK-ID --json` — agent-friendly progress summary
-  (per-step `ready` flag, `progress {done, total, pct}`, blockers,
-  composite children).
-
-Run `bin/owl --help` (or any subcommand with `--help`) for the full list.
-
-## Authoring a workflow
-
-The fastest path is the agent-driven `owl-author` skill (loaded via the
-`/owl-author` slash-command after `owl init`). It walks you through three
-modes — create workflow, create artifact-type, edit existing — via Q&A
-and persists every change through the `bin/owl workflow|artifact-type` CLI
-(no direct YAML editing). It respects `settings.language.communication`
-for the dialogue and `settings.language.artifacts` for template content;
-`required_sections` stay in English (constitution 5.16).
-
-If you'd rather scaffold by hand:
-
-1. Choose a key (`my_workflow`) and add it to `.owl/workflows.yaml`:
-
-   ```yaml
-   workflows:
-     my_workflow:
-       enabled: true
-       title: My workflow
-       source: "workflows/my_workflow/workflow.yaml"
-   ```
-
-2. Create `.owl/workflows/my_workflow/workflow.yaml`:
-
-   ```yaml
-   id: my_workflow
-   kind: task
-   artifacts:
-     spec:
-       type: spec
-       storage:
-         role: tasks
-         path: "{{task.id}}/spec.md"
-   steps:
-     - id: specify
-       skill: owl-step-run
-       context_file: specify.context.md
-       creates: [spec]
-   ```
-
-3. Drop `.owl/workflows/my_workflow/specify.context.md` next to the YAML
-   with the per-step prompt the agent should follow when running
-   `owl-step-run`.
-
-4. `owl config validate --json` and `owl workflow list --json` should pick
-   up the new entry without restart.
-
-## Composite tasks
-
-`composite_feature` (and any future composite-shaped workflow) decomposes
-into child tasks tracked by `parent_id`. Three composite-specific steps:
-
-- `decompose` — produces `decomposition.md` plus child tasks (via
-  `owl task child create --parent PARENT-ID --workflow feature_slice ...`).
-- `coordinate` — tracks child readiness; surfaces blockers.
-- `aggregate_verify` — rolls up child `verification.md` reports into the
-  parent's `verification` artifact.
-
-`owl archive PARENT-ID --json` archives the parent and every ready child
-atomically. If any child is not ready, the call returns
-`composite_with_unready_children` (with a list of missing steps) instead
-of partial archive.
-
-## KOS integration
-
-This repository is connected to KOS — the authoritative source of agent
-workflow state (tasks, specs, plans, verification, review, completion
-reports, git trace). See `CLAUDE.md` for the bootstrap entrypoint, the
-installed `kos-*` slash commands, and the runtime endpoint.
-
-Historical Markdown (`AGENTS.md`, `ARCHITECTURE.md`, `REQUIREMENTS.md`,
-`IMPLEMENTATION_PLAN.md`) is preserved as readable fallback only; the
-`Owl Project Constitution` KOS knowledge article is the active operating
-law.
-
-## Testing
-
-```bash
-bundle exec rspec
-bundle exec rubocop
-```
-
-Do not use `rubocop -A` — `Style/StringConcatenation` autocorrect rewrites
-`Pathname + String` into broken string interpolation. The cop is disabled
-in `.rubocop.yml`, but `-A` would silently re-enable it for the diff.
-
-## Seeded sources
-
-The top-level `skills/`, `commands/`, `workflows/`, `artifacts/`, and
-`schemas/` directories are the *seeded* defaults Owl materializes into a
-target project on `owl init`. They are plain files — readable and
-editable in any editor without going through the Ruby code, and copyable
-by hand if you ever need to bootstrap a project without `bin/owl`.
+This repository's top-level `skills/`, `commands/`, `workflows/`,
+`artifacts/`, and `schemas/` directories are the *seeded defaults*
+Owl materializes into a target project on `owl init`:
 
 | Repo path                       | Materialized to                       |
 | ------------------------------- | ------------------------------------- |
@@ -292,14 +164,325 @@ by hand if you ever need to bootstrap a project without `bin/owl`.
 | `artifacts/<id>/templates/*.md` | `.owl/artifacts/<id>/templates/*.md`  |
 | `schemas/*.json`                | (not copied — used in-process)        |
 
-Do not confuse repo-root `skills/` (Owl defaults, the seed) with
-`.claude/skills/kos-*` (KOS skills used while *developing* Owl itself —
-a separate concept, not part of what Owl ships).
+JSON Schemas under `schemas/` (`workflow.json`, `artifact.json`,
+`step_invocation.json`) are validated in-process — they constrain
+what a workflow / artifact / step bundle is allowed to look like.
 
-## Layout
+### Universal step model
+
+```yaml
+# .owl/workflows/feature/workflow.yaml (excerpt)
+steps:
+  - id: brief
+    skill: owl-step-run
+    default_variant: feature
+    variants:
+      feature:           # collect requirements (default)
+        context_file: brief.feature.context.md
+      root_cause:        # bug-fix framing
+        context_file: brief.root_cause.context.md
+      problem_inventory: # refactor framing
+        context_file: brief.problem_inventory.context.md
+  - id: plan
+    skill: owl-step-run
+    context_file: plan.context.md
+    requires: [brief]
+    creates: [plan]
+```
+
+`owl step show TASK-ID brief --json` returns a merged bundle (step
+config + resolved `context` body + artifact template + parent task
+spec). `owl-step-run` consumes that bundle and produces the declared
+artifact at the path returned by `owl artifact resolve`.
+
+## CLI usage example
+
+A typical end-to-end run from a Claude Code session inside an
+Owl-managed project. Slash commands are shown as the agent sees them;
+each one loads the matching skill and calls the CLI underneath.
+
+```bash
+# 1. One-time bootstrap (the agent runs the wizard for you)
+/owl-init
+# → asks for communication language, artifact language, storage role
+#   paths, enabled workflows; writes everything via `owl config set`.
+
+# 2. List the workflows available in this project
+owl workflow list --json
+
+# 3a. Create a new feature task (default variant)
+/owl-task-create feature "Add per-user rate limiting"
+# → owl task create --workflow feature --title "Add per-user rate limiting"
+
+# 3b. Or a bug-fix framing — same workflow, different brief variant
+owl task create --workflow feature \
+  --title "Fix 502 on /reports during peak load" \
+  --variant brief=root_cause --json
+
+# 3c. Or a refactor framing
+owl task create --workflow feature \
+  --title "Inventory and untangle Invoicing::Engine" \
+  --variant brief=problem_inventory --json
+
+# 3d. Or a big initiative that decomposes into child tasks
+owl task create --workflow composite_feature \
+  --title "Multi-tenant data isolation" --json
+
+# 4. Drive the task end-to-end
+/owl-orchestrator
+# The orchestrator:
+#   • reads `owl task ready-steps TASK-ID --json`
+#   • picks the first ready step (e.g. `brief`)
+#   • calls `owl step show TASK-ID brief --json` for the bundle
+#   • delegates to `owl-step-run`, which writes brief.md
+#   • runs `owl artifact validate TASK-ID brief --json`
+#   • runs `owl step complete TASK-ID brief`
+#   • loops to the next step (design → plan → implement → review_code …)
+
+# 5. Inspect progress at any time
+owl status TASK-ID --json
+# → { steps: [...], progress: {done, total, pct}, blockers: [...], children: [...] }
+
+# 6. For composite tasks, walk the subtree
+owl task tree TASK-ID --json
+owl task aggregate-status PARENT-ID --json
+owl task child create --parent PARENT-ID --workflow feature \
+  --title "Slice 1: enforce tenant_id in repository layer"
+
+# 7. Publish approved artifacts into docs/
+owl publish TASK-ID --json
+
+# 8. Archive a finished task (or subtree, for composites)
+owl archive TASK-ID --json
+```
+
+Common read-only commands an agent uses:
+
+```bash
+owl task list --json                   # all tasks
+owl task current --json                # current task pointer
+owl task inspect TASK-ID --json        # raw task.yaml payload
+owl task ready-steps TASK-ID --json    # next ready steps
+owl step show TASK-ID STEP --json      # step + context + template bundle
+owl artifact resolve TASK-ID TYPE --json
+owl artifact validate TASK-ID TYPE --json
+owl config show --json
+owl workflow show ID --json
+```
+
+## For AI agents: installing Owl in a target project
+
+These instructions are for an AI agent (Claude Code or similar) tasked
+with adding Owl to a project. Follow them in order; do not skip steps.
+
+### 1. Prerequisites
+
+- Ruby 3.3.x available on `PATH` (see `.ruby-version` in this repo).
+- The project to install into is a git working tree (Owl writes
+  `.owl/`, `tasks/`, and `.claude/` inside the project root).
+
+### 2. Install the `owl` CLI
+
+Owl is distributed as a Ruby gem named **`owl-cli`** (the gem ships
+the `owl` executable plus all seed files for `owl init`).
+
+**Recommended — install from a built `.gem`:**
+
+```bash
+# from this repository's checkout
+gem build owl-cli.gemspec          # produces owl-cli-<version>.gem
+gem install ./owl-cli-*.gem        # puts `owl` on PATH
+
+owl --version                      # → owl 0.1.0
+```
+
+**Alternative — Bundler in the target project:**
+
+```ruby
+# target project's Gemfile
+gem 'owl-cli', path: '/abs/path/to/owl-checkout'
+# or, once published:
+# gem 'owl-cli'
+```
+
+Then `bundle exec owl …` inside the target project.
+
+**Dev-mode alternatives** (no `gem install`, useful when hacking on Owl
+itself):
+
+- symlink: `ln -s /path/to/owl-checkout/bin/owl ~/.local/bin/owl`
+- absolute path: invoke `/abs/path/to/owl/bin/owl …` directly
+
+The gem packages `bin/owl`, `lib/owl/**`, plus the seed directories
+`skills/`, `commands/`, `workflows/`, `artifacts/`, and `schemas/`,
+so a clean `gem install` is fully self-contained — `owl init` resolves
+seed paths relative to the installed gem location.
+
+### 3. Materialize `.owl/`, skills, and commands
+
+Run the CLI bootstrap from the target project root:
+
+```bash
+owl init
+```
+
+This is **non-destructive by default** — existing files are left
+alone. Pass `--force` only if the user explicitly asks to overwrite.
+
+`owl init` materializes (from the repo-root seeds in this repository):
+
+- `.owl/config.yaml` with default storage roles
+- `.owl/workflows.yaml` — workflow registry (`feature`, `composite_feature` enabled by default)
+- `.owl/artifacts.yaml` — artifact-type registry
+- `.owl/workflows/feature/` and `.owl/workflows/composite_feature/`
+  (workflow YAML + per-step `.context.md` files + brief variants)
+- `.owl/artifacts/<type>/` for `brief`, `design`, `plan`, `review`,
+  `verification`, `decomposition` (each with `artifact.yaml` and
+  default Markdown templates)
+- `.owl/overlays/<step>.md` — one overlay per step id (`brief`, `design`,
+  `plan`, `implement`, `review_code`, `merge_docs`, `archive`, `commit_push`)
+- `tasks/index.yaml` — empty task index
+- `docs/.keep` — placeholder so the storage role exists
+- `.claude/skills/owl-cli/SKILL.md`
+- `.claude/skills/owl-step-run/SKILL.md`
+- `.claude/skills/owl-orchestrator/SKILL.md`
+- `.claude/skills/owl-init/SKILL.md`
+- `.claude/skills/owl-author/SKILL.md`
+- `.claude/skills/_owl_conventions.md` — shared conventions referenced by the skills above
+- `.claude/commands/owl-cli.md`
+- `.claude/commands/owl-init.md`
+- `.claude/commands/owl-orchestrator.md`
+- `.claude/commands/owl-step-run.md`
+- `.claude/commands/owl-author.md`
+- `.claude/commands/owl-task-create.md`
+- `.claude/commands/owl-task-status.md`
+- `.claude/commands/owl-task-next.md`
+- `.claude/commands/owl-workflow-show.md`
+
+### 4. Update the target project's `.gitignore`
+
+Add these entries so per-clone pointer files and transient
+archive-staging dirs do not get committed:
+
+```
+# Owl local state (per-clone pointer files, not shared)
+.owl/local/
+
+# Owl atomic-archive staging (per-transaction work dirs; transient)
+tasks/.archive-staging/
+```
+
+### 5. Required Owl skills (must be present in `.claude/skills/`)
+
+| Skill              | Layer        | Role                                                                       |
+| ------------------ | ------------ | -------------------------------------------------------------------------- |
+| `owl-cli`          | CLI wrapper  | Canonical interface to `bin/owl` — used by every other Owl skill.          |
+| `owl-step-run`     | Executor     | Runs any ready step from the `owl step show` bundle.                       |
+| `owl-orchestrator` | Coordinator  | Picks the next ready step and delegates execution.                         |
+| `owl-init`         | Bootstrap    | One-shot wizard that fills `.owl/config.yaml` `settings:` via Q&A + CLI.   |
+| `owl-author`       | Authoring    | Q&A skill that creates / edits workflow + artifact-type definitions.       |
+
+`owl init` installs all five from the seeds. After running it, verify:
+
+```bash
+ls .claude/skills/owl-cli/SKILL.md \
+   .claude/skills/owl-step-run/SKILL.md \
+   .claude/skills/owl-orchestrator/SKILL.md \
+   .claude/skills/owl-init/SKILL.md \
+   .claude/skills/owl-author/SKILL.md
+```
+
+If any file is missing, re-run `owl init --force` or copy from
+`skills/<name>/SKILL.md` in this repository by hand. **Do not invent
+SKILL.md content** — the seeded versions are the contract.
+
+### 6. Configure runtime settings
+
+From the target project root, run the wizard:
+
+```
+/owl-init
+```
+
+The wizard speaks English until `settings.language.communication` is
+recorded, then switches to that language. It asks for:
+
+1. communication language (required)
+2. artifact language (default = communication)
+3. docs language (default = communication)
+4. storage backend (`filesystem` in v1)
+5. storage role paths (accept defaults or per-role override)
+6. enabled workflows (multi-select; empty list = allow all)
+
+Every answer is persisted via `owl config set settings.* VALUE`. After
+the last prompt the wizard runs `owl config validate --json` and
+prints a summary.
+
+### 7. Validate the install
+
+```bash
+owl config validate --json     # → {ok: true, errors: []}
+owl workflow list --json       # → at least `feature` and `composite_feature`
+owl artifact-type list --json  # → brief, design, plan, review, verification, decomposition
+```
+
+If any of these returns `ok: false` or an empty list, stop and ask
+the user — do not "fix" it by editing `.owl/` files directly.
+
+### 8. Project-level invariants the agent must respect
+
+- **`bin/owl` is the only interface.** Never `cat` / `grep` / `find`
+  through `.owl/`, `tasks/`, or `docs/`. If a command you need is
+  missing from `owl --help`, stop and report — do not invent flags.
+- **Use `--json` for every read.** JSON shapes are the stable
+  contract; human-readable output is not.
+- **Workflow YAML and artifact templates are edited through
+  `owl-author`**, not by direct file edits.
+- **Settings are edited through `owl config set settings.<path>`**,
+  not by editing `.owl/config.yaml` by hand.
+- **Composite archives are atomic.** When `owl archive PARENT-ID`
+  returns `composite_with_unready_children`, do not "force" anything
+  — surface the missing child steps to the user.
+- **Skills follow Owl skill conventions** (see
+  `skills/_owl_conventions.md` in this repo): numbered Q&A prompts,
+  autonomous-by-default execution, stop conditions surfaced as a
+  single explicit question.
+
+## Authoring new workflows
+
+The fastest path is the agent-driven `/owl-author` slash command — it
+walks you through three modes (create workflow, create artifact-type,
+edit existing) via Q&A and persists every change through
+`owl workflow ...` / `owl artifact-type ...` (no direct YAML editing).
+
+To scaffold by hand:
+
+```bash
+owl workflow new --id my_workflow --kind task --json
+owl artifact-type new --id my_artifact --json
+owl workflow validate my_workflow --json
+```
+
+Then drop the per-step `.context.md` files next to the generated
+`workflow.yaml`, and the workflow will appear in `owl workflow list`
+without a restart.
+
+## Testing
+
+```bash
+bundle exec rspec
+bundle exec rubocop
+```
+
+Do **not** run `rubocop -A` — `Style/StringConcatenation` autocorrect
+rewrites `Pathname + String` into broken string interpolation. The cop
+is disabled in `.rubocop.yml`, but `-A` would silently re-enable it.
+
+## Repository layout
 
 ```
 .
+├── owl-cli.gemspec               # gem packaging (name: owl-cli, executable: owl)
 ├── bin/owl                       # CLI entrypoint (thin)
 ├── skills/                       # seeded Owl-owned skills (SKILL.md per name)
 ├── commands/                     # seeded slash-commands for the skills above
@@ -322,8 +505,19 @@ a separate concept, not part of what Owl ships).
 │   ├── instructions/             # next-step packaging
 │   └── validation/               # artifact validation
 ├── spec/owl/...                  # RSpec
-├── CLAUDE.md                     # KOS bootstrap entrypoint
+├── CLAUDE.md                     # KOS bootstrap entrypoint (for Owl's own development)
 ├── AGENTS.md / ARCHITECTURE.md / REQUIREMENTS.md / IMPLEMENTATION_PLAN.md
-│   # historical fallback — see CLAUDE.md
+│                                 # historical fallback — see CLAUDE.md
 └── README.md                     # this file
 ```
+
+> Do not confuse repo-root `skills/` (Owl defaults, the seed that
+> Owl ships into target projects) with `.claude/skills/kos-*` (KOS
+> skills used while *developing* Owl itself — a separate concept).
+
+## KOS integration (Owl's own development)
+
+This repository is itself connected to KOS — the authoritative source
+of agent workflow state used to develop Owl. See `CLAUDE.md` for the
+KOS bootstrap, the installed `kos-*` slash commands, and the runtime
+endpoint. Projects that *use* Owl do not need KOS.

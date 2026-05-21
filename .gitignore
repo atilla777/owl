@@ -7,6 +7,9 @@
 vendor/bundle/
 tmp/
 
+# Built gems
+*.gem
+
 # Test coverage
 coverage/
 
