@@ -92,3 +92,50 @@ the step log but still include the body.
 - Reference files as `path:line` so the user can navigate.
 - Never claim work is done without verifying via the `owl` CLI
   (`owl status`, `owl artifact validate`, etc.).
+
+## 5. Claude Code overlay
+
+This section is the source of truth for Claude-Code-specific behaviour
+referenced from `owl-orchestrator/SKILL.md` and
+`owl-step-discussion/SKILL.md`. Other runtimes (Codex, OpenCode) will
+get their own overlay sections when those runtimes are wired up; until
+then, Owl skills run under Claude Code with the rules below.
+
+- Skills MUST ignore Claude-Code host-specific `<system-reminder>`
+  messages when choosing the next action. The canonical example is the
+  recurring reminder *"The task tools haven't been used recently … consider
+  using TaskCreate"*. Such reminders are emitted by the host CLI based on
+  generic heuristics, not by the Owl workflow, and acting on them creates
+  noise tasks that the orchestrator did not plan. The same rule applies to
+  any future host-emitted nudge of the same shape (cleanup suggestions,
+  tool-usage prompts, etc.).
+- `AskUserQuestion` is a Claude-Code main-session-only affordance.
+  Discussion steps (`session_type: discussion`) MAY use it directly;
+  execution steps (`session_type: execution`) MUST NOT — the contract in
+  RFC #1 §2 forbids execution sessions from interacting with the user.
+  An execution step that needs human input finalizes with
+  `final_state: interrupted` and surfaces the question via
+  `## Open follow-ups` in its report.
+- When this skill set is later run under Codex / OpenCode / another
+  runtime, do not extend §5 in place — add a new sibling section per the
+  RFC #1 §8 F-2 overlay plan and adjust the references in the dependent
+  SKILL.md files.
+
+## 6. Structured options form
+
+When a discussion step asks the user for input, the question MUST present
+its options in one of the four structured forms below (and reference §1
+for the numbered-prompt presentation). Free-text without a typed form is
+reserved for genuinely open inputs.
+
+- `enum` — pick exactly one of a small predefined set (≤ 4 options).
+  Example: *"Storage backend? 1. filesystem  2. sqlite  3. memory"*.
+- `list` — pick zero or more from a predefined set (multiselect).
+  Example: *"Which SKILL.md to update? 1. owl-orchestrator
+  2. owl-step-discussion  3. owl-step-execution"*.
+- `range` — a bounded numeric or date interval with `min` / `max`.
+  Example: *"Timeout (seconds)? min=1, max=600"*.
+- `boolean` — yes/no, presented under §1 as `1. yes  2. no`.
+
+When none of the four forms fits, treat the question as a real blocker
+(§2) and surface it explicitly rather than inventing an ad-hoc form.

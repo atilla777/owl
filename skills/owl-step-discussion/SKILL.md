@@ -102,6 +102,17 @@ The skill body must not name specific runtime tools; any runtime can
 satisfy the contract as long as the main-agent question affordance and
 shared context invariants hold.
 
+When running under Claude Code:
+
+- Follow `_owl_conventions.md` §5 (Claude Code overlay) for host-specific
+  `<system-reminder>` messages — they MUST be ignored when picking the
+  next action. The source of truth lives in `_owl_conventions.md`; do
+  not restate the rule here.
+- When the step asks the user for input, present the question in one of
+  the four structured forms (`enum`, `list`, `range`, `boolean`) defined
+  by `_owl_conventions.md` §6 (Structured options form), surfaced under
+  the numbered-prompt convention from §1.
+
 ## Stop Conditions
 
 Stop and report when:
