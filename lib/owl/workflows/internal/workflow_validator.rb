@@ -13,6 +13,8 @@ module Owl
     module Internal
       module WorkflowValidator
         ALLOWED_KINDS = %w[task composite_task].freeze
+        ALLOWED_SESSION_TYPES = %w[discussion execution].freeze
+        ALLOWED_TIERS = %w[standard advanced].freeze
 
         module_function
 
@@ -112,6 +114,8 @@ module Owl
                                'Step `id` is required and must be a non-empty string.')
           end
 
+          errors.concat(validate_step_session(step, path))
+
           context = step['context']
           context_file = step['context_file']
           if context && context_file
@@ -124,6 +128,29 @@ module Owl
             errors << error_at("#{path}/context", '`context` must be a string when present.')
           end
           errors.concat(validate_step_variants(step, path))
+          errors
+        end
+
+        def validate_step_session(step, path)
+          errors = []
+          session_type = step['session_type']
+          if session_type.nil?
+            errors << error_at("#{path}/session_type",
+                               'Step `session_type` is required (one of ' \
+                               "#{ALLOWED_SESSION_TYPES.inspect}). See RFC #1 §2.")
+          elsif !ALLOWED_SESSION_TYPES.include?(session_type.to_s)
+            errors << error_at("#{path}/session_type",
+                               "Step `session_type` must be one of #{ALLOWED_SESSION_TYPES.inspect} " \
+                               "(got #{session_type.inspect}).")
+          end
+
+          tier = step['tier']
+          if !tier.nil? && !ALLOWED_TIERS.include?(tier.to_s)
+            errors << error_at("#{path}/tier",
+                               "Step `tier` must be one of #{ALLOWED_TIERS.inspect} when present " \
+                               "(got #{tier.inspect}). See RFC #1 §3.")
+          end
+
           errors
         end
 

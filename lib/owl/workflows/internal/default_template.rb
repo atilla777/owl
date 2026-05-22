@@ -54,7 +54,9 @@ module Owl
 
             steps:
               - id: main
-                skill: owl-step-run
+                skill: owl-step-discussion
+                session_type: discussion
+                tier: advanced
           YAML
         end
 
@@ -74,7 +76,9 @@ module Owl
 
             steps:
               - id: decompose
-                skill: owl-step-run
+                skill: owl-step-discussion
+                session_type: discussion
+                tier: advanced
                 creates: [decomposition]
           YAML
         end

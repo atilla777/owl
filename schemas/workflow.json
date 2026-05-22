@@ -23,7 +23,7 @@
   "$defs": {
     "step": {
       "type": "object",
-      "required": ["id"],
+      "required": ["id", "session_type"],
       "additionalProperties": true,
       "not": {
         "required": ["context", "context_file"]
@@ -34,10 +34,20 @@
           "minLength": 1,
           "description": "Step identifier, unique within a workflow."
         },
+        "session_type": {
+          "type": "string",
+          "enum": ["discussion", "execution"],
+          "description": "Logical session kind for this step. `discussion` runs in the main agent session and may interact with the user; `execution` runs in an isolated subagent session and never interacts directly. See RFC #1 (knowledge entry 46) §2."
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["standard", "advanced"],
+          "description": "Optional model tier hint. Defaults: discussion→advanced, execution→standard. Mapping tier→model lives in env-specific config (~/.config/owl/tier_map.yaml or $OWL_TIER_MAP_PATH). See RFC #1 §3."
+        },
         "skill": {
           "type": "string",
           "pattern": "^owl-step-[a-z_]+$",
-          "description": "Skill id consumed verbatim by `owl step invocation` so agents can locate the matching SKILL.md on disk. Seeded workflows bind the universal `owl-step-run` skill; custom workflows may name their own `owl-step-<x>` skill as long as it matches the pattern."
+          "description": "Skill id consumed verbatim by `owl step invocation` so agents can locate the matching SKILL.md on disk. Seeded session-typed workflows bind `owl-step-discussion` or `owl-step-execution`; custom workflows may name their own `owl-step-<x>` skill as long as it matches the pattern."
         },
         "requires": {
           "type": "array",
@@ -88,10 +98,6 @@
         "title": {
           "type": "string",
           "description": "Optional human-readable label for the variant (used by orchestrator UIs to present a chooser)."
-        },
-        "interactive": {
-          "type": "boolean",
-          "description": "Override the step-level `interactive` flag for this variant only."
         }
       }
     },

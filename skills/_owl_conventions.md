@@ -7,8 +7,8 @@ description: Shared conventions every Owl-shipped skill follows — numbered pro
 
 This document captures behavioural rules that apply to every
 Owl-shipped skill (`owl-author`, `owl-cli`, `owl-init`,
-`owl-orchestrator`, `owl-step-run`). Skills reference this file rather
-than restating these rules.
+`owl-orchestrator`, `owl-step-discussion`, `owl-step-execution`).
+Skills reference this file rather than restating these rules.
 
 ## 1. Numbered prompts
 
@@ -35,15 +35,27 @@ respond by number in the chat.
 
 ## 2. Autonomous-by-default execution
 
-Workflows declare an `execution_mode` at the top level and an optional
-`interactive: true` flag on each step. Skills MUST honor both:
+Workflows declare an `execution_mode` at the top level. Each step
+declares a `session_type` (`discussion` or `execution`) per RFC #1 §2
+(knowledge entry 46) that controls whether the step may interact with
+the user at all.
 
-| `execution_mode`            | Default step behavior              |
-| --------------------------- | ---------------------------------- |
-| `autonomous_after_brief`    | Run without prompting the user, except for steps with `interactive: true` and except on real blockers. |
+Skills MUST honor both signals:
+
+| `execution_mode`            | Default behavior for `session_type: discussion` steps |
+| --------------------------- | ----------------------------------------------------- |
+| `autonomous_after_brief`    | Run without prompting the user, except for the `brief` step and except on real blockers. |
 | `autonomous`                | Run without prompting the user, except on real blockers. |
-| `interactive`               | Confirm with the user before each step. |
+| `interactive`               | Confirm with the user before each discussion step. |
 | (absent)                    | Treat as `interactive` for backward compatibility. |
+
+Steps with `session_type: execution` NEVER prompt the user directly —
+the contract forbids it (RFC #1 §2). When an execution step needs human
+input, it finalizes with `final_state: interrupted` and surfaces the
+question in the `## Open follow-ups` section of its report
+(written via `owl step report --body -`); the orchestrator reads the
+report through `owl step report --read` and asks the user from the main
+session.
 
 A "real blocker" is one of:
 

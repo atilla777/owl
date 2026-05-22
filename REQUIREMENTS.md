@@ -559,11 +559,14 @@ Depends on:
 Используется для одиночных, не требующих декомпозиции задач.
 
 > **Historical — per-step `skill:` биндинги (`owl.steps.brief`, `owl.steps.specify`, …)
-> в примере ниже описывают раннюю модель проекта. Текущая реализация привязывает
-> каждый шаг seeded-workflow к универсальному `owl-step-run` (см.
-> `skills/owl-step-run/SKILL.md`); per-step skills остаются доступной точкой
-> расширения для кастомных workflow, но seeded YAML использует общий исполнитель.
-> Актуальный seeded workflow — `workflows/feature/workflow.yaml` в репозитории.**
+> в примере ниже описывают раннюю модель проекта. Текущая реализация (RFC #1,
+> knowledge entry 46) привязывает каждый шаг seeded-workflow к одному из двух
+> session-typed overlay-скиллов: `owl-step-discussion` для шагов с
+> `session_type: discussion` (brief, design, plan) и `owl-step-execution` для
+> шагов с `session_type: execution` (implement, review_code, merge_docs,
+> archive, commit_push). Per-step skills остаются доступной точкой расширения
+> для кастомных workflow. Актуальный seeded workflow — `workflows/feature/workflow.yaml`
+> в репозитории.**
 
 ```yaml
 schema_version: 1
@@ -1231,7 +1234,8 @@ owl artifact validate TASK-0001 specs --json
 
 > `owl artifact read` / `owl artifact write` пока не реализованы — артефакт читается
 > через `owl step show ... --json` (поле `task.artifacts`) и пишется напрямую в путь,
-> возвращённый `owl artifact resolve`, согласно `skills/owl-step-run/SKILL.md`.
+> возвращённый `owl artifact resolve`, согласно `skills/owl-step-discussion/SKILL.md`
+> (для discussion-сессий) и `skills/owl-step-execution/SKILL.md` (для execution-сессий).
 
 ### 10.7. Publish / archive
 

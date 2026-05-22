@@ -16,16 +16,16 @@ OWL_CLI_REQUIRED_COMMANDS = [
   'publish', 'archive', 'instructions', 'status'
 ].freeze
 
-OWL_STEP_RUN_REQUIRED_SECTIONS = [
+OWL_STEP_SESSION_REQUIRED_SECTIONS = [
   'Purpose', 'When To Use', 'Inputs', 'Outputs',
-  'Workflow', 'Stop Conditions', 'Verification'
+  'Workflow', 'Env overlay note', 'Stop Conditions', 'Verification'
 ].freeze
 
-OWL_STEP_RUN_REQUIRED_COMMANDS = [
+OWL_STEP_SESSION_REQUIRED_COMMANDS = [
   'owl step show', 'owl artifact resolve', 'owl artifact validate', 'owl step complete'
 ].freeze
 
-OWL_STEP_RUN_HARDCODED_STEP_IDS = %w[
+OWL_STEP_HARDCODED_STEP_IDS = %w[
   brief design plan implement review_code merge_docs archive commit_push
   decompose review
 ].freeze
@@ -41,7 +41,7 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
 
   describe 'universal-skill seeded surface' do
     it 'does not ship any per-step `owl-step-<id>` SKILL.md' do
-      stale = OWL_STEP_RUN_HARDCODED_STEP_IDS.select do |id|
+      stale = OWL_STEP_HARDCODED_STEP_IDS.select do |id|
         paths.include?(".claude/skills/owl-step-#{id}/SKILL.md")
       end
       expect(stale).to be_empty,
@@ -49,19 +49,25 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
     end
 
     it 'does not ship any per-step `owl-step-<id>` slash-command' do
-      stale = OWL_STEP_RUN_HARDCODED_STEP_IDS.select do |id|
+      stale = OWL_STEP_HARDCODED_STEP_IDS.select do |id|
         paths.include?(".claude/commands/owl-step-#{id}.md")
       end
       expect(stale).to be_empty,
                        -> { "still seeding per-step commands: #{stale.inspect}" }
     end
 
-    it 'seeds exactly the universal owl-* skills (owl-cli, owl-step-run, owl-orchestrator, owl-init, owl-author)' do
+    it 'does not ship the legacy `owl-step-run` skill or slash-command (RFC #1 breaking switch)' do
+      expect(paths).not_to include('.claude/skills/owl-step-run/SKILL.md')
+      expect(paths).not_to include('.claude/commands/owl-step-run.md')
+    end
+
+    it 'seeds the universal owl-* skills (cli, step-discussion, step-execution, orchestrator, init, author)' do
       skill_paths = paths.grep(%r{\A\.claude/skills/.+/SKILL\.md\z})
       expect(skill_paths).to contain_exactly(
         '.claude/skills/owl-orchestrator/SKILL.md',
         '.claude/skills/owl-cli/SKILL.md',
-        '.claude/skills/owl-step-run/SKILL.md',
+        '.claude/skills/owl-step-discussion/SKILL.md',
+        '.claude/skills/owl-step-execution/SKILL.md',
         '.claude/skills/owl-init/SKILL.md',
         '.claude/skills/owl-author/SKILL.md'
       )
@@ -72,7 +78,8 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
       expect(command_paths).to contain_exactly(
         '.claude/commands/owl-orchestrator.md',
         '.claude/commands/owl-cli.md',
-        '.claude/commands/owl-step-run.md',
+        '.claude/commands/owl-step-discussion.md',
+        '.claude/commands/owl-step-execution.md',
         '.claude/commands/owl-init.md',
         '.claude/commands/owl-author.md',
         '.claude/commands/owl-task-create.md',
@@ -147,22 +154,22 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
     end
   end
 
-  describe 'owl-step-run skill' do
+  describe 'owl-step-discussion skill' do
     let(:skill_entry) do
-      files.find { |entry| entry[:relative_path] == '.claude/skills/owl-step-run/SKILL.md' }
+      files.find { |entry| entry[:relative_path] == '.claude/skills/owl-step-discussion/SKILL.md' }
     end
     let(:slash_entry) do
-      files.find { |entry| entry[:relative_path] == '.claude/commands/owl-step-run.md' }
+      files.find { |entry| entry[:relative_path] == '.claude/commands/owl-step-discussion.md' }
     end
 
     it 'materializes a SKILL.md and a slash-command file' do
-      expect(skill_entry).not_to be_nil, 'expected owl-step-run SKILL.md in seeded sources'
-      expect(slash_entry).not_to be_nil, 'expected owl-step-run slash-command in seeded sources'
+      expect(skill_entry).not_to be_nil, 'expected owl-step-discussion SKILL.md in seeded sources'
+      expect(slash_entry).not_to be_nil, 'expected owl-step-discussion slash-command in seeded sources'
     end
 
-    it 'has frontmatter with name: owl-step-run, non-empty description, and non-empty triggers' do
+    it 'has frontmatter with name: owl-step-discussion, non-empty description, and non-empty triggers' do
       fm = YAML.safe_load(skill_entry[:contents].match(/\A---\n(.*?)\n---/m)[1])
-      expect(fm['name']).to eq('owl-step-run')
+      expect(fm['name']).to eq('owl-step-discussion')
       expect(fm['description']).to be_a(String)
       expect(fm['description']).not_to be_empty
       expect(fm['triggers']).to be_an(Array)
@@ -170,33 +177,86 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
     end
 
     it 'documents the seeded-skill body sections so downstream agents know the flow' do
-      OWL_STEP_RUN_REQUIRED_SECTIONS.each do |section|
+      OWL_STEP_SESSION_REQUIRED_SECTIONS.each do |section|
         expect(skill_entry[:contents]).to include("## #{section}"),
-                                          -> { "owl-step-run SKILL.md missing section '## #{section}'" }
+                                          -> { "owl-step-discussion SKILL.md missing section '## #{section}'" }
       end
     end
 
     it 'references the canonical step-execution CLI commands' do
-      OWL_STEP_RUN_REQUIRED_COMMANDS.each do |command|
+      OWL_STEP_SESSION_REQUIRED_COMMANDS.each do |command|
         expect(skill_entry[:contents]).to include(command),
-                                          -> { "owl-step-run SKILL.md does not mention `#{command}`" }
+                                          -> { "owl-step-discussion SKILL.md does not mention `#{command}`" }
       end
     end
 
-    it 'does not reference any specific owl-step-<id> skill (no hardcoded step type knowledge)' do
-      OWL_STEP_RUN_HARDCODED_STEP_IDS.each do |id|
+    it 'does not reference any specific owl-step-<workflow-step-id> skill' do
+      OWL_STEP_HARDCODED_STEP_IDS.each do |id|
         expect(skill_entry[:contents]).not_to include("owl-step-#{id}"),
-                                              -> { "owl-step-run SKILL.md references hardcoded `owl-step-#{id}`" }
+                                              lambda {
+                                                "owl-step-discussion SKILL.md references hardcoded `owl-step-#{id}`"
+                                              }
       end
     end
 
-    it 'points downstream readers at the owl-cli skill for the CLI surface' do
-      expect(skill_entry[:contents]).to include('owl-cli'),
-                                        -> { 'owl-step-run SKILL.md should reference owl-cli as the CLI reference' }
+    it 'declares session_type discussion in the description' do
+      fm = YAML.safe_load(skill_entry[:contents].match(/\A---\n(.*?)\n---/m)[1])
+      expect(fm['description']).to include('discussion')
     end
 
     it 'loads the skill from the slash-command body' do
-      expect(slash_entry[:contents]).to include('Load skill `owl-step-run`')
+      expect(slash_entry[:contents]).to include('Load skill `owl-step-discussion`')
+    end
+  end
+
+  describe 'owl-step-execution skill' do
+    let(:skill_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/skills/owl-step-execution/SKILL.md' }
+    end
+    let(:slash_entry) do
+      files.find { |entry| entry[:relative_path] == '.claude/commands/owl-step-execution.md' }
+    end
+
+    it 'materializes a SKILL.md and a slash-command file' do
+      expect(skill_entry).not_to be_nil, 'expected owl-step-execution SKILL.md in seeded sources'
+      expect(slash_entry).not_to be_nil, 'expected owl-step-execution slash-command in seeded sources'
+    end
+
+    it 'has frontmatter with name: owl-step-execution, non-empty description, and non-empty triggers' do
+      fm = YAML.safe_load(skill_entry[:contents].match(/\A---\n(.*?)\n---/m)[1])
+      expect(fm['name']).to eq('owl-step-execution')
+      expect(fm['description']).to be_a(String)
+      expect(fm['description']).not_to be_empty
+      expect(fm['triggers']).to be_an(Array)
+      expect(fm['triggers']).not_to be_empty
+    end
+
+    it 'documents the seeded-skill body sections so downstream agents know the flow' do
+      OWL_STEP_SESSION_REQUIRED_SECTIONS.each do |section|
+        expect(skill_entry[:contents]).to include("## #{section}"),
+                                          -> { "owl-step-execution SKILL.md missing section '## #{section}'" }
+      end
+    end
+
+    it 'references the canonical step-execution CLI commands' do
+      OWL_STEP_SESSION_REQUIRED_COMMANDS.each do |command|
+        expect(skill_entry[:contents]).to include(command),
+                                          -> { "owl-step-execution SKILL.md does not mention `#{command}`" }
+      end
+    end
+
+    it 'references the owl step report CLI for subagent report hand-off' do
+      expect(skill_entry[:contents]).to include('owl step report'),
+                                        -> { 'owl-step-execution SKILL.md should reference `owl step report`' }
+    end
+
+    it 'declares session_type execution in the description' do
+      fm = YAML.safe_load(skill_entry[:contents].match(/\A---\n(.*?)\n---/m)[1])
+      expect(fm['description']).to include('execution')
+    end
+
+    it 'loads the skill from the slash-command body' do
+      expect(slash_entry[:contents]).to include('Load skill `owl-step-execution`')
     end
   end
 
@@ -229,10 +289,12 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
       end
     end
 
-    it 'references the universal owl-step-run executor and the owl-cli reference skill' do
+    it 'references the session-typed step executors and the owl-cli reference skill' do
       contents = skill_entry[:contents]
-      expect(contents).to include('owl-step-run'),
-                          -> { 'owl-orchestrator SKILL.md should reference owl-step-run' }
+      expect(contents).to include('owl-step-discussion'),
+                          -> { 'owl-orchestrator SKILL.md should reference owl-step-discussion' }
+      expect(contents).to include('owl-step-execution'),
+                          -> { 'owl-orchestrator SKILL.md should reference owl-step-execution' }
       expect(contents).to include('owl-cli'),
                           -> { 'owl-orchestrator SKILL.md should reference owl-cli' }
     end

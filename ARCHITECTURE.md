@@ -397,7 +397,9 @@ owl step invocation TASK-0001 specify --json
   "step": {
     "id": "design",
     "title": "Sketch design for the brief",
-    "skill": "owl-step-run"
+    "skill": "owl-step-discussion",
+    "session_type": "discussion",
+    "tier": "advanced"
   },
   "inputs": {
     "artifacts": {

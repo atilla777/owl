@@ -41,11 +41,11 @@ RSpec.describe Owl::Skills::Api do
       expect(paths).to eq(paths.uniq)
     end
 
-    it 'does not ship per-step `owl-step-<id>` skills' do
+    it 'ships exactly the session-typed step skills (discussion + execution) and no per-workflow-step skill' do
       paths = sources.map { |entry| entry[:relative_path] }
-      stale_step_ids = paths.grep(%r{\A\.claude/skills/owl-step-([a-z_]+)/SKILL\.md\z}) { Regexp.last_match(1) }
-      expect(stale_step_ids).to contain_exactly('run'),
-                                -> { "expected only owl-step-run, got: owl-step-#{stale_step_ids.join(', owl-step-')}" }
+      step_skill_ids = paths.grep(%r{\A\.claude/skills/owl-step-([a-z_]+)/SKILL\.md\z}) { Regexp.last_match(1) }
+      expect(step_skill_ids).to contain_exactly('discussion', 'execution'),
+                                -> { "unexpected owl-step-* skills: owl-step-#{step_skill_ids.join(', owl-step-')}" }
     end
   end
 end

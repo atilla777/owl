@@ -333,13 +333,17 @@ Step описывает:
 
 Исполнитель конкретного шага.
 
-> **Historical — superseded by the universal `owl-step-run` model.** Ранние черновики
-> предполагали отдельный skill на каждый шаг (`owl.steps.brief`,
-> `owl.steps.design`, …). Текущая реализация (см. `skills/owl-step-run/SKILL.md`)
-> использует один универсальный исполнитель: skill читает per-step `context` через
-> `owl step show` и пишет декларированный артефакт, без хардкода типа шага.
-> Per-step skills остаются возможной точкой расширения для кастомных workflow,
-> но seeded workflows связаны с `owl-step-run`.
+> **Historical — superseded by the session-typed step model (RFC #1).**
+> Ранние черновики предполагали отдельный skill на каждый шаг
+> (`owl.steps.brief`, `owl.steps.design`, …); следующая итерация ввела
+> один универсальный `owl-step-run`. Текущая реализация (RFC #1,
+> knowledge entry 46) разделяет step-run на два overlay-скилла по
+> `session_type`: `owl-step-discussion` (main session, может задавать
+> вопросы пользователю) и `owl-step-execution` (subagent, без прямого
+> взаимодействия с пользователем; пишет structured report через
+> `owl step report --body -`). Оба читают per-step `context` через
+> `owl step show`. Per-step skills остаются возможной точкой расширения
+> для кастомных workflow.
 
 Skill не должен сам решать, какая задача текущая и куда писать файлы. Он должен получать эту информацию через CLI.
 

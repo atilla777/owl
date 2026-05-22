@@ -4,9 +4,9 @@ module Owl
   module Workflows
     module Internal
       module StepLookup
-        STRING_FIELDS = %w[id title skill kind context default_variant].freeze
+        STRING_FIELDS = %w[id title skill kind context default_variant session_type tier].freeze
         ARRAY_FIELDS = %w[requires creates uses_if_present].freeze
-        BOOLEAN_FIELDS = %w[interactive optional].freeze
+        BOOLEAN_FIELDS = %w[optional].freeze
 
         module_function
 

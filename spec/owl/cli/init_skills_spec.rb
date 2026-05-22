@@ -24,7 +24,8 @@ RSpec.describe 'owl init — Owl::Skills integration' do
       expect(slash.exist?).to be(true)
       contents = skill_md.read
       expect(contents).to include('## Stop Conditions')
-      expect(contents).to include('owl-step-run')
+      expect(contents).to include('owl-step-discussion')
+      expect(contents).to include('owl-step-execution')
     end
   end
 
@@ -42,17 +43,31 @@ RSpec.describe 'owl init — Owl::Skills integration' do
     end
   end
 
-  it 'materializes the owl-step-run skill + slash-command in .claude/' do
+  it 'materializes the owl-step-discussion skill + slash-command in .claude/' do
     with_tmp_project do |root|
       exit_code, _stdout, _stderr = run(['init', '--root', root.to_s], cwd: root)
       expect(exit_code).to eq(0)
 
-      skill_md = root + '.claude/skills/owl-step-run/SKILL.md'
-      slash    = root + '.claude/commands/owl-step-run.md'
+      skill_md = root + '.claude/skills/owl-step-discussion/SKILL.md'
+      slash    = root + '.claude/commands/owl-step-discussion.md'
       expect(skill_md.exist?).to be(true)
       expect(slash.exist?).to be(true)
       expect(skill_md.read).to include('## Workflow')
       expect(skill_md.read).to include('owl step show')
+    end
+  end
+
+  it 'materializes the owl-step-execution skill + slash-command in .claude/' do
+    with_tmp_project do |root|
+      exit_code, _stdout, _stderr = run(['init', '--root', root.to_s], cwd: root)
+      expect(exit_code).to eq(0)
+
+      skill_md = root + '.claude/skills/owl-step-execution/SKILL.md'
+      slash    = root + '.claude/commands/owl-step-execution.md'
+      expect(skill_md.exist?).to be(true)
+      expect(slash.exist?).to be(true)
+      expect(skill_md.read).to include('## Workflow')
+      expect(skill_md.read).to include('owl step report')
     end
   end
 
@@ -93,7 +108,8 @@ RSpec.describe 'owl init — Owl::Skills integration' do
       step_skill_files = Dir[(root + '.claude/skills/owl-*/SKILL.md').to_s]
       expect(step_skill_files.map { |f| File.basename(File.dirname(f)) }).to contain_exactly(
         'owl-cli',
-        'owl-step-run',
+        'owl-step-discussion',
+        'owl-step-execution',
         'owl-orchestrator',
         'owl-init',
         'owl-author'
@@ -113,7 +129,7 @@ RSpec.describe 'owl init — Owl::Skills integration' do
     end
   end
 
-  it 'materializes the nine universal owl-* slash-commands (5 skills + 3 owl-task-* + owl-workflow-show)' do
+  it 'materializes the ten universal owl-* slash-commands (6 skills + 3 owl-task-* + owl-workflow-show)' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
 
@@ -121,7 +137,8 @@ RSpec.describe 'owl init — Owl::Skills integration' do
       expect(command_files.map { |f| File.basename(f, '.md') }).to contain_exactly(
         'owl-orchestrator',
         'owl-cli',
-        'owl-step-run',
+        'owl-step-discussion',
+        'owl-step-execution',
         'owl-init',
         'owl-author',
         'owl-task-create',

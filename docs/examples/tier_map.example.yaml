@@ -1,0 +1,16 @@
+# Example env-specific tier mapping for Owl.
+# Place this file at one of:
+#   - $OWL_TIER_MAP_PATH (env-variable override)
+#   - ~/.config/owl/tier_map.yaml (default)
+#
+# Owl skills and workflow YAMLs reference abstract tier names
+# ("standard"/"advanced"); this file is where each tier resolves to
+# an opaque model identifier. See knowledge entry 46 (RFC #1) §3.
+#
+# The Owl repo never hardcodes a model name; rotate this file when
+# upgrading to a new model generation.
+
+schema_version: 1
+tier_map:
+  standard: claude-sonnet-4-6
+  advanced: claude-opus-4-7

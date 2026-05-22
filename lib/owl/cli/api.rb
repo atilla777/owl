@@ -18,6 +18,7 @@ require_relative 'internal/commands/publish'
 require_relative 'internal/commands/status'
 require_relative 'internal/commands/step_complete'
 require_relative 'internal/commands/step_invocation'
+require_relative 'internal/commands/step_report'
 require_relative 'internal/commands/step_show'
 require_relative 'internal/commands/step_skip'
 require_relative 'internal/commands/step_start'
@@ -77,6 +78,7 @@ module Owl
           step complete           Mark a running step as done.
           step skip               Mark a step as skipped (--reason required).
           step invocation         Print full StepInvocation for a ready step (JSON).
+          step report             Write or read a subagent step report (env-agnostic, RFC #1 §5).
           step show               Show merged step + context + artifact_template + task bundle (JSON).
           artifact resolve        Resolve task-scoped artifact path + template + validation rules.
           artifact validate       Validate a task artifact (existence, sections, patterns, front matter).
@@ -224,6 +226,7 @@ module Owl
         when 'skip'       then Internal::Commands::StepSkip.run(**kwargs)
         when 'invocation' then Internal::Commands::StepInvocation.run(**kwargs)
         when 'show'       then Internal::Commands::StepShow.run(**kwargs)
+        when 'report'     then Internal::Commands::StepReport.run(**kwargs)
         else
           unknown_command(stderr, "step #{subcommand}".strip)
         end

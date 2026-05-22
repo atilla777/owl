@@ -29,8 +29,9 @@ artifacts:
 
 steps:
   - id: brief
-    skill: owl-step-run
-    interactive: true
+    skill: owl-step-discussion
+    session_type: discussion
+    tier: advanced
     creates: [brief]
     default_variant: feature
     variants:
@@ -44,27 +45,35 @@ steps:
         context_file: brief.problem_inventory.context.md
         title: "Inventory refactor problems"
   - id: design
-    skill: owl-step-run
+    skill: owl-step-discussion
+    session_type: discussion
+    tier: advanced
     context_file: design.context.md
-    interactive: true
     requires: [brief]
     creates: [design]
   - id: decompose
-    skill: owl-step-run
+    skill: owl-step-discussion
+    session_type: discussion
+    tier: advanced
     context_file: decompose.context.md
-    interactive: true
     requires: [brief]
     creates: [decomposition]
   - id: review
-    skill: owl-step-run
+    skill: owl-step-execution
+    session_type: execution
+    tier: advanced
     context_file: review.context.md
     requires: [decompose]
     creates: [review]
   - id: archive
-    skill: owl-step-run
+    skill: owl-step-execution
+    session_type: execution
+    tier: standard
     context_file: archive.context.md
     requires: [review]
   - id: commit_push
-    skill: owl-step-run
+    skill: owl-step-execution
+    session_type: execution
+    tier: standard
     context_file: commit_push.context.md
     requires: [archive]

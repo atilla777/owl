@@ -38,8 +38,9 @@ publishes:
 
 steps:
   - id: brief
-    skill: owl-step-run
-    interactive: true
+    skill: owl-step-discussion
+    session_type: discussion
+    tier: advanced
     creates: [brief]
     default_variant: feature
     variants:
@@ -53,35 +54,48 @@ steps:
         context_file: brief.problem_inventory.context.md
         title: "Inventory refactor problems"
   - id: design
-    skill: owl-step-run
+    skill: owl-step-discussion
+    session_type: discussion
+    tier: advanced
     context_file: design.context.md
-    interactive: true
     requires: [brief]
     creates: [design]
   - id: plan
-    skill: owl-step-run
+    skill: owl-step-discussion
+    session_type: discussion
+    tier: advanced
     context_file: plan.context.md
     requires: [brief]
     creates: [plan]
   - id: implement
-    skill: owl-step-run
+    skill: owl-step-execution
+    session_type: execution
+    tier: advanced
     context_file: implement.context.md
     requires: [plan]
     creates: [verification]
   - id: review_code
-    skill: owl-step-run
+    skill: owl-step-execution
+    session_type: execution
+    tier: advanced
     context_file: review_code.context.md
     requires: [implement]
     creates: [review]
   - id: merge_docs
-    skill: owl-step-run
+    skill: owl-step-execution
+    session_type: execution
+    tier: standard
     context_file: merge_docs.context.md
     requires: [review_code]
   - id: archive
-    skill: owl-step-run
+    skill: owl-step-execution
+    session_type: execution
+    tier: standard
     context_file: archive.context.md
     requires: [merge_docs]
   - id: commit_push
-    skill: owl-step-run
+    skill: owl-step-execution
+    session_type: execution
+    tier: standard
     context_file: commit_push.context.md
     requires: [archive]

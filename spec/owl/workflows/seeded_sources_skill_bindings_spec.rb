@@ -66,10 +66,24 @@ RSpec.describe Owl::Workflows::Internal::SeededSources do
       entries.map { |e| "#{e[:path]}##{e[:step]['id']} -> #{e[:step][field].inspect}" }.join(', ')
     end
 
-    it 'binds the universal `owl-step-run` skill on every seeded step' do
-      mismatched = all_steps.reject { |entry| entry[:step]['skill'] == 'owl-step-run' }
+    ALLOWED_SESSION_TYPES = %w[discussion execution].freeze
+
+    it 'binds the session-typed step skill on every seeded step' do
+      mismatched = all_steps.reject do |entry|
+        step = entry[:step]
+        case step['session_type']
+        when 'discussion' then step['skill'] == 'owl-step-discussion'
+        when 'execution' then step['skill'] == 'owl-step-execution'
+        end
+      end
       expect(mismatched).to be_empty,
-                            -> { "non-owl-step-run bindings: #{describe_entries(mismatched, 'skill')}" }
+                            -> { "non-session-typed bindings: #{describe_entries(mismatched, 'skill')}" }
+    end
+
+    it 'declares `session_type` on every seeded step' do
+      missing = all_steps.reject { |entry| ALLOWED_SESSION_TYPES.include?(entry[:step]['session_type']) }
+      expect(missing).to be_empty,
+                         -> { "steps without session_type: #{describe_entries(missing, 'session_type')}" }
     end
 
     it 'binds a `context_file` named after the step id (or a `variants:` block instead)' do

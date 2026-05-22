@@ -54,10 +54,13 @@ for the full install recipe.
   produces; each artifact type has a Markdown template, a required-
   section list, and frontmatter schema. Artifacts are validated on
   step completion.
-- **Universal step model.** All steps share one executor skill
-  (`owl-step-run`). The per-step prompt lives in a `.context.md` file
-  next to the workflow YAML. Adding a new step type = dropping a new
-  Markdown file, no Ruby code.
+- **Session-typed step model.** Every step declares `session_type:
+  discussion | execution` (RFC #1 §2). Discussion steps run in the main
+  agent session through `owl-step-discussion`; execution steps run in
+  an isolated subagent session through `owl-step-execution` and emit a
+  structured report via `owl step report --body -`. The per-step prompt
+  lives in a `.context.md` file next to the workflow YAML; adding a new
+  step = dropping a new Markdown file, no Ruby code.
 - **Composite tasks.** A `composite_feature` decomposes into child
   tasks linked by `parent_id`; the parent tracks aggregate readiness
   and archives the whole subtree atomically.
@@ -68,9 +71,9 @@ for the full install recipe.
   `control`, `local_state`, `index`) live in `.owl/config.yaml`;
   workflow YAML never hard-codes physical paths.
 - **Slash-command surface for agents.** `owl init`, `owl-task-create`,
-  `owl-task-next`, `owl-orchestrator`, `owl-step-run`, `owl-author`
-  are installed into `.claude/` so any Claude Code session in the
-  project can drive Owl end-to-end.
+  `owl-task-next`, `owl-orchestrator`, `owl-step-discussion`,
+  `owl-step-execution`, `owl-author` are installed into `.claude/` so
+  any Claude Code session in the project can drive Owl end-to-end.
 
 ## How it works
 
@@ -81,8 +84,9 @@ for the full install recipe.
                 └────────┬─────────┘
                          ▼
                 ┌──────────────────┐
-                │  Owl skills      │  owl-orchestrator → owl-step-run
-                │  (.claude/skills)│  (decide / execute)
+                │  Owl skills      │  owl-orchestrator → owl-step-discussion
+                │  (.claude/skills)│  (main session)  + owl-step-execution
+                │                  │                    (subagent, via Task tool)
                 └────────┬─────────┘
                          ▼
                 ┌──────────────────┐
@@ -104,9 +108,13 @@ The loop is always the same:
 2. **Ask the orchestrator** for the next ready step
    (`owl task ready-steps`).
 3. **Execute the step.** `owl step show TASK-ID STEP-ID --json` returns
-   a self-contained bundle — step config + the resolved per-step prompt
-   + the artifact template + the task spec. `owl-step-run` follows the
-   prompt and writes the artifact at the resolved path.
+   a self-contained bundle — step config (including `session_type` and
+   optional `tier`) + the resolved per-step prompt + the artifact
+   template + the task spec. The bound skill (`owl-step-discussion` for
+   discussion-typed steps, `owl-step-execution` for execution-typed
+   steps) follows the prompt and writes the artifact at the resolved
+   path. Execution steps additionally emit a structured report through
+   `owl step report --body -`.
 4. **Complete the step.** Owl re-validates the artifact (required
    sections, frontmatter schema, regex rules) before advancing.
 5. **Loop** until the workflow's terminal step (`archive` /
@@ -180,13 +188,15 @@ JSON Schemas under `schemas/` (`workflow.json`, `artifact.json`,
 `step_invocation.json`) are validated in-process — they constrain
 what a workflow / artifact / step bundle is allowed to look like.
 
-### Universal step model
+### Session-typed step model
 
 ```yaml
 # .owl/workflows/feature/workflow.yaml (excerpt)
 steps:
   - id: brief
-    skill: owl-step-run
+    skill: owl-step-discussion
+    session_type: discussion        # main agent session, may ask user
+    tier: advanced
     default_variant: feature
     variants:
       feature:           # collect requirements (default)
@@ -196,16 +206,30 @@ steps:
       problem_inventory: # refactor framing
         context_file: brief.problem_inventory.context.md
   - id: plan
-    skill: owl-step-run
+    skill: owl-step-discussion
+    session_type: discussion
+    tier: advanced
     context_file: plan.context.md
     requires: [brief]
     creates: [plan]
+  - id: implement
+    skill: owl-step-execution
+    session_type: execution         # subagent, no direct user prompt
+    tier: advanced
+    context_file: implement.context.md
+    requires: [plan]
+    creates: [verification]
 ```
 
 `owl step show TASK-ID brief --json` returns a merged bundle (step
-config + resolved `context` body + artifact template + parent task
-spec). `owl-step-run` consumes that bundle and produces the declared
-artifact at the path returned by `owl artifact resolve`.
+config + `session_type` + `tier` + resolved `context` body + artifact
+template + parent task spec). The bound skill consumes that bundle and
+produces the declared artifact at the path returned by `owl artifact
+resolve`. Execution steps additionally write a structured report to
+`.owl/local/reports/<TASK-ID>/<STEP-ID>.md` via `owl step report
+--body -`; the orchestrator reads it back through `owl step report
+--read`. Tier→model mapping is per-environment (`~/.config/owl/tier_map.yaml`
+or `$OWL_TIER_MAP_PATH`) — see `docs/examples/tier_map.example.yaml`.
 
 ## CLI usage example
 
@@ -246,7 +270,9 @@ owl task create --workflow composite_feature \
 #   • reads `owl task ready-steps TASK-ID --json`
 #   • picks the first ready step (e.g. `brief`)
 #   • calls `owl step show TASK-ID brief --json` for the bundle
-#   • delegates to `owl-step-run`, which writes brief.md
+#   • dispatches by session_type: discussion → `owl-step-discussion`
+#     in the main session; execution → `owl-step-execution` in a subagent
+#   • the bound skill writes brief.md
 #   • runs `owl artifact validate TASK-ID brief --json`
 #   • runs `owl step complete TASK-ID brief`
 #   • loops to the next step (design → plan → implement → review_code …)
@@ -356,7 +382,8 @@ alone. Pass `--force` only if the user explicitly asks to overwrite.
 - `tasks/index.yaml` — empty task index
 - `docs/.keep` — placeholder so the storage role exists
 - `.claude/skills/owl-cli/SKILL.md`
-- `.claude/skills/owl-step-run/SKILL.md`
+- `.claude/skills/owl-step-discussion/SKILL.md`
+- `.claude/skills/owl-step-execution/SKILL.md`
 - `.claude/skills/owl-orchestrator/SKILL.md`
 - `.claude/skills/owl-init/SKILL.md`
 - `.claude/skills/owl-author/SKILL.md`
@@ -364,7 +391,8 @@ alone. Pass `--force` only if the user explicitly asks to overwrite.
 - `.claude/commands/owl-cli.md`
 - `.claude/commands/owl-init.md`
 - `.claude/commands/owl-orchestrator.md`
-- `.claude/commands/owl-step-run.md`
+- `.claude/commands/owl-step-discussion.md`
+- `.claude/commands/owl-step-execution.md`
 - `.claude/commands/owl-author.md`
 - `.claude/commands/owl-task-create.md`
 - `.claude/commands/owl-task-status.md`
@@ -386,19 +414,21 @@ tasks/.archive-staging/
 
 ### 5. Required Owl skills (must be present in `.claude/skills/`)
 
-| Skill              | Layer        | Role                                                                       |
-| ------------------ | ------------ | -------------------------------------------------------------------------- |
-| `owl-cli`          | CLI wrapper  | Canonical interface to `bin/owl` — used by every other Owl skill.          |
-| `owl-step-run`     | Executor     | Runs any ready step from the `owl step show` bundle.                       |
-| `owl-orchestrator` | Coordinator  | Picks the next ready step and delegates execution.                         |
-| `owl-init`         | Bootstrap    | One-shot wizard that fills `.owl/config.yaml` `settings:` via Q&A + CLI.   |
-| `owl-author`       | Authoring    | Q&A skill that creates / edits workflow + artifact-type definitions.       |
+| Skill                  | Layer        | Role                                                                       |
+| ---------------------- | ------------ | -------------------------------------------------------------------------- |
+| `owl-cli`              | CLI wrapper  | Canonical interface to `bin/owl` — used by every other Owl skill.          |
+| `owl-step-discussion`  | Executor     | Runs `session_type: discussion` steps in the main agent session.           |
+| `owl-step-execution`   | Executor     | Runs `session_type: execution` steps in an isolated subagent session.      |
+| `owl-orchestrator`     | Coordinator  | Picks the next ready step and dispatches by `session_type`.                |
+| `owl-init`             | Bootstrap    | One-shot wizard that fills `.owl/config.yaml` `settings:` via Q&A + CLI.   |
+| `owl-author`           | Authoring    | Q&A skill that creates / edits workflow + artifact-type definitions.       |
 
-`owl init` installs all five from the seeds. After running it, verify:
+`owl init` installs all six from the seeds. After running it, verify:
 
 ```bash
 ls .claude/skills/owl-cli/SKILL.md \
-   .claude/skills/owl-step-run/SKILL.md \
+   .claude/skills/owl-step-discussion/SKILL.md \
+   .claude/skills/owl-step-execution/SKILL.md \
    .claude/skills/owl-orchestrator/SKILL.md \
    .claude/skills/owl-init/SKILL.md \
    .claude/skills/owl-author/SKILL.md

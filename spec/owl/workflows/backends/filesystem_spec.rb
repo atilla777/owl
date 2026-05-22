@@ -28,7 +28,9 @@ RSpec.describe Owl::Workflows::Backends::Filesystem do
       artifacts: {}
       steps:
         - id: a
+          session_type: discussion
         - id: b
+          session_type: discussion
           requires: [a]
     YAML
   end

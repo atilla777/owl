@@ -7,7 +7,7 @@ require 'yaml'
 require 'owl/cli/api'
 require 'owl/steps/api'
 
-RSpec.describe 'seeded feature workflow with owl-step-run (end-to-end)' do
+RSpec.describe 'seeded feature workflow with session-typed step skills (end-to-end)' do
   def cli(argv, root)
     stdout = StringIO.new
     stderr = StringIO.new
@@ -31,7 +31,7 @@ RSpec.describe 'seeded feature workflow with owl-step-run (end-to-end)' do
     end
   end
 
-  it 'init seeds workflow + context files and owl step show resolves owl-step-run for every step' do
+  it 'init seeds workflow + context files and owl step show resolves the session-typed step skill for every step' do
     with_tmp_project do |root|
       cli(['init', '--root', root.to_s], root)
 
@@ -64,7 +64,11 @@ RSpec.describe 'seeded feature workflow with owl-step-run (end-to-end)' do
         bundle = result.value
         expect(bundle[:step]['id']).to eq(step_id)
         skill = bundle[:step]['skill']
-        expect(skill).to eq('owl-step-run'), "#{step_id} bound to #{skill.inspect}, want owl-step-run"
+        session_type = bundle[:step]['session_type']
+        expected_skill = session_type == 'discussion' ? 'owl-step-discussion' : 'owl-step-execution'
+        diag = "#{step_id} bound to #{skill.inspect}, want #{expected_skill}; session_type=#{session_type.inspect}"
+        expect(skill).to eq(expected_skill), diag
+        expect(%w[discussion execution]).to include(session_type), "invalid session_type for #{step_id}"
         expect(bundle[:context]).to be_a(String).and(include('Purpose'))
       end
     end

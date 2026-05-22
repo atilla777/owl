@@ -39,9 +39,11 @@ RSpec.describe Owl::Instructions::Api do
       kind: feature
       steps:
         - id: a
-          skill: owl-step-run
+          skill: owl-step-discussion
+          session_type: discussion
         - id: b
-          skill: owl-step-run
+          skill: owl-step-discussion
+          session_type: discussion
           requires: ["a"]
       artifacts: []
     YAML
@@ -135,7 +137,7 @@ RSpec.describe Owl::Instructions::Api do
         expect(body.dig(:task, :id)).to eq(task_id)
         expect(body.dig(:task, :workflow_key)).to eq('feature')
         expect(body.dig(:step, :id)).to eq('a')
-        expect(body.dig(:skill, :id)).to eq('owl-step-run')
+        expect(body.dig(:skill, :id)).to eq('owl-step-discussion')
         expect(body[:summary]).to be_a(String)
         expect(body[:invocation]).to include(:task, :step, :inputs, :outputs)
       end
@@ -183,7 +185,8 @@ RSpec.describe Owl::Instructions::Api do
           kind: task
           steps:
             - id: only
-              skill: owl-step-run
+              skill: owl-step-discussion
+              session_type: discussion
           artifacts: []
         YAML
         cli(['task', 'create', '--workflow', 'tiny', '--title', 't', '--root', root.to_s], root)

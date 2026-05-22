@@ -69,7 +69,10 @@ module OwlConstitutionFixtures
     cli/internal/commands/config_validate.rb
     cli/internal/commands/task_support.rb
     cli/internal/commands/workflow_list.rb
+    cli/internal/commands/step_report.rb
     context/internal/overlay_paths.rb
+    subagents/internal/tier_map.rb
+    subagents/internal/report_paths.rb
   ].freeze
 end
 

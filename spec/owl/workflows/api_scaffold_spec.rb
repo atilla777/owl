@@ -71,7 +71,7 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
       with_tmp_project do |root|
         seed_project(root)
         body = "id: custom_id\nkind: task\ntitle: Custom\nartifacts: {}\n" \
-               "steps:\n  - id: only\n    skill: owl-step-run\n"
+               "steps:\n  - id: only\n    skill: owl-step-discussion\n    session_type: discussion\n"
         result = described_class.scaffold(root: root, id: 'custom_id', body: body)
         expect(result).to be_ok
       end
@@ -143,7 +143,7 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
       with_tmp_project do |root|
         seed_project(root)
         bad_path = "#{root}/.owl/workflows/oops/workflow.yaml"
-        write(bad_path, "id: oops\nkind: task\nsteps:\n  - skill: owl-step-run\n")
+        write(bad_path, "id: oops\nkind: task\nsteps:\n  - skill: owl-step-discussion\n    session_type: discussion\n")
         result = described_class.validate(root: root, id_or_path: bad_path)
         expect(result).to be_err
         expect(result.code).to eq(:workflow_validation_failed)
@@ -211,7 +211,8 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
             artifacts: {}
             steps:
               - id: brief
-                skill: owl-step-run
+                skill: owl-step-discussion
+                session_type: discussion
                 default_variant: feature
                 variants:
                   feature:
@@ -233,7 +234,8 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
             artifacts: {}
             steps:
               - id: brief
-                skill: owl-step-run
+                skill: owl-step-discussion
+                session_type: discussion
                 variants:
                   feature:
                     context_file: brief.feature.context.md
@@ -255,7 +257,8 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
             artifacts: {}
             steps:
               - id: brief
-                skill: owl-step-run
+                skill: owl-step-discussion
+                session_type: discussion
                 default_variant: missing
                 variants:
                   feature:
@@ -278,7 +281,8 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
             artifacts: {}
             steps:
               - id: brief
-                skill: owl-step-run
+                skill: owl-step-discussion
+                session_type: discussion
                 default_variant: feature
           YAML
           result = described_class.scaffold(root: root, id: 'orphan_default', body: body)
@@ -298,7 +302,8 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
             artifacts: {}
             steps:
               - id: brief
-                skill: owl-step-run
+                skill: owl-step-discussion
+                session_type: discussion
                 context_file: brief.context.md
                 default_variant: feature
                 variants:
@@ -322,7 +327,8 @@ RSpec.describe Owl::Workflows::Api, '.scaffold and .validate' do
             artifacts: {}
             steps:
               - id: brief
-                skill: owl-step-run
+                skill: owl-step-discussion
+                session_type: discussion
                 default_variant: feature
                 variants:
                   feature: {}

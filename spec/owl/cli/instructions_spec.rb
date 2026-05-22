@@ -31,9 +31,11 @@ RSpec.describe 'owl instructions CLI subcommand' do
       kind: feature
       steps:
         - id: a
-          skill: owl-step-run
+          skill: owl-step-discussion
+          session_type: discussion
         - id: b
-          skill: owl-step-run
+          skill: owl-step-discussion
+          session_type: discussion
           requires: ["a"]
       artifacts: []
     YAML
@@ -59,9 +61,9 @@ RSpec.describe 'owl instructions CLI subcommand' do
         expect(body.dig('task', 'id')).to eq(task_id)
         expect(body.dig('task', 'workflow_key')).to eq('feature')
         expect(body.dig('step', 'id')).to eq('a')
-        expect(body.dig('skill', 'id')).to eq('owl-step-run')
-        expect(body.dig('skill', 'path')).to end_with('.claude/skills/owl-step-run/SKILL.md')
-        expect(body.dig('skill', 'command_path')).to end_with('.claude/commands/owl-step-run.md')
+        expect(body.dig('skill', 'id')).to eq('owl-step-discussion')
+        expect(body.dig('skill', 'path')).to end_with('.claude/skills/owl-step-discussion/SKILL.md')
+        expect(body.dig('skill', 'command_path')).to end_with('.claude/commands/owl-step-discussion.md')
         expect(body['summary']).to be_a(String)
         expect(body['summary']).not_to be_empty
         expect(body['invocation']).to include('task', 'step', 'inputs', 'outputs')
@@ -83,7 +85,7 @@ RSpec.describe 'owl instructions CLI subcommand' do
         expect(exit_code).to eq(0)
         body = JSON.parse(stdout)
         expect(body.dig('step', 'id')).to eq('b')
-        expect(body.dig('skill', 'id')).to eq('owl-step-run')
+        expect(body.dig('skill', 'id')).to eq('owl-step-discussion')
       end
     end
   end
@@ -124,7 +126,8 @@ RSpec.describe 'owl instructions CLI subcommand' do
           kind: task
           steps:
             - id: only
-              skill: owl-step-run
+              skill: owl-step-discussion
+              session_type: discussion
           artifacts: []
         YAML
         run(['task', 'create', '--workflow', 'tiny', '--title', 't', '--root', root.to_s], cwd: root)
@@ -168,6 +171,7 @@ RSpec.describe 'owl instructions CLI subcommand' do
           steps:
             - id: only
               skill: owl-step-phantom-never-shipped
+              session_type: discussion
           artifacts: []
         YAML
         run(['task', 'create', '--workflow', 'phantom', '--title', 't', '--root', root.to_s], cwd: root)
