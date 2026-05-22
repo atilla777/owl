@@ -8,6 +8,7 @@ require_relative '../../tasks/api'
 require_relative '../../tasks/internal/paths'
 require_relative '../../workflows/api'
 require_relative 'statuses'
+require_relative 'step_projection'
 
 module Owl
   module Steps
@@ -80,6 +81,7 @@ module Owl
           status = current_step_status(root: root, task_id: task_id, step_id: step_id)
           step_payload['status'] = status || Statuses::DEFAULT.to_s
           step_payload['variant'] = chosen_variant if chosen_variant
+          step_payload.merge!(StepProjection.project(step).transform_keys(&:to_s))
           [step_payload, context]
         end
 

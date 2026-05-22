@@ -206,9 +206,12 @@ module Owl
           graph_result = graph(workflow_key: workflow_key)
           return graph_result if graph_result.err?
 
+          definition_steps = definition_steps_for(workflow_key: workflow_key)
+
           ready = Internal::ReadyResolver.resolve(
             graph: graph_result.value,
-            task_steps: payload['steps'] || []
+            task_steps: payload['steps'] || [],
+            definition_steps: definition_steps
           )
 
           Result.ok(
@@ -216,6 +219,18 @@ module Owl
             workflow_key: workflow_key,
             ready: ready
           )
+        end
+
+        def definition_steps_for(workflow_key:)
+          lookup = find(key: workflow_key)
+          return {} if lookup.err?
+
+          source = lookup.value[:source]
+          return {} unless source[:present]
+
+          body = source[:body].is_a?(Hash) ? source[:body] : {}
+          steps = body['steps'] || body[:steps] || []
+          Internal::StepLookup.build(steps)
         end
 
         def read_step_context(source_dir:, step_id:, relative_path:)

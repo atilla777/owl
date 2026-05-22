@@ -108,13 +108,14 @@ The loop is always the same:
 2. **Ask the orchestrator** for the next ready step
    (`owl task ready-steps`).
 3. **Execute the step.** `owl step show TASK-ID STEP-ID --json` returns
-   a self-contained bundle — step config (including `session_type` and
-   optional `tier`) + the resolved per-step prompt + the artifact
-   template + the task spec. The bound skill (`owl-step-discussion` for
-   discussion-typed steps, `owl-step-execution` for execution-typed
-   steps) follows the prompt and writes the artifact at the resolved
-   path. Execution steps additionally emit a structured report through
-   `owl step report --body -`.
+   a self-contained bundle — step config (including `title`, `session_type`,
+   `model_tier`, normalized `optional`, and `variants_keys`) + the
+   resolved per-step prompt + the artifact template + the task spec.
+   The bound skill (`owl-step-discussion` for discussion-typed steps,
+   `owl-step-execution` for execution-typed steps) follows the prompt
+   and writes the artifact at the resolved path. Execution steps
+   additionally emit a structured report through `owl step report
+   --body -`.
 4. **Complete the step.** Owl re-validates the artifact (required
    sections, frontmatter schema, regex rules) before advancing.
 5. **Loop** until the workflow's terminal step (`archive` /
@@ -222,10 +223,15 @@ steps:
 ```
 
 `owl step show TASK-ID brief --json` returns a merged bundle (step
-config + `session_type` + `tier` + resolved `context` body + artifact
-template + parent task spec). The bound skill consumes that bundle and
-produces the declared artifact at the path returned by `owl artifact
-resolve`. Execution steps additionally write a structured report to
+config + `title` + `session_type` + `model_tier` + normalized
+`optional` + `variants_keys` + resolved `context` body + artifact
+template + parent task spec). The same five contract fields appear
+on every entry of `owl task ready-steps --json` so the orchestrator
+can route steps without re-reading the workflow YAML. Note that the
+JSON contract exposes the workflow YAML `tier:` key as `model_tier`.
+The bound skill consumes that bundle and produces the declared artifact
+at the path returned by `owl artifact resolve`. Execution steps
+additionally write a structured report to
 `.owl/local/reports/<TASK-ID>/<STEP-ID>.md` via `owl step report
 --body -`; the orchestrator reads it back through `owl step report
 --read`. Tier→model mapping is per-environment (`~/.config/owl/tier_map.yaml`

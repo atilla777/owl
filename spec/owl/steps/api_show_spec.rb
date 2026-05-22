@@ -109,6 +109,59 @@ RSpec.describe Owl::Steps::Api, '.show' do
       end
     end
 
+    it 'exposes default richer JSON contract on a minimal step' do
+      with_tmp_project do |root|
+        task_id = setup_happy_path(root)
+        bundle = described_class.show(root: root, task_id: task_id, step_id: 'brief').value
+        expect(bundle[:step]['title']).to eq('Brief')
+        expect(bundle[:step]['session_type']).to eq('execution')
+        expect(bundle[:step]['model_tier']).to eq('standard')
+        expect(bundle[:step]['optional']).to be false
+        expect(bundle[:step]['variants_keys']).to eq([])
+      end
+    end
+
+    def write_richer_contract_workflow(root)
+      write_workflow_source(root, <<~YAML)
+        id: feature
+        kind: feature
+        artifacts:
+          spec:
+            type: spec
+            storage: { role: tasks, path: "{{task.id}}/spec.md" }
+        steps:
+          - id: design
+            title: Design discussion
+            session_type: discussion
+            tier: advanced
+            optional: true
+            context: "Design step"
+            variants:
+              short: { context_file: design.short.md }
+              long:  { context_file: design.long.md }
+            default_variant: short
+      YAML
+      write("#{root}/.owl/workflows/feature/design.short.md", 'short variant body')
+      write("#{root}/.owl/workflows/feature/design.long.md", 'long variant body')
+    end
+
+    it 'exposes the full richer JSON contract in bundle[:step]' do
+      with_tmp_project do |root|
+        init(root)
+        write_workflow_registry(root)
+        write_spec_artifact_files(root)
+        write_richer_contract_workflow(root)
+        task_id = create_task(root)
+
+        bundle = described_class.show(root: root, task_id: task_id, step_id: 'design').value
+        expect(bundle[:step]['title']).to eq('Design discussion')
+        expect(bundle[:step]['session_type']).to eq('discussion')
+        expect(bundle[:step]['model_tier']).to eq('advanced')
+        expect(bundle[:step]['optional']).to be true
+        expect(bundle[:step]['variants_keys']).to eq(%w[long short])
+      end
+    end
+
     it 'reads context from context_file and exposes task artifact bodies when files exist' do
       with_tmp_project do |root|
         init(root)

@@ -88,4 +88,62 @@ RSpec.describe Owl::Workflows::Internal::ReadyResolver do
       expect(ready.map { |s| s[:id] }).to eq(['a'])
     end
   end
+
+  describe '.resolve with definition_steps (richer JSON contract)' do
+    it 'enriches ready_entry with definition fields' do
+      graph = graph_of(['a'])
+      task_steps = [{ 'id' => 'a', 'status' => 'pending' }]
+      definition_steps = {
+        'a' => {
+          'title' => 'Brief',
+          'session_type' => 'discussion',
+          'tier' => 'advanced',
+          'optional' => true,
+          'variants' => { 'foo' => {}, 'bar' => {} }
+        }
+      }
+      ready = described_class.resolve(
+        graph: graph, task_steps: task_steps, definition_steps: definition_steps
+      )
+      entry = ready.first
+      expect(entry[:title]).to eq('Brief')
+      expect(entry[:session_type]).to eq('discussion')
+      expect(entry[:model_tier]).to eq('advanced')
+      expect(entry[:optional]).to be true
+      expect(entry[:variants_keys]).to eq(%w[bar foo])
+    end
+
+    it 'uses defaults when definition_step is missing' do
+      graph = graph_of(['a'])
+      task_steps = [{ 'id' => 'a', 'status' => 'pending' }]
+      ready = described_class.resolve(graph: graph, task_steps: task_steps)
+      entry = ready.first
+      expect(entry[:title]).to eq('')
+      expect(entry[:session_type]).to eq('execution')
+      expect(entry[:model_tier]).to eq('standard')
+      expect(entry[:optional]).to be false
+      expect(entry[:variants_keys]).to eq([])
+    end
+
+    it 'preserves legacy keys alongside new fields (AC-7)' do
+      graph = graph_of(['a'])
+      task_steps = [{ 'id' => 'a', 'kind' => 'noop', 'status' => 'pending', 'requires' => [] }]
+      ready = described_class.resolve(graph: graph, task_steps: task_steps)
+      entry = ready.first
+      expect(entry[:id]).to eq('a')
+      expect(entry[:kind]).to eq('noop')
+      expect(entry[:requires]).to eq([])
+      expect(entry[:status]).to eq('ready')
+    end
+
+    it 'normalizes string optional to boolean' do
+      graph = graph_of(['a'])
+      task_steps = [{ 'id' => 'a', 'status' => 'pending' }]
+      definition_steps = { 'a' => { 'optional' => 'true' } }
+      ready = described_class.resolve(
+        graph: graph, task_steps: task_steps, definition_steps: definition_steps
+      )
+      expect(ready.first[:optional]).to be true
+    end
+  end
 end

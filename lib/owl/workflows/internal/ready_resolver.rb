@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../steps/internal/statuses'
+require_relative '../../steps/internal/step_projection'
 
 module Owl
   module Workflows
@@ -8,7 +9,7 @@ module Owl
       module ReadyResolver
         module_function
 
-        def resolve(graph:, task_steps:)
+        def resolve(graph:, task_steps:, definition_steps: {})
           status_map = build_status_map(task_steps)
           step_map = build_step_map(task_steps)
 
@@ -21,7 +22,7 @@ module Owl
               Owl::Steps::Internal::Statuses.completes_for_unblocking?(status_map[dep])
             end
 
-            ready << ready_entry(id, step_map[id])
+            ready << ready_entry(id, step_map[id], definition_steps[id])
           end
         end
 
@@ -46,7 +47,7 @@ module Owl
           end
         end
 
-        def ready_entry(id, step)
+        def ready_entry(id, step, definition_step = nil)
           step ||= {}
           requires = step['requires'] || step[:requires] || []
 
@@ -55,7 +56,7 @@ module Owl
             kind: step['kind'] || step[:kind],
             requires: Array(requires).map(&:to_s),
             status: 'ready'
-          }
+          }.merge(Owl::Steps::Internal::StepProjection.project(definition_step))
         end
       end
     end
