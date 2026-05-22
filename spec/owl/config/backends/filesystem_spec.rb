@@ -89,12 +89,12 @@ RSpec.describe Owl::Config::Backends::Filesystem do
       end
     end
 
-    it 'returns Err(:unsupported_config_path) when key is outside settings.*' do
+    it 'reads non-settings paths now that the whitelist is removed' do
       with_tmp_project do |root|
         write("#{root}/.owl/config.yaml", valid_body)
         result = build(root: root).read_key(key: 'project.id')
-        expect(result).to be_err
-        expect(result.code).to eq(:unsupported_config_path)
+        expect(result).to be_ok
+        expect(result.value).to eq(key: 'project.id', value: 'sample')
       end
     end
 
@@ -129,6 +129,20 @@ RSpec.describe Owl::Config::Backends::Filesystem do
 
         re_read = backend.read_key(key: 'settings.language.communication')
         expect(re_read.value[:value]).to eq('ru')
+      end
+    end
+
+    it 'writes non-settings paths now that the whitelist is removed' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_body)
+        backend = build(root: root)
+
+        result = backend.write_key(key: 'workflow.feature.phases', value: '["plan","implement"]')
+        expect(result).to be_ok
+        expect(result.value).to eq(key: 'workflow.feature.phases', value: %w[plan implement])
+
+        re_read = backend.read_key(key: 'workflow.feature.phases')
+        expect(re_read.value[:value]).to eq(%w[plan implement])
       end
     end
 

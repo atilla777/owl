@@ -61,8 +61,6 @@ module Owl
 
           value = Internal::PathAccessor.read(load_result.value.raw, key)
           Result.ok(key: key, value: value)
-        rescue Internal::PathAccessor::UnsupportedPathError => e
-          Result.err(code: :unsupported_config_path, message: e.message, details: { key: key })
         rescue Internal::PathAccessor::InvalidPathError => e
           Result.err(code: :invalid_config_key, message: e.message, details: { key: key })
         rescue Internal::PathAccessor::MissingKeyError => e
@@ -83,8 +81,6 @@ module Owl
 
           begin
             Internal::PathAccessor.write(raw_copy, key, parsed)
-          rescue Internal::PathAccessor::UnsupportedPathError => e
-            return Result.err(code: :unsupported_config_path, message: e.message, details: { key: key })
           rescue Internal::PathAccessor::InvalidPathError => e
             return Result.err(code: :invalid_config_key, message: e.message, details: { key: key })
           end

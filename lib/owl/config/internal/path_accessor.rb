@@ -4,18 +4,10 @@ module Owl
   module Config
     module Internal
       module PathAccessor
-        SUPPORTED_ROOT = 'settings'
-
-        UnsupportedPathError = Class.new(StandardError)
         MissingKeyError = Class.new(StandardError)
         InvalidPathError = Class.new(StandardError)
 
         module_function
-
-        def supported?(dot_path)
-          segments = split(dot_path)
-          segments.first == SUPPORTED_ROOT
-        end
 
         def split(dot_path)
           raise InvalidPathError, 'key must be a non-empty string' if dot_path.nil? || dot_path.to_s.empty?
@@ -27,7 +19,6 @@ module Owl
         end
 
         def read(raw_hash, dot_path)
-          ensure_supported!(dot_path)
           segments = split(dot_path)
 
           node = raw_hash
@@ -42,7 +33,6 @@ module Owl
         end
 
         def write(raw_hash, dot_path, value)
-          ensure_supported!(dot_path)
           segments = split(dot_path)
 
           node = raw_hash
@@ -58,13 +48,6 @@ module Owl
           end
           node[segments.last] = value
           raw_hash
-        end
-
-        def ensure_supported!(dot_path)
-          return if supported?(dot_path)
-
-          raise UnsupportedPathError,
-                "Only paths under '#{SUPPORTED_ROOT}.*' are supported via config get/set; got: #{dot_path}"
         end
       end
     end

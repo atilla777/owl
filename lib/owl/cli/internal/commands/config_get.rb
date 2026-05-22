@@ -18,7 +18,8 @@ module Owl
             options = parse_options(argv)
 
             if options[:key].nil?
-              return JsonPrinter.failure(stderr, code: :invalid_arguments, message: 'Usage: owl config get KEY [--root PATH] [--json]')
+              return JsonPrinter.failure(stderr, code: :invalid_arguments,
+                                                 message: 'Usage: owl config get KEY [--root PATH] [--strict] [--json]')
             end
 
             root_result = resolve_root(options[:root], cwd, stderr: stderr)
@@ -27,6 +28,8 @@ module Owl
             result = Owl::Config::Api.read_key(root: root_result, key: options[:key])
             if result.ok?
               JsonPrinter.success(stdout, ok: true, key: result.value[:key], value: result.value[:value])
+            elsif result.code == :config_key_missing && !options[:strict]
+              JsonPrinter.success(stdout, ok: true, key: options[:key], value: nil)
             else
               JsonPrinter.failure(stderr, code: result.code, message: result.message, details: result.details)
             end
@@ -35,10 +38,13 @@ module Owl
           end
 
           def parse_options(argv)
-            options = { root: nil, key: nil }
+            options = { root: nil, key: nil, strict: false }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl config get KEY [--root PATH] [--json]'
+              opts.banner = 'Usage: owl config get KEY [--root PATH] [--strict] [--json]'
               opts.on('--root PATH', String, 'Project root (default: auto-detect from cwd)') { |v| options[:root] = v }
+              opts.on('--strict', 'Treat missing key as an error (legacy behaviour); default returns value: null') do
+                options[:strict] = true
+              end
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end
             remaining = parser.parse(argv)

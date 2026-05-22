@@ -255,20 +255,34 @@ RSpec.describe Owl::Cli::Api do
       end
     end
 
-    it 'returns unsupported_config_path for non-settings keys' do
+    it 'reads a non-settings path (project.id) after the whitelist is removed' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
-        exit_code, _stdout, stderr = run(['config', 'get', 'project.id', '--root', root.to_s, '--json'], cwd: root)
-        expect(exit_code).to eq(1)
-        expect(JSON.parse(stderr).dig('error', 'code')).to eq('unsupported_config_path')
+        exit_code, stdout, _stderr = run(['config', 'get', 'project.id', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body).to include('ok' => true, 'key' => 'project.id')
+        expect(body['value']).not_to be_nil
       end
     end
 
-    it 'reports config_key_missing for unknown leaf' do
+    it 'returns ok with value: null for an unknown leaf (default missing-key semantics)' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
-        exit_code, _stdout, stderr = run(['config', 'get', 'settings.language.bogus', '--root', root.to_s, '--json'],
-                                         cwd: root)
+        exit_code, stdout, stderr = run(['config', 'get', 'settings.language.bogus', '--root', root.to_s, '--json'],
+                                        cwd: root)
+        expect(exit_code).to eq(0)
+        expect(stderr).to eq('')
+        expect(JSON.parse(stdout)).to eq('ok' => true, 'key' => 'settings.language.bogus', 'value' => nil)
+      end
+    end
+
+    it 'returns the legacy config_key_missing error under --strict' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, _stdout, stderr = run(
+          ['config', 'get', 'settings.language.bogus', '--strict', '--root', root.to_s, '--json'], cwd: root
+        )
         expect(exit_code).to eq(1)
         expect(JSON.parse(stderr).dig('error', 'code')).to eq('config_key_missing')
       end
@@ -349,13 +363,22 @@ RSpec.describe Owl::Cli::Api do
       end
     end
 
-    it 'rejects non-settings paths' do
+    it 'writes a non-settings path (workflow.feature.phases) after the whitelist is removed' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
-        exit_code, _stdout, stderr = run(['config', 'set', 'project.id', 'other', '--root', root.to_s, '--json'],
-                                         cwd: root)
-        expect(exit_code).to eq(1)
-        expect(JSON.parse(stderr).dig('error', 'code')).to eq('unsupported_config_path')
+        exit_code, stdout, _stderr = run(
+          ['config', 'set', 'workflow.feature.phases', '["plan","implement"]', '--root', root.to_s, '--json'],
+          cwd: root
+        )
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body).to include('ok' => true, 'key' => 'workflow.feature.phases', 'value' => %w[plan implement])
+
+        verify_code, verify_stdout, _stderr = run(
+          ['config', 'get', 'workflow.feature.phases', '--root', root.to_s, '--json'], cwd: root
+        )
+        expect(verify_code).to eq(0)
+        expect(JSON.parse(verify_stdout)['value']).to eq(%w[plan implement])
       end
     end
 
@@ -396,6 +419,57 @@ RSpec.describe Owl::Cli::Api do
                                          cwd: root)
         expect(exit_code).to eq(1)
         expect(JSON.parse(stderr).dig('error', 'code')).to eq('project_root_not_found')
+      end
+    end
+  end
+
+  describe 'owl config — TD-141 regression freeze: path symmetry + missing-key semantics' do
+    it 'reproduces the four specification Reproduce Steps after the fix' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+
+        # Step 1: read a non-settings path; whitelist must be gone.
+        # The seeded template may or may not populate workflow.feature.phases — both outcomes
+        # prove the whitelist is gone (no :unsupported_config_path failure).
+        code1, stdout1, stderr1 = run(
+          ['config', 'get', 'workflow.feature.phases', '--root', root.to_s, '--json'], cwd: root
+        )
+        expect(code1).to eq(0), "expected ok exit, got #{code1}; stderr=#{stderr1}"
+        body1 = JSON.parse(stdout1)
+        expect(body1).to include('ok' => true, 'key' => 'workflow.feature.phases')
+        expect(stderr1).to eq('')
+
+        # Step 2: read a definitely-missing key; default semantics return ok + value:null, exit 0.
+        code2, stdout2, stderr2 = run(
+          ['config', 'get', 'nonexistent.key.path', '--root', root.to_s, '--json'], cwd: root
+        )
+        expect(code2).to eq(0)
+        expect(stderr2).to eq('')
+        expect(JSON.parse(stdout2)).to eq('ok' => true, 'key' => 'nonexistent.key.path', 'value' => nil)
+
+        # Step 3: --strict flips back to the legacy :config_key_missing error.
+        code3, stdout3, stderr3 = run(
+          ['config', 'get', 'nonexistent.key.path', '--strict', '--root', root.to_s, '--json'], cwd: root
+        )
+        expect(code3).to eq(1)
+        expect(stdout3).to eq('')
+        expect(JSON.parse(stderr3).dig('error', 'code')).to eq('config_key_missing')
+
+        # Step 4: write a non-settings path; whitelist must be gone for writes too;
+        # round-trip via get must return the same value.
+        code4, stdout4, stderr4 = run(
+          ['config', 'set', 'workflow.feature.phases', '["a","b"]', '--root', root.to_s, '--json'], cwd: root
+        )
+        expect(code4).to eq(0), "expected ok exit on set, got #{code4}; stderr=#{stderr4}"
+        expect(JSON.parse(stdout4)).to include(
+          'ok' => true, 'key' => 'workflow.feature.phases', 'value' => %w[a b]
+        )
+
+        code4b, stdout4b, _stderr4b = run(
+          ['config', 'get', 'workflow.feature.phases', '--root', root.to_s, '--json'], cwd: root
+        )
+        expect(code4b).to eq(0)
+        expect(JSON.parse(stdout4b)['value']).to eq(%w[a b])
       end
     end
   end

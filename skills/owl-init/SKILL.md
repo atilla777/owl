@@ -118,7 +118,7 @@ Stop and return control to the user with a concrete decision request when:
 - `bin/owl` is not on PATH, or `owl init` fails (cannot create `.owl/`).
 - `owl config show` reports `config_missing` and `owl init` cannot be run safely (existing files in the way).
 - the user declines re-configuration on an already-initialized project — exit no-op with a summary; do not silently overwrite.
-- `owl config set` returns a structured error (`unsupported_config_path`, `config_validation_failed`, `invalid_config_value`) — surface the message and ask the user how to proceed.
+- `owl config set` returns a structured error (`config_validation_failed`, `invalid_config_value`, `invalid_config_key`) — surface the message and ask the user how to proceed.
 - `owl config validate` after wizard completion reports `valid: false` — show the errors and stop.
 - the user provides ambiguous input that cannot be normalized to a stable string or JSON literal (for the workflows list).
 

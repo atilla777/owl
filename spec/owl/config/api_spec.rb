@@ -330,12 +330,12 @@ RSpec.describe Owl::Config::Api do
       end
     end
 
-    it 'rejects paths outside settings.*' do
+    it 'reads non-settings paths now that the whitelist is removed' do
       with_tmp_project do |root|
         write("#{root}/.owl/config.yaml", valid_config)
         result = described_class.read_key(root: root, key: 'project.id')
-        expect(result).to be_err
-        expect(result.code).to eq(:unsupported_config_path)
+        expect(result).to be_ok
+        expect(result.value).to eq(key: 'project.id', value: 'sample')
       end
     end
 
@@ -391,12 +391,15 @@ RSpec.describe Owl::Config::Api do
       end
     end
 
-    it 'rejects paths outside settings.*' do
+    it 'writes non-settings paths now that the whitelist is removed' do
       with_tmp_project do |root|
         write("#{root}/.owl/config.yaml", valid_config)
-        result = described_class.write_key(root: root, key: 'project.id', value: 'other')
-        expect(result).to be_err
-        expect(result.code).to eq(:unsupported_config_path)
+        result = described_class.write_key(root: root, key: 'workflow.feature.phases', value: '["plan","implement"]')
+        expect(result).to be_ok
+        expect(result.value).to eq(key: 'workflow.feature.phases', value: %w[plan implement])
+
+        reread = described_class.read_key(root: root, key: 'workflow.feature.phases')
+        expect(reread.value[:value]).to eq(%w[plan implement])
       end
     end
 
