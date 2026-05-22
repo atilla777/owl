@@ -13,6 +13,8 @@ front_matter:
       enum: [passed, failed, partial]
     summary:
       type: string
+    partial_reason:
+      type: string
 
 validation:
   required_sections:

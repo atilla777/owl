@@ -8,3 +8,4 @@ validation:
   required_sections:
     - Goal
     - Checklist
+    - Smoke test
