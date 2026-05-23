@@ -28,6 +28,25 @@ module Owl
           Result.ok(nodes: nodes, order: ids)
         end
 
+        def downstream_closure(nodes, start_id)
+          dependents = Hash.new { |h, k| h[k] = [] }
+          nodes.each_value do |node|
+            node[:requires].each { |req| dependents[req] << node[:id] }
+          end
+
+          visited = []
+          queue = dependents[start_id.to_s].dup
+          until queue.empty?
+            current = queue.shift
+            next if visited.include?(current)
+
+            visited << current
+            queue.concat(dependents[current])
+          end
+
+          visited
+        end
+
         def collect_nodes(steps)
           ids = []
           nodes = {}

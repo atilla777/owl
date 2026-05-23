@@ -95,4 +95,52 @@ RSpec.describe Owl::Workflows::Internal::GraphBuilder do
       expect(result.value[:nodes]).to eq({})
     end
   end
+
+  describe '.downstream_closure' do
+    def nodes_for(steps)
+      described_class.build(steps).value[:nodes]
+    end
+
+    it 'returns transitive dependents in BFS order for a linear chain' do
+      nodes = nodes_for([
+                          { 'id' => 'a' },
+                          { 'id' => 'b', 'requires' => ['a'] },
+                          { 'id' => 'c', 'requires' => ['b'] }
+                        ])
+      expect(described_class.downstream_closure(nodes, 'a')).to eq(%w[b c])
+    end
+
+    it 'returns an empty list for a leaf step' do
+      nodes = nodes_for([
+                          { 'id' => 'a' },
+                          { 'id' => 'b', 'requires' => ['a'] }
+                        ])
+      expect(described_class.downstream_closure(nodes, 'b')).to eq([])
+    end
+
+    it 'walks a diamond without duplicates' do
+      nodes = nodes_for([
+                          { 'id' => 'a' },
+                          { 'id' => 'b', 'requires' => ['a'] },
+                          { 'id' => 'c', 'requires' => ['a'] },
+                          { 'id' => 'd', 'requires' => %w[b c] }
+                        ])
+      closure = described_class.downstream_closure(nodes, 'a')
+      expect(closure.sort).to eq(%w[b c d])
+      expect(closure.uniq).to eq(closure)
+    end
+
+    it 'never includes the start node itself' do
+      nodes = nodes_for([
+                          { 'id' => 'a' },
+                          { 'id' => 'b', 'requires' => ['a'] }
+                        ])
+      expect(described_class.downstream_closure(nodes, 'a')).not_to include('a')
+    end
+
+    it 'returns empty for an unknown start id' do
+      nodes = nodes_for([{ 'id' => 'a' }])
+      expect(described_class.downstream_closure(nodes, 'ghost')).to eq([])
+    end
+  end
 end

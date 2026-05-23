@@ -72,8 +72,9 @@ Representative commands:
 - `owl task parent TASK-ID --json`
 - `owl task aggregate-status PARENT-ID --json`
 - `owl task child create --parent PARENT-ID --workflow KEY --title "..." [--json]`
-- `owl step start TASK-ID STEP-ID [--variant NAME]`
-- `owl step complete TASK-ID STEP-ID`
+- `owl step start TASK-ID STEP-ID [--variant NAME] [--ignore-modification]`
+- `owl step complete TASK-ID STEP-ID [--ignore-modification]`
+- `owl step reopen TASK-ID STEP-ID [--cascade]`
 - `owl step skip TASK-ID STEP-ID --reason "..."`
 - `owl step invocation TASK-ID STEP-ID --json`
 - `owl step show TASK-ID STEP-ID --json`
@@ -125,8 +126,9 @@ A few endpoints return shapes that have surprised agents in the past — always 
 - `owl task ready-steps TASK-ID --json` — compute the next ready steps from the workflow graph.
 - `owl step invocation TASK-ID STEP-ID --json` — full StepInvocation: paths, templates, validation rules, matching skill id.
 - `owl step show TASK-ID STEP-ID --json` — merged step + context + artifact_template + task bundle (preferred for `owl-step-run`).
-- `owl step start TASK-ID STEP-ID [--variant NAME]` — mark a ready step as running; `--variant` is required when the step declares `variants:` and no choice was made at task-create time (or to override one).
-- `owl step complete TASK-ID STEP-ID` — mark a running step as done; re-runs artifact validation as a safety net.
+- `owl step start TASK-ID STEP-ID [--variant NAME] [--ignore-modification]` — mark a ready step as running; `--variant` is required when the step declares `variants:` and no choice was made at task-create time (or to override one). `--ignore-modification` suppresses the `artifact_modified_after_complete` warning printed to stderr when the artifact file was changed outside the sequencer since the last `step complete`.
+- `owl step complete TASK-ID STEP-ID [--ignore-modification]` — mark a running step as done; re-runs artifact validation as a safety net. On success, records `content_sha` (sha256 hex of the artifact file) per artifact in `task.yaml`. `--ignore-modification` suppresses drift warning.
+- `owl step reopen TASK-ID STEP-ID [--cascade]` — move a done step back to `pending`. With `--cascade`, also pendifies every step that transitively requires the reopened one. Fails with `step_not_completed` if the step is not done, or `artifact_missing` if the artifact file has been deleted.
 - `owl step skip TASK-ID STEP-ID --reason "..."` — mark an optional step as skipped.
 - `owl instructions TASK-ID [--step-id STEP] --json` — package the next ready step with its `SKILL.md` summary.
 

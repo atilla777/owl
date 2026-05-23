@@ -38,6 +38,7 @@ module OwlConstitutionFixtures
     config/internal/serializer.rb
     publish/internal/path_resolver.rb
     publish/internal/publisher.rb
+    steps/internal/artifact_hasher.rb
     storage/backends/filesystem.rb
     storage/internal/filesystem_backend.rb
     storage/internal/root_detector.rb

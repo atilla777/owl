@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'digest'
 require 'json'
 require 'stringio'
 require 'yaml'
@@ -31,6 +32,46 @@ RSpec.describe Owl::Steps::Api do
         - id: b
           requires: ["a"]
       artifacts: []
+    YAML
+    cli(['task', 'create', '--workflow', 'feature', '--title', 't', '--root', root.to_s, '--json'], root)
+    'TASK-0001'
+  end
+
+  def setup_artifact_project(root)
+    cli(['init', '--root', root.to_s], root)
+    write("#{root}/.owl/workflows.yaml", <<~YAML)
+      schema_version: 1
+      workflows:
+        feature:
+          enabled: true
+          source: "workflows/feature/workflow.yaml"
+    YAML
+    write("#{root}/.owl/artifacts.yaml", <<~YAML)
+      schema_version: 1
+      artifacts:
+        brief:
+          source: "artifacts/brief/artifact.yaml"
+    YAML
+    write("#{root}/.owl/artifacts/brief/artifact.yaml", <<~YAML)
+      id: brief
+      kind: markdown
+      default_template: templates/default.md
+    YAML
+    write("#{root}/.owl/artifacts/brief/templates/default.md", "# Brief\n")
+    write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+      id: feature
+      kind: task
+      artifacts:
+        brief:
+          type: brief
+          storage:
+            role: tasks
+            path: "{{task.id}}/brief.md"
+      steps:
+        - id: a
+          creates: [brief]
+        - id: b
+          requires: ["a"]
     YAML
     cli(['task', 'create', '--workflow', 'feature', '--title', 't', '--root', root.to_s, '--json'], root)
     'TASK-0001'
@@ -112,6 +153,31 @@ RSpec.describe Owl::Steps::Api do
         result = described_class.complete(root: root, task_id: task_id, step_id: 'ghost')
         expect(result).to be_err
         expect(result.code).to eq(:unknown_step_id)
+      end
+    end
+
+    it 'records content_sha for a single-artifact step' do
+      with_tmp_project do |root|
+        task_id = setup_artifact_project(root)
+        write("#{root}/tasks/#{task_id}/brief.md", "# brief body\n")
+        described_class.start(root: root, task_id: task_id, step_id: 'a')
+        described_class.complete(root: root, task_id: task_id, step_id: 'a')
+
+        step = task_yaml(root, task_id)['steps'].find { |s| s['id'] == 'a' }
+        expect(step['content_sha']).to be_a(String)
+        expect(step['content_sha']).to match(/\A[0-9a-f]{64}\z/)
+        expect(step['content_sha']).to eq(Digest::SHA256.hexdigest("# brief body\n"))
+      end
+    end
+
+    it 'omits content_sha when the step has no creates' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        described_class.start(root: root, task_id: task_id, step_id: 'a')
+        described_class.complete(root: root, task_id: task_id, step_id: 'a')
+
+        step = task_yaml(root, task_id)['steps'].find { |s| s['id'] == 'a' }
+        expect(step).not_to have_key('content_sha')
       end
     end
   end

@@ -3,7 +3,9 @@
 require 'optparse'
 
 require_relative '../../../steps/api'
+require_relative '../../../steps/internal/drift_detector'
 require_relative '../json_printer'
+require_relative 'drift_warning_printer'
 require_relative 'task_support'
 
 module Owl
@@ -26,6 +28,13 @@ module Owl
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
 
+            unless options[:ignore_modification]
+              events = Owl::Steps::Internal::DriftDetector.call(
+                root: root, task_id: options[:task_id], step_id: options[:step_id]
+              )
+              DriftWarningPrinter.call(events, stderr: stderr)
+            end
+
             result = Owl::Steps::Api.complete(
               root: root,
               task_id: options[:task_id],
@@ -46,9 +55,10 @@ module Owl
           end
 
           def parse_options(argv)
-            options = { root: nil, task_id: nil, step_id: nil }
+            options = { root: nil, task_id: nil, step_id: nil, ignore_modification: false }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl step complete TASK-ID STEP-ID [--root PATH] [--json]'
+              opts.banner = 'Usage: owl step complete TASK-ID STEP-ID [--ignore-modification] [--root PATH] [--json]'
+              opts.on('--ignore-modification', 'Suppress artifact_modified_after_complete warnings') { options[:ignore_modification] = true }
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

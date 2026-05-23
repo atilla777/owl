@@ -3,16 +3,14 @@
 require 'optparse'
 
 require_relative '../../../steps/api'
-require_relative '../../../steps/internal/drift_detector'
 require_relative '../json_printer'
-require_relative 'drift_warning_printer'
 require_relative 'task_support'
 
 module Owl
   module Cli
     module Internal
       module Commands
-        module StepStart
+        module StepReopen
           module_function
 
           def run(argv:, stdout:, stderr:, cwd:, env: ENV.to_h) # rubocop:disable Lint/UnusedMethodArgument
@@ -28,39 +26,28 @@ module Owl
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
 
-            unless options[:ignore_modification]
-              events = Owl::Steps::Internal::DriftDetector.call(
-                root: root, task_id: options[:task_id], step_id: options[:step_id]
-              )
-              DriftWarningPrinter.call(events, stderr: stderr)
-            end
-
-            result = Owl::Steps::Api.start(
+            result = Owl::Steps::Api.reopen(
               root: root,
               task_id: options[:task_id],
               step_id: options[:step_id],
-              variant: options[:variant]
+              cascade: options[:cascade]
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            payload = {
-              ok: true,
-              task_id: options[:task_id],
-              step: result.value[:step]
-            }
-            paths = Owl::Steps::Api.local_paths(root: root, task_id: options[:task_id])
-            payload[:task_path] = paths.value[:task_file].task_path if paths.ok?
-            JsonPrinter.success(stdout, payload)
+            JsonPrinter.success(stdout, {
+                                  ok: true,
+                                  task_id: options[:task_id],
+                                  reopened: result.value[:reopened]
+                                })
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end
 
           def parse_options(argv)
-            options = { root: nil, task_id: nil, step_id: nil, variant: nil, ignore_modification: false }
+            options = { root: nil, task_id: nil, step_id: nil, cascade: false }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl step start TASK-ID STEP-ID [--variant NAME] [--ignore-modification] [--root PATH] [--json]'
-              opts.on('--variant NAME', String) { |v| options[:variant] = v }
-              opts.on('--ignore-modification', 'Suppress artifact_modified_after_complete warnings') { options[:ignore_modification] = true }
+              opts.banner = 'Usage: owl step reopen TASK-ID STEP-ID [--cascade] [--root PATH] [--json]'
+              opts.on('--cascade', 'Also pendify every step that transitively requires this one') { options[:cascade] = true }
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

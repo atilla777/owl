@@ -18,6 +18,7 @@ require_relative 'internal/commands/publish'
 require_relative 'internal/commands/status'
 require_relative 'internal/commands/step_complete'
 require_relative 'internal/commands/step_invocation'
+require_relative 'internal/commands/step_reopen'
 require_relative 'internal/commands/step_report'
 require_relative 'internal/commands/step_show'
 require_relative 'internal/commands/step_skip'
@@ -76,6 +77,7 @@ module Owl
           task child create       Create a child task under a composite parent.
           step start              Mark a ready step as running.
           step complete           Mark a running step as done.
+          step reopen             Move a completed step back to pending; --cascade also pendifies downstream steps.
           step skip               Mark a step as skipped (--reason required).
           step invocation         Print full StepInvocation for a ready step (JSON).
           step report             Write or read a subagent step report (env-agnostic, RFC #1 §5).
@@ -223,6 +225,7 @@ module Owl
         case subcommand
         when 'start'      then Internal::Commands::StepStart.run(**kwargs)
         when 'complete'   then Internal::Commands::StepComplete.run(**kwargs)
+        when 'reopen'     then Internal::Commands::StepReopen.run(**kwargs)
         when 'skip'       then Internal::Commands::StepSkip.run(**kwargs)
         when 'invocation' then Internal::Commands::StepInvocation.run(**kwargs)
         when 'show'       then Internal::Commands::StepShow.run(**kwargs)

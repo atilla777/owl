@@ -5,6 +5,8 @@ require_relative '../tasks/api'
 require_relative '../tasks/internal/paths'
 require_relative '../tasks/internal/task_reader'
 require_relative '../workflows/api'
+require_relative '../workflows/internal/graph_builder'
+require_relative 'internal/artifact_sha_collector'
 require_relative 'internal/bundle_builder'
 require_relative 'internal/invocation_builder'
 require_relative 'internal/output_validator'
@@ -85,12 +87,107 @@ module Owl
         validation = Internal::OutputValidator.call(root: root, task_id: task_id, step_id: step_id)
         return validation if validation.err?
 
+        attributes = { 'status' => 'done' }
+        sha_result = Internal::ArtifactShaCollector.call(root: root, task_id: task_id, step_id: step_id)
+        attributes['content_sha'] = sha_result.value if sha_result.ok? && !sha_result.value.nil?
+
         strip_local(Internal::StatusWriter.update(
                       tasks_root: paths.value[:tasks],
                       task_id: task_id,
                       step_id: step_id,
-                      attributes: { 'status' => 'done' }
+                      attributes: attributes
                     ))
+      end
+
+      def reopen(root:, task_id:, step_id:, cascade: false)
+        paths = Owl::Tasks::Internal::Paths.resolve(root: root)
+        return paths if paths.err?
+
+        current = current_status(paths.value[:tasks], task_id, step_id)
+        if current.nil?
+          return Result.err(
+            code: :unknown_step_id,
+            message: "Step '#{step_id}' is not defined for task '#{task_id}'.",
+            details: { task_id: task_id, step_id: step_id }
+          )
+        end
+
+        unless current == 'done'
+          return Result.err(
+            code: :step_not_completed,
+            message: "Step '#{step_id}' is not done (current status: #{current}).",
+            details: { task_id: task_id, step_id: step_id, current_status: current }
+          )
+        end
+
+        missing = missing_artifact_for(root: root, task_id: task_id, step_id: step_id)
+        return missing if missing.is_a?(Owl::Result::Err)
+
+        targets_result = reopen_targets(root: root, task_id: task_id, step_id: step_id, cascade: cascade)
+        return targets_result if targets_result.is_a?(Owl::Result::Err)
+
+        reopened = []
+        targets_result.each do |target_id|
+          target_status = current_status(paths.value[:tasks], task_id, target_id)
+          next unless target_status == 'done'
+
+          write_result = Internal::StatusWriter.update(
+            tasks_root: paths.value[:tasks],
+            task_id: task_id,
+            step_id: target_id,
+            attributes: { 'status' => Internal::Statuses::DEFAULT }
+          )
+          return write_result if write_result.err?
+
+          reopened << target_id
+        end
+
+        Result.ok(task_id: task_id.to_s, reopened: reopened)
+      end
+
+      def missing_artifact_for(root:, task_id:, step_id:)
+        creates = Internal::ArtifactShaCollector.creates_for(root: root, task_id: task_id, step_id: step_id)
+        return creates if creates.is_a?(Owl::Result::Err)
+
+        creates.each do |key|
+          descriptor = Owl::Artifacts::Internal::TaskArtifactResolver.call(
+            root: root, task_id: task_id, artifact_key: key
+          )
+          return descriptor if descriptor.err?
+          next if descriptor.value[:multiple]
+          next if descriptor.value[:exists]
+
+          return Result.err(
+            code: :artifact_missing,
+            message: "Artifact '#{key}' is missing on disk for task '#{task_id}'.",
+            details: { task_id: task_id.to_s, step_id: step_id.to_s, artifact_key: key.to_s }
+          )
+        end
+
+        nil
+      end
+
+      def reopen_targets(root:, task_id:, step_id:, cascade:)
+        return [step_id.to_s] unless cascade
+
+        task = Owl::Tasks::Api.inspect(root: root, task_id: task_id)
+        return task if task.err?
+
+        workflow_key = task.value[:payload].dig('workflow', 'key')
+        unless workflow_key
+          return Result.err(
+            code: :task_workflow_missing,
+            message: "Task '#{task_id}' has no workflow key in task.yaml.",
+            details: { task_id: task_id.to_s }
+          )
+        end
+
+        definition = Owl::Workflows::Api.definition(root: root, workflow_key: workflow_key)
+        return definition if definition.err?
+
+        nodes = definition.value[:graph][:nodes]
+        downstream = Owl::Workflows::Internal::GraphBuilder.downstream_closure(nodes, step_id.to_s)
+        [step_id.to_s] + downstream
       end
 
       def skip(root:, task_id:, step_id:, reason:)
