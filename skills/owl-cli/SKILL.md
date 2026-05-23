@@ -72,6 +72,9 @@ Representative commands:
 - `owl task parent TASK-ID --json`
 - `owl task aggregate-status PARENT-ID --json`
 - `owl task child create --parent PARENT-ID --workflow KEY --title "..." [--json]`
+- `owl task abandon TASK-ID [--reason TEXT]`
+- `owl task delete TASK-ID --force`
+- `owl task list [--include-abandoned]`
 - `owl step start TASK-ID STEP-ID [--variant NAME] [--ignore-modification]`
 - `owl step complete TASK-ID STEP-ID [--ignore-modification]`
 - `owl step reopen TASK-ID STEP-ID [--cascade]`
@@ -113,13 +116,15 @@ A few endpoints return shapes that have surprised agents in the past — always 
 
 - `owl task create --workflow KEY --title "..." [--json]` — create a top-level task.
 - `owl task child create --parent PARENT-ID --workflow KEY --title "..." [--json]` — create a child task under a composite parent.
-- `owl task list --json` — read `tasks/index.yaml`.
+- `owl task list [--include-abandoned] --json` — read `tasks/index.yaml`. Excludes tasks with `status: abandoned` by default; `--include-abandoned` opts them back in (archived tasks are physically in `archive/` so they never appear here).
 - `owl task inspect TASK-ID --json` — read the full `task.yaml` payload.
 - `owl task use TASK-ID` — set `.owl/local/current.yaml` pointer.
 - `owl task current --json` — read current task pointer.
 - `owl task index rebuild --json` — rebuild `tasks/index.yaml` from on-disk `task.yaml` files.
 - `owl task tree [TASK-ID] --json` / `owl task children PARENT-ID --json` / `owl task parent TASK-ID --json` — traverse parent/child relationships.
 - `owl task aggregate-status PARENT-ID --json` — aggregate state for a composite parent.
+- `owl task abandon TASK-ID [--reason TEXT] --json` — soft-abandon a task. Writes `status: abandoned`, `abandoned_at`, optional `abandon_reason` into `task.yaml`; rebuilds the index. Files stay in place. Idempotent (without `--reason`) on already-abandoned tasks. Returns `task_not_found` for unknown IDs.
+- `owl task delete TASK-ID --force --json` — physically remove `tasks/TASK-ID/` and rebuild `tasks/index.yaml`. Without `--force` returns `confirmation_required` and does not touch files. Prints a stderr warning before deletion. Returns `task_not_found` for unknown IDs. Does NOT remove archived tasks under `archive/`.
 
 ### Step execution
 

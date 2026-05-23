@@ -3,11 +3,13 @@
 require_relative '../../result'
 require_relative '../backend'
 require_relative '../local'
+require_relative '../internal/abandon_writer'
 require_relative '../internal/aggregate_status'
 require_relative '../internal/archive/orchestrator'
 require_relative '../internal/child_creator'
 require_relative '../internal/children_lister'
 require_relative '../internal/current_pointer'
+require_relative '../internal/deleter'
 require_relative '../internal/id_generator'
 require_relative '../internal/index_reader'
 require_relative '../internal/index_rebuilder'
@@ -138,6 +140,14 @@ module Owl
 
         def archive_task(task_id:, now: Time.now.utc)
           Internal::Archive::Orchestrator.call(root: @root, task_id: task_id, now: now)
+        end
+
+        def abandon_task(task_id:, reason: nil, now: Time.now.utc)
+          Internal::AbandonWriter.call(root: @root, task_id: task_id, reason: reason, now: now)
+        end
+
+        def delete_task(task_id:)
+          Internal::Deleter.call(root: @root, task_id: task_id)
         end
 
         def children(parent_id:)

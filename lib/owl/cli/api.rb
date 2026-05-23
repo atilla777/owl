@@ -23,11 +23,13 @@ require_relative 'internal/commands/step_report'
 require_relative 'internal/commands/step_show'
 require_relative 'internal/commands/step_skip'
 require_relative 'internal/commands/step_start'
+require_relative 'internal/commands/task_abandon'
 require_relative 'internal/commands/task_aggregate_status'
 require_relative 'internal/commands/task_child_create'
 require_relative 'internal/commands/task_children'
 require_relative 'internal/commands/task_create'
 require_relative 'internal/commands/task_current'
+require_relative 'internal/commands/task_delete'
 require_relative 'internal/commands/task_index_rebuild'
 require_relative 'internal/commands/task_inspect'
 require_relative 'internal/commands/task_list'
@@ -65,6 +67,8 @@ module Owl
           config validate         Validate .owl/config.yaml (JSON output).
           task create             Create a new task from a registered workflow.
           task list               List tasks from tasks/index.yaml.
+          task abandon            Mark a task as abandoned (soft, reversible by editing task.yaml).
+          task delete             Physically remove a task directory (requires --force).
           task inspect            Show full task.yaml payload for a TASK-ID.
           task use                Set the current task pointer (.owl/local/current.yaml).
           task current            Show the current task payload.
@@ -192,7 +196,9 @@ module Owl
         'tree' => Internal::Commands::TaskTree,
         'children' => Internal::Commands::TaskChildren,
         'parent' => Internal::Commands::TaskParent,
-        'aggregate-status' => Internal::Commands::TaskAggregateStatus
+        'aggregate-status' => Internal::Commands::TaskAggregateStatus,
+        'abandon' => Internal::Commands::TaskAbandon,
+        'delete' => Internal::Commands::TaskDelete
       }.freeze
 
       def dispatch_task(args, stdout:, stderr:, cwd:, env:)

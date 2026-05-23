@@ -243,4 +243,128 @@ RSpec.describe 'owl task ... CLI subcommands' do
       end
     end
   end
+
+  describe 'owl task abandon' do
+    def create_two_tasks(root)
+      init_project(root)
+      seed_feature_workflow(root)
+      run(['task', 'create', '--workflow', 'feature', '--title', 'one', '--root', root.to_s, '--json'], cwd: root)
+      run(['task', 'create', '--workflow', 'feature', '--title', 'two', '--root', root.to_s, '--json'], cwd: root)
+    end
+
+    it 'marks a task as abandoned' do
+      with_tmp_project do |root|
+        create_two_tasks(root)
+        exit_code, stdout, = run(['task', 'abandon', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body['ok']).to be(true)
+        expect(body['status']).to eq('abandoned')
+        expect(body['abandoned_at']).to be_a(String)
+      end
+    end
+
+    it 'persists abandon_reason when --reason is provided' do
+      with_tmp_project do |root|
+        create_two_tasks(root)
+        exit_code, stdout, = run(
+          ['task', 'abandon', 'TASK-0001', '--reason', 'replaced by TASK-0002', '--root', root.to_s, '--json'],
+          cwd: root
+        )
+        expect(exit_code).to eq(0)
+        expect(JSON.parse(stdout)['abandon_reason']).to eq('replaced by TASK-0002')
+      end
+    end
+
+    it 'fails with invalid_arguments when TASK-ID is missing' do
+      with_tmp_project do |root|
+        init_project(root)
+        exit_code, _stdout, stderr = run(['task', 'abandon', '--root', root.to_s], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+      end
+    end
+
+    it 'fails with task_not_found when the task does not exist' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        exit_code, _stdout, stderr = run(['task', 'abandon', 'TASK-9999', '--root', root.to_s], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('task_not_found')
+      end
+    end
+  end
+
+  describe 'owl task delete' do
+    def create_task(root)
+      init_project(root)
+      seed_feature_workflow(root)
+      run(['task', 'create', '--workflow', 'feature', '--title', 'one', '--root', root.to_s, '--json'], cwd: root)
+    end
+
+    it 'refuses without --force' do
+      with_tmp_project do |root|
+        create_task(root)
+        exit_code, _stdout, stderr = run(['task', 'delete', 'TASK-0001', '--root', root.to_s], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('confirmation_required')
+        expect(Pathname.new("#{root}/tasks/TASK-0001").exist?).to be(true)
+      end
+    end
+
+    it 'physically removes the task directory with --force' do
+      with_tmp_project do |root|
+        create_task(root)
+        exit_code, stdout, stderr = run(['task', 'delete', 'TASK-0001', '--force', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body['ok']).to be(true)
+        expect(body['removed']).to be(true)
+        expect(stderr).to include('WARNING: physical task deletion is irreversible')
+        expect(Pathname.new("#{root}/tasks/TASK-0001").exist?).to be(false)
+      end
+    end
+
+    it 'fails with task_not_found for unknown task even with --force' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        exit_code, _stdout, stderr = run(['task', 'delete', 'TASK-9999', '--force', '--root', root.to_s], cwd: root)
+        expect(exit_code).to eq(1)
+        json_line = stderr.lines.find { |l| l.start_with?('{') }
+        expect(JSON.parse(json_line).dig('error', 'code')).to eq('task_not_found')
+      end
+    end
+  end
+
+  describe 'owl task list --include-abandoned filter' do
+    def setup_with_abandon(root)
+      init_project(root)
+      seed_feature_workflow(root)
+      run(['task', 'create', '--workflow', 'feature', '--title', 'one', '--root', root.to_s, '--json'], cwd: root)
+      run(['task', 'create', '--workflow', 'feature', '--title', 'two', '--root', root.to_s, '--json'], cwd: root)
+      run(['task', 'abandon', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
+    end
+
+    it 'excludes abandoned tasks by default' do
+      with_tmp_project do |root|
+        setup_with_abandon(root)
+        exit_code, stdout, = run(['task', 'list', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        ids = JSON.parse(stdout)['tasks'].map { |t| t['id'] }
+        expect(ids).to eq(['TASK-0002'])
+      end
+    end
+
+    it 'includes abandoned tasks when --include-abandoned is set' do
+      with_tmp_project do |root|
+        setup_with_abandon(root)
+        exit_code, stdout, = run(['task', 'list', '--include-abandoned', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        ids = JSON.parse(stdout)['tasks'].map { |t| t['id'] }
+        expect(ids).to contain_exactly('TASK-0001', 'TASK-0002')
+      end
+    end
+  end
 end

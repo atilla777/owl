@@ -90,6 +90,16 @@ module Owl
         with_backend(root) { |backend| backend.archive_task(task_id: task_id, now: now) }
       end
 
+      def abandon(root:, task_id:, reason: nil, now: Time.now.utc)
+        strip_local(with_backend(root) do |backend|
+          backend.abandon_task(task_id: task_id, reason: reason, now: now)
+        end)
+      end
+
+      def delete(root:, task_id:)
+        with_backend(root) { |backend| backend.delete_task(task_id: task_id) }
+      end
+
       def local_paths(root:, task_id: nil)
         with_backend(root) do |backend|
           if backend.respond_to?(:local_paths_for)

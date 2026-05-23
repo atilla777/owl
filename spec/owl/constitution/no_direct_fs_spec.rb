@@ -50,6 +50,7 @@ module OwlConstitutionFixtures
     tasks/internal/atomic_yaml_writer.rb
     tasks/internal/child_creator.rb
     tasks/internal/current_pointer.rb
+    tasks/internal/deleter.rb
     tasks/internal/id_generator.rb
     tasks/internal/index_reader.rb
     tasks/internal/index_rebuilder.rb
