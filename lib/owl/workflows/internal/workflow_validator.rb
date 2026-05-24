@@ -6,6 +6,7 @@ require 'yaml'
 require_relative '../../result'
 require_relative '../../artifacts/api'
 require_relative '../../validation/internal/schema_check'
+require_relative 'filesystem_refs_check'
 require_relative 'graph_builder'
 
 module Owl
@@ -264,6 +265,10 @@ module Owl
           payload[:code] = code.to_s if code
           payload[:details] = details if details
           payload
+        end
+
+        def validate_filesystem_refs(body:, backend:, source_dir:)
+          FilesystemRefsCheck.call(body: body, backend: backend, source_dir: source_dir)
         end
       end
     end
