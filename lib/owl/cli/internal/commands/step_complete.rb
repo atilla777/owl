@@ -82,20 +82,18 @@ module Owl
               lock.value, task_id: options[:task_id], step_id: options[:step_id]
             )
 
-            stderr.puts(JSON.generate({
-                                        ok: false,
-                                        error: {
-                                          code: 'active_step_mismatch',
-                                          message: 'Active-step lock relates to a different step.',
-                                          details: {
-                                            locked_task_id: lock.value['task_id'],
-                                            locked_step_id: lock.value['step_id'],
-                                            requested_task_id: options[:task_id],
-                                            requested_step_id: options[:step_id]
-                                          }
-                                        }
-                                      }))
-            2
+            JsonPrinter.failure(
+              stderr,
+              code: :active_step_mismatch,
+              message: 'Active-step lock relates to a different step.',
+              details: {
+                locked_task_id: lock.value['task_id'],
+                locked_step_id: lock.value['step_id'],
+                requested_task_id: options[:task_id],
+                requested_step_id: options[:step_id]
+              },
+              error_class: :recoverable
+            )
           end
 
           def parse_options(argv)

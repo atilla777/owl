@@ -2,6 +2,8 @@
 
 require 'json'
 
+require_relative '../json_printer'
+
 module Owl
   module Cli
     module Internal
@@ -25,19 +27,17 @@ module Owl
               return nil
             end
 
-            stderr.puts(JSON.generate({
-                                        ok: false,
-                                        error: {
-                                          code: 'drift_block',
-                                          message: "Drift detected for step #{step_id} with drift_policy=block.",
-                                          details: {
-                                            task_id: task_id,
-                                            step_id: step_id,
-                                            events: events
-                                          }
-                                        }
-                                      }))
-            2
+            JsonPrinter.failure(
+              stderr,
+              code: :drift_block,
+              message: "Drift detected for step #{step_id} with drift_policy=block.",
+              details: {
+                task_id: task_id,
+                step_id: step_id,
+                events: events
+              },
+              error_class: :recoverable
+            )
           end
 
           def format_event(event)

@@ -145,6 +145,21 @@ User-override `--ignore-modification` превращает любую policy в 
 
 **Implementation anchors.** Resolver: `lib/owl/steps/internal/drift_policy.rb` (constants `POLICIES` + module-fn `for(step_payload, override_ignore:)`). Detection: `lib/owl/steps/internal/drift_detector.rb`. Policy-aware printer/blocker: `lib/owl/cli/internal/commands/drift_warning_printer.rb` (`call_with_policy`). Schema: `schemas/workflow.json` step-properties `drift_policy` enum.
 
+### 4.6 Exit codes and error_class
+
+Failing CLI invocations carry both a specific `code` (for example `'drift_block'`, `'active_step_locked'`, `'session_type_mismatch'`) and a broad `error_class` that maps deterministically to the process exit code. Orchestrator scripts read the exit code for a fast branch and the JSON payload for full detail.
+
+| Exit | Class         | Use cases                                                                                       |
+| ---- | ------------- | ----------------------------------------------------------------------------------------------- |
+| 0    | (success)     | OK.                                                                                             |
+| 1    | `validation`  | Contract or schema violation, malformed CLI arguments. The default for `JsonPrinter.failure`.    |
+| 2    | `recoverable` | Drift, lock conflicts, session_type mismatches. The orchestrator can retry, ask the human, or transition state. |
+| 3    | `fatal`       | Catastrophic (gem-bundled schema missing, irrecoverable internal error). Reserved.                |
+
+Every error JSON payload contains a top-level `error.error_class` field equal to the class name. The CLI never surfaces an exit code without a matching `error_class` in the payload; both sources are authoritative and consistent.
+
+**Implementation anchors.** `lib/owl/cli/internal/json_printer.rb` declares `EXIT_CODES = { validation: 1, recoverable: 2, fatal: 3 }` and `failure(..., error_class:)`. Existing recoverable returns route through this dispatcher: `active_step_locked` and `drift_block` in `step_start.rb`, `active_step_mismatch` in `step_complete.rb`, `session_type_mismatch` in `step_report.rb`.
+
 ## 5. owl step report CLI
 
 **Implementation anchors.** CLI command implementation: `lib/owl/cli/internal/commands/step_report.rb` (write/read/validate flow + `--schema` and `--template` discovery flags). Storage write via `Owl::Storage::Api.write`. Dispatch entry: `lib/owl/cli/api.rb:87` (help text references this RFC §5). Public schema source: `schemas/step_report.json` (loaded by `lib/owl/subagents/internal/output_spec.rb` as `OutputSpec::SCHEMA`). Bundle injection: `lib/owl/steps/internal/bundle_builder.rb` populates `step_report_schema` for execution-typed steps so subagents see the contract without a separate round-trip.

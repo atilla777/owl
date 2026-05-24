@@ -5,7 +5,20 @@ require 'json'
 module Owl
   module Cli
     module Internal
+      # JSON-payload printer for the env-agnostic CLI contract.
+      #
+      # Failures carry both a specific `code` (e.g. `'drift_block'`) and a
+      # broad `error_class` (`'validation' | 'recoverable' | 'fatal'`) that
+      # maps deterministically to the process exit code via EXIT_CODES.
+      # Orchestrator scripts read either source: the exit code for a fast
+      # branch and the JSON payload for full detail (RFC #1 §4.6).
       module JsonPrinter
+        EXIT_CODES = {
+          validation: 1,
+          recoverable: 2,
+          fatal: 3
+        }.freeze
+
         module_function
 
         def success(stdout, payload)
@@ -13,13 +26,23 @@ module Owl
           0
         end
 
-        def failure(stderr, code:, message:, details: {})
+        def failure(stderr, code:, message:, details: {}, error_class: :validation)
+          unless EXIT_CODES.key?(error_class)
+            raise ArgumentError,
+                  "Unknown error_class #{error_class.inspect}; allowed: #{EXIT_CODES.keys.inspect}"
+          end
+
           body = {
             ok: false,
-            error: { code: code.to_s, message: message, details: details }
+            error: {
+              code: code.to_s,
+              message: message,
+              error_class: error_class.to_s,
+              details: details
+            }
           }
           stderr.puts(JSON.generate(body))
-          1
+          EXIT_CODES.fetch(error_class)
         end
       end
     end

@@ -56,20 +56,18 @@ module Owl
               existing.value, task_id: options[:task_id], step_id: options[:step_id]
             )
 
-            stderr.puts(JSON.generate({
-                                        ok: false,
-                                        error: {
-                                          code: 'active_step_locked',
-                                          message: 'Another step is already locked. Use --force to override.',
-                                          details: {
-                                            locked_task_id: existing.value['task_id'],
-                                            locked_step_id: existing.value['step_id'],
-                                            requested_task_id: options[:task_id],
-                                            requested_step_id: options[:step_id]
-                                          }
-                                        }
-                                      }))
-            2
+            JsonPrinter.failure(
+              stderr,
+              code: :active_step_locked,
+              message: 'Another step is already locked. Use --force to override.',
+              details: {
+                locked_task_id: existing.value['task_id'],
+                locked_step_id: existing.value['step_id'],
+                requested_task_id: options[:task_id],
+                requested_step_id: options[:step_id]
+              },
+              error_class: :recoverable
+            )
           end
 
           def write_active_step_lock(root:, options:)

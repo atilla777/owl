@@ -181,21 +181,19 @@ module Owl
             reported = report_session_type(body)
             return nil if reported.nil? || reported == locked
 
-            stderr.puts(JSON.generate({
-                                        ok: false,
-                                        error: {
-                                          code: 'session_type_mismatch',
-                                          message: "Report session_type #{reported.inspect} does not match " \
-                                                   "active step session_type #{locked.inspect}.",
-                                          details: {
-                                            locked_session_type: locked,
-                                            report_session_type: reported,
-                                            locked_task_id: lock.value['task_id'],
-                                            locked_step_id: lock.value['step_id']
-                                          }
-                                        }
-                                      }))
-            2
+            JsonPrinter.failure(
+              stderr,
+              code: :session_type_mismatch,
+              message: "Report session_type #{reported.inspect} does not match " \
+                       "active step session_type #{locked.inspect}.",
+              details: {
+                locked_session_type: locked,
+                report_session_type: reported,
+                locked_task_id: lock.value['task_id'],
+                locked_step_id: lock.value['step_id']
+              },
+              error_class: :recoverable
+            )
           end
 
           # Pull session_type from the report's YAML frontmatter without
