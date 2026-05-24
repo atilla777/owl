@@ -58,6 +58,7 @@ module OwlConstitutionFixtures
     tasks/internal/index_rebuilder.rb
     tasks/internal/task_reader.rb
     validation/internal/schema_check.rb
+    validation/internal/schema_resolver.rb
     workflows/backends/filesystem.rb
     workflows/internal/registry_loader.rb
     workflows/internal/source_loader.rb
