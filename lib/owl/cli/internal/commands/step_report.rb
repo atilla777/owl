@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'optparse'
 
 require_relative '../../../storage/api'
@@ -33,6 +34,10 @@ module Owl
 
           def run(argv:, stdout:, stderr:, cwd:, env: ENV.to_h) # rubocop:disable Lint/UnusedMethodArgument
             options = parse_options(argv)
+
+            return schema_mode(stdout: stdout) if options[:schema]
+            return template_mode(stdout: stdout) if options[:template]
+
             unless options[:task_id] && options[:step_id]
               return JsonPrinter.failure(
                 stderr,
@@ -51,6 +56,32 @@ module Owl
             end
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
+          end
+
+          # Dump the public step_report JSON Schema (RFC #1 §4.3, §5).
+          def schema_mode(stdout:)
+            stdout.puts(JSON.pretty_generate(Owl::Subagents::Internal::OutputSpec.schema))
+            0
+          end
+
+          # Print a minimal Markdown skeleton that already validates against
+          # the public schema. Subagents copy/paste this and fill in the body.
+          def template_mode(stdout:)
+            schema = Owl::Subagents::Internal::OutputSpec.schema
+            default_status = schema.dig('properties', 'status', 'enum').first
+            sections = schema['x-required-sections']
+
+            body = +"---\n"
+            body << "status: #{default_status}\n"
+            body << "summary: \"<one-line>\"\n"
+            body << "session_type: execution\n"
+            body << "---\n\n"
+            Array(sections).each do |section|
+              body << "## #{section}\n\n<TODO: dense summary of what the subagent produced>\n\n"
+            end
+
+            stdout.write(body)
+            0
           end
 
           def write_mode(stdin:, stdout:, stderr:, root:, options:)
@@ -132,15 +163,28 @@ module Owl
           end
 
           def parse_options(argv)
-            options = { root: nil, task_id: nil, step_id: nil, body: nil, read: false, validate: false }
+            options = {
+              root: nil, task_id: nil, step_id: nil, body: nil,
+              read: false, validate: false, schema: false, template: false
+            }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl step report --task-id ID --step-id ID [--body -|PATH | --read] [--validate]'
+              opts.banner = <<~BANNER
+                Usage: owl step report --task-id ID --step-id ID [--body -|PATH | --read] [--validate]
+                       owl step report --schema
+                       owl step report --template
+              BANNER
               opts.on('--task-id ID', String) { |v| options[:task_id] = v }
               opts.on('--step-id ID', String) { |v| options[:step_id] = v }
               opts.on('--body BODY', String) { |v| options[:body] = v }
               opts.on('--read', 'Read existing report and print body to stdout.') { options[:read] = true }
               opts.on('--validate', 'Validate body against default output_spec before writing.') do
                 options[:validate] = true
+              end
+              opts.on('--schema', 'Print the public step_report JSON Schema (RFC #1 §4.3).') do
+                options[:schema] = true
+              end
+              opts.on('--template', 'Print a minimal markdown-with-frontmatter report skeleton.') do
+                options[:template] = true
               end
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default).') { options[:json] = true }

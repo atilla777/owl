@@ -41,6 +41,7 @@ module OwlConstitutionFixtures
     steps/internal/artifact_hasher.rb
     storage/backends/filesystem.rb
     storage/internal/filesystem_backend.rb
+    subagents/internal/output_spec.rb
     storage/internal/root_detector.rb
     tasks/internal/archive/current_resetter.rb
     tasks/internal/archive/destination_planner.rb

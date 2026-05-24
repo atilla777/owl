@@ -121,6 +121,16 @@ RSpec.describe Owl::Steps::Api, '.show' do
       end
     end
 
+    it 'includes step_report_schema on execution-typed steps' do
+      with_tmp_project do |root|
+        task_id = setup_happy_path(root)
+        bundle = described_class.show(root: root, task_id: task_id, step_id: 'brief').value
+        expect(bundle[:step]['session_type']).to eq('execution')
+        expect(bundle[:step_report_schema]).to be_a(Hash)
+        expect(bundle[:step_report_schema]['$id']).to eq('https://owl.dev/schemas/step_report/v1.json')
+      end
+    end
+
     def write_richer_contract_workflow(root)
       write_workflow_source(root, <<~YAML)
         id: feature
@@ -159,6 +169,20 @@ RSpec.describe Owl::Steps::Api, '.show' do
         expect(bundle[:step]['model_tier']).to eq('advanced')
         expect(bundle[:step]['optional']).to be true
         expect(bundle[:step]['variants_keys']).to eq(%w[long short])
+      end
+    end
+
+    it 'omits step_report_schema for discussion-typed steps (set to nil)' do
+      with_tmp_project do |root|
+        init(root)
+        write_workflow_registry(root)
+        write_spec_artifact_files(root)
+        write_richer_contract_workflow(root)
+        task_id = create_task(root)
+
+        bundle = described_class.show(root: root, task_id: task_id, step_id: 'design').value
+        expect(bundle[:step]['session_type']).to eq('discussion')
+        expect(bundle[:step_report_schema]).to be_nil
       end
     end
 

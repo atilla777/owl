@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'yaml'
 
 require_relative '../../result'
@@ -19,15 +20,47 @@ module Owl
       #     ## Result
       #     ...
       #
-      # `output_spec` declares the required frontmatter keys and the
-      # required H2 sections; this module parses the body and reports
-      # missing pieces as a structured error result.
+      # The canonical contract lives in `schemas/step_report.json` (RFC #1 §4.3
+      # publishes this schema). This module loads that schema once per process
+      # and derives ALLOWED_STATUSES, the required frontmatter keys, and the
+      # required H2 sections from it; OutputSpec.validate parses the body and
+      # reports missing pieces as a structured error result.
       module OutputSpec
-        ALLOWED_STATUSES = %w[returned_normally do_not_use error interrupted budget_exceeded].freeze
-        DEFAULT_REQUIRED_FRONTMATTER_KEYS = %w[status summary].freeze
-        DEFAULT_REQUIRED_SECTIONS = ['Result'].freeze
+        SCHEMA_PATH = File.expand_path('../../../../schemas/step_report.json', __dir__)
+
+        def self.deep_freeze(value)
+          case value
+          when Hash
+            value.each_value { |v| deep_freeze(v) }
+            value.freeze
+          when Array
+            value.each { |v| deep_freeze(v) }
+            value.freeze
+          else
+            value.respond_to?(:freeze) ? value.freeze : value
+          end
+        end
+
+        def self.load_schema!
+          raw = File.read(SCHEMA_PATH)
+          parsed = JSON.parse(raw)
+          deep_freeze(parsed)
+        rescue Errno::ENOENT, JSON::ParserError => e
+          raise 'Owl::Subagents::Internal::OutputSpec: cannot load step_report schema ' \
+                "from #{SCHEMA_PATH}: #{e.class}: #{e.message}"
+        end
+
+        SCHEMA = load_schema!
+        ALLOWED_STATUSES = SCHEMA.dig('properties', 'status', 'enum').dup.freeze
+        DEFAULT_REQUIRED_FRONTMATTER_KEYS = SCHEMA['required'].dup.freeze
+        DEFAULT_REQUIRED_SECTIONS = SCHEMA['x-required-sections'].dup.freeze
 
         module_function
+
+        # @return [Hash] frozen copy of `schemas/step_report.json` (parsed JSON).
+        def schema
+          SCHEMA
+        end
 
         # @return [Hash] { required_frontmatter_keys: [...], required_sections: [...] }
         def default

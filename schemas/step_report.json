@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://owl.dev/schemas/step_report/v1.json",
+  "title": "Subagent step report",
+  "description": "JSON Schema for the YAML frontmatter at the top of a subagent step report (markdown-with-frontmatter). RFC #1 §4.3, §5. The Markdown body MUST contain the required H2 sections listed under `x-required-sections`.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["status", "summary"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["returned_normally", "do_not_use", "error", "interrupted", "budget_exceeded"]
+    },
+    "summary": {"type": "string", "minLength": 1},
+    "session_type": {"type": "string", "enum": ["discussion", "execution"]}
+  },
+  "x-required-sections": ["Result"]
+}

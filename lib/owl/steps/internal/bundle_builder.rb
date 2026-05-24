@@ -4,6 +4,7 @@ require_relative '../../result'
 require_relative '../../artifacts/api'
 require_relative '../../context/api'
 require_relative '../../storage/api'
+require_relative '../../subagents/internal/output_spec'
 require_relative '../../tasks/api'
 require_relative '../../tasks/internal/paths'
 require_relative '../../workflows/api'
@@ -22,13 +23,7 @@ module Owl
 
           payload = task_result.value[:payload]
           workflow_key = payload.dig('workflow', 'key')
-          unless workflow_key
-            return Result.err(
-              code: :task_workflow_missing,
-              message: "Task '#{task_id}' has no workflow key in task.yaml.",
-              details: { task_id: task_id.to_s }
-            )
-          end
+          return task_workflow_missing(task_id) unless workflow_key
 
           step_variants = payload['step_variants'].is_a?(Hash) ? payload['step_variants'] : {}
           definition_result = Owl::Workflows::Api.definition(
@@ -40,13 +35,7 @@ module Owl
 
           definition = definition_result.value
           step = definition[:steps][step_id.to_s]
-          unless step
-            return Result.err(
-              code: :unknown_step_id,
-              message: "Step '#{step_id}' is not defined for task '#{task_id}'.",
-              details: { task_id: task_id.to_s, step_id: step_id.to_s }
-            )
-          end
+          return unknown_step_id(task_id, step_id) unless step
 
           template_result = extract_artifact_template(root: root, task_id: task_id, step: step)
           return template_result if template_result.is_a?(Owl::Result::Err)
@@ -64,8 +53,33 @@ module Owl
             overlays: overlays,
             artifact_template: template_result,
             execution_mode: execution_mode_for(definition: definition),
+            step_report_schema: step_report_schema_for(step_payload),
             task: { id: task_id.to_s, title: payload['title'].to_s, artifacts: artifacts }
           )
+        end
+
+        def task_workflow_missing(task_id)
+          Result.err(
+            code: :task_workflow_missing,
+            message: "Task '#{task_id}' has no workflow key in task.yaml.",
+            details: { task_id: task_id.to_s }
+          )
+        end
+
+        def unknown_step_id(task_id, step_id)
+          Result.err(
+            code: :unknown_step_id,
+            message: "Step '#{step_id}' is not defined for task '#{task_id}'.",
+            details: { task_id: task_id.to_s, step_id: step_id.to_s }
+          )
+        end
+
+        # Subagent step report schema (RFC #1 §4.3, §5) for execution-typed steps.
+        # Returns nil for discussion steps — they do not write a structured report.
+        def step_report_schema_for(step_payload)
+          return nil unless step_payload['session_type'] == 'execution'
+
+          Owl::Subagents::Internal::OutputSpec.schema
         end
 
         def resolve_chosen_variant(step:, step_id:, step_variants:)

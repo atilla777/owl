@@ -133,11 +133,11 @@ session_type: discussion|execution
 
 ## 5. owl step report CLI
 
-**Implementation anchors.** CLI command implementation: `lib/owl/cli/internal/commands/step_report.rb:15-52` (inline-documented contract). Option parser at `:134-150`. Storage write via `Owl::Storage::Api.write` at `:87`. Dispatch entry: `lib/owl/cli/api.rb:87` (help text references this RFC §5).
+**Implementation anchors.** CLI command implementation: `lib/owl/cli/internal/commands/step_report.rb` (write/read/validate flow + `--schema` and `--template` discovery flags). Storage write via `Owl::Storage::Api.write`. Dispatch entry: `lib/owl/cli/api.rb:87` (help text references this RFC §5). Public schema source: `schemas/step_report.json` (loaded by `lib/owl/subagents/internal/output_spec.rb` as `OutputSpec::SCHEMA`). Bundle injection: `lib/owl/steps/internal/bundle_builder.rb` populates `step_report_schema` for execution-typed steps so subagents see the contract without a separate round-trip.
 
 CLI-команда `owl step report` — стандартизованный mechanism для записи и чтения отчёта subagent'а независимо от runtime.
 
-Контракт CLI (формализован RFC, реализация — отдельная задача после approval; см. §10):
+Контракт CLI:
 
 ```
 owl step report --task-id ID --step-id ID --body -|PATH
@@ -145,6 +145,9 @@ owl step report --task-id ID --step-id ID --body -|PATH
     [--validate]
 
 owl step report --task-id ID --step-id ID --read [--format markdown]
+
+owl step report --schema      # dump public JSON Schema (RFC #1 §4.3) for subagent discovery
+owl step report --template    # dump minimal markdown-with-frontmatter skeleton
 ```
 
 Поведение:

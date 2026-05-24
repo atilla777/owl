@@ -4,6 +4,7 @@ require 'json'
 require 'stringio'
 
 require 'owl/cli/api'
+require 'owl/subagents/internal/output_spec'
 
 RSpec.describe 'owl step report CLI subcommand' do
   def run(argv, cwd:, stdin: StringIO.new)
@@ -179,6 +180,43 @@ RSpec.describe 'owl step report CLI subcommand' do
         expect(exit_code).to eq(1)
         expect(JSON.parse(stderr).dig('error', 'code')).to eq('report_not_found')
       end
+    end
+  end
+
+  describe '--schema flag' do
+    it 'prints the public step_report JSON Schema and exits 0' do
+      exit_code, stdout, _stderr = run(['step', 'report', '--schema'], cwd: Pathname.new(Dir.pwd))
+      expect(exit_code).to eq(0)
+      parsed = JSON.parse(stdout)
+      expect(parsed['$schema']).to eq('https://json-schema.org/draft/2020-12/schema')
+      expect(parsed['$id']).to eq('https://owl.dev/schemas/step_report/v1.json')
+      expect(parsed['required']).to eq(%w[status summary])
+      expect(parsed.dig('properties', 'status', 'enum')).to include('returned_normally', 'error')
+      expect(parsed['x-required-sections']).to eq(['Result'])
+    end
+
+    it 'does not require --task-id / --step-id' do
+      exit_code, _stdout, stderr = run(['step', 'report', '--schema'], cwd: Pathname.new(Dir.pwd))
+      expect(exit_code).to eq(0)
+      expect(stderr).to be_empty
+    end
+  end
+
+  describe '--template flag' do
+    it 'prints a markdown skeleton and exits 0' do
+      exit_code, stdout, _stderr = run(['step', 'report', '--template'], cwd: Pathname.new(Dir.pwd))
+      expect(exit_code).to eq(0)
+      expect(stdout).to start_with("---\n")
+      expect(stdout).to include('status: returned_normally')
+      expect(stdout).to include('summary: "<one-line>"')
+      expect(stdout).to include('session_type: execution')
+      expect(stdout).to include("\n## Result\n")
+    end
+
+    it 'produces a body that validates against the default output_spec' do
+      _, stdout, = run(['step', 'report', '--template'], cwd: Pathname.new(Dir.pwd))
+      result = Owl::Subagents::Internal::OutputSpec.validate(stdout)
+      expect(result).to be_ok
     end
   end
 end
