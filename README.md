@@ -55,7 +55,7 @@ for the full install recipe.
   section list, and frontmatter schema. Artifacts are validated on
   step completion.
 - **Session-typed step model.** Every step declares `session_type:
-  discussion | execution` (RFC #1 §2). Discussion steps run in the main
+  discussion | execution` ([RFC #1](docs/rfcs/0001-session-typed-steps.md) §2). Discussion steps run in the main
   agent session through `owl-step-discussion`; execution steps run in
   an isolated subagent session through `owl-step-execution` and emit a
   structured report via `owl step report --body -`. The per-step prompt
@@ -609,6 +609,18 @@ is disabled in `.rubocop.yml`, but `-A` would silently re-enable it.
 > Do not confuse repo-root `skills/` (Owl defaults, the seed that
 > Owl ships into target projects) with `.claude/skills/kos-*` (KOS
 > skills used while *developing* Owl itself — a separate concept).
+
+## RFCs
+
+Architectural decisions and contracts that need a normative reference
+live in [`docs/rfcs/`](docs/rfcs/README.md). Each RFC is a versioned
+document with `Draft → Accepted → Superseded` status; load-bearing
+sections referenced from code carry **Implementation anchors** that
+point at `lib/owl/...:N`.
+
+| #    | Title                                                                    | Status   |
+| ---- | ------------------------------------------------------------------------ | -------- |
+| 0001 | [Session-typed steps and subagent contract](docs/rfcs/0001-session-typed-steps.md) | Accepted |
 
 ## KOS integration (Owl's own development)
 
