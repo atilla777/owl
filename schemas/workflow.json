@@ -44,6 +44,11 @@
           "enum": ["standard", "advanced"],
           "description": "Optional model tier hint. Defaults: discussion→advanced, execution→standard. Mapping tier→model lives in env-specific config (~/.config/owl/tier_map.yaml or $OWL_TIER_MAP_PATH). See RFC #1 §3."
         },
+        "drift_policy": {
+          "type": "string",
+          "enum": ["block", "warn", "ignore"],
+          "description": "Per-step content-SHA drift handling (RFC #1 §4). `block` returns exit 2 + drift_block payload and aborts the step transition; `warn` writes a stderr message and continues; `ignore` is silent. When the step does not declare a policy, the default is `block` for execution-typed steps and `warn` for discussion-typed steps."
+        },
         "skill": {
           "type": "string",
           "pattern": "^owl-step-[a-z_]+$",

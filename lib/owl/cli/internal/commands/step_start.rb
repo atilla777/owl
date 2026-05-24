@@ -6,6 +6,7 @@ require 'optparse'
 require_relative '../../../steps/api'
 require_relative '../../../steps/internal/active_step_lock'
 require_relative '../../../steps/internal/drift_detector'
+require_relative '../../../steps/internal/drift_policy'
 require_relative '../json_printer'
 require_relative 'drift_warning_printer'
 require_relative 'task_support'
@@ -33,12 +34,8 @@ module Owl
               return lock_block if lock_block
             end
 
-            unless options[:ignore_modification]
-              events = Owl::Steps::Internal::DriftDetector.call(
-                root: root, task_id: options[:task_id], step_id: options[:step_id]
-              )
-              DriftWarningPrinter.call(events, stderr: stderr)
-            end
+            drift_block = handle_drift(root: root, options: options, stderr: stderr)
+            return drift_block if drift_block
 
             result = Owl::Steps::Api.start(
               root: root, task_id: options[:task_id], step_id: options[:step_id],
@@ -90,6 +87,29 @@ module Owl
             JsonPrinter.success(stdout, payload)
           end
 
+          # Runs DriftDetector + DriftPolicy. Returns nil when the step may
+          # continue, or an Integer exit code when policy=:block forces an
+          # abort. RFC #1 §4 follow-up.
+          def handle_drift(root:, options:, stderr:)
+            events = Owl::Steps::Internal::DriftDetector.call(
+              root: root, task_id: options[:task_id], step_id: options[:step_id]
+            )
+            policy = resolve_drift_policy(root: root, options: options)
+            DriftWarningPrinter.call_with_policy(
+              events, policy: policy, stderr: stderr,
+                      task_id: options[:task_id], step_id: options[:step_id]
+            )
+          end
+
+          def resolve_drift_policy(root:, options:)
+            override = options[:ignore_modification] ? true : false
+            bundle = Owl::Steps::Api.show(
+              root: root, task_id: options[:task_id], step_id: options[:step_id]
+            )
+            step_payload = bundle.ok? ? bundle.value[:step] : nil
+            Owl::Steps::Internal::DriftPolicy.for(step_payload, override_ignore: override)
+          end
+
           # Pulls session_type out of the step bundle for the lock-file record.
           # Falls back to 'execution' (the StepProjection default) when the
           # bundle cannot be resolved — the lock then carries the conservative
@@ -116,7 +136,9 @@ module Owl
               opts.on('--force', 'Override an existing active-step lock for a different step') do
                 options[:force] = true
               end
-              opts.on('--ignore-modification', 'Suppress artifact_modified_after_complete warnings') { options[:ignore_modification] = true }
+              opts.on('--ignore-modification', 'Suppress artifact_modified_after_complete warnings') do
+                options[:ignore_modification] = true
+              end
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

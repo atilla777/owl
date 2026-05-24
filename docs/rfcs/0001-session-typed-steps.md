@@ -131,6 +131,20 @@ session_type: discussion|execution
 - читать/писать секреты или environment-variables, не указанные в `context_pack.allow_list`;
 - спавнить вложенные subagent'ы (одноуровневая иерархия).
 
+### 4.5 Drift policy
+
+Артефакты — это persistent channel; если артефакт изменился между шагом-источником и шагом-потребителем, последний работает по устаревшим входам. Per-step `drift_policy` в `workflow.yaml` определяет реакцию CLI:
+
+| Policy   | Поведение                                                                              |
+| -------- | -------------------------------------------------------------------------------------- |
+| `block`  | `owl step start` / `step complete` отказываются и возвращают exit 2 + `drift_block` JSON. Никаких state-мутаций. Default для execution-шагов. |
+| `warn`   | stderr-warning, шаг продолжает выполнение. Default для discussion-шагов.                |
+| `ignore` | Тишина, шаг продолжает выполнение.                                                      |
+
+User-override `--ignore-modification` превращает любую policy в `ignore` (используется для controlled re-runs и debug сценариев).
+
+**Implementation anchors.** Resolver: `lib/owl/steps/internal/drift_policy.rb` (constants `POLICIES` + module-fn `for(step_payload, override_ignore:)`). Detection: `lib/owl/steps/internal/drift_detector.rb`. Policy-aware printer/blocker: `lib/owl/cli/internal/commands/drift_warning_printer.rb` (`call_with_policy`). Schema: `schemas/workflow.json` step-properties `drift_policy` enum.
+
 ## 5. owl step report CLI
 
 **Implementation anchors.** CLI command implementation: `lib/owl/cli/internal/commands/step_report.rb` (write/read/validate flow + `--schema` and `--template` discovery flags). Storage write via `Owl::Storage::Api.write`. Dispatch entry: `lib/owl/cli/api.rb:87` (help text references this RFC §5). Public schema source: `schemas/step_report.json` (loaded by `lib/owl/subagents/internal/output_spec.rb` as `OutputSpec::SCHEMA`). Bundle injection: `lib/owl/steps/internal/bundle_builder.rb` populates `step_report_schema` for execution-typed steps so subagents see the contract without a separate round-trip.

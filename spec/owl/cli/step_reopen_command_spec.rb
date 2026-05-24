@@ -51,8 +51,10 @@ RSpec.describe 'owl step reopen CLI subcommand' do
         steps:
           - id: a
             creates: [brief]
+            drift_policy: warn
           - id: b
             requires: [a]
+            drift_policy: warn
       YAML
     else
       <<~YAML
@@ -133,6 +135,38 @@ RSpec.describe 'owl step reopen CLI subcommand' do
       expect(stderr).to include('artifact_modified_after_complete')
       expect(stderr).to include('step=a')
       expect(stderr).to include('artifact=brief')
+    end
+  end
+
+  it 'blocks step start when drift_policy defaults to block (execution session_type)' do
+    with_tmp_project do |root|
+      task_id = setup_project(root, with_artifact: true)
+      # Override the fixture to drop drift_policy from step a so the default kicks in.
+      File.write(
+        "#{root}/.owl/workflows/feature/workflow.yaml",
+        <<~YAML
+          id: feature
+          kind: task
+          artifacts:
+            brief:
+              type: brief
+              storage: { role: tasks, path: "{{task.id}}/brief.md" }
+          steps:
+            - id: a
+              creates: [brief]
+            - id: b
+              requires: [a]
+        YAML
+      )
+      complete_step(root, task_id, 'a')
+      run(['step', 'reopen', task_id, 'a', '--root', root.to_s], cwd: root)
+      write("#{root}/tasks/#{task_id}/brief.md", "# modified outside\n")
+
+      exit_code, _stdout, stderr = run(['step', 'start', task_id, 'a', '--root', root.to_s], cwd: root)
+      expect(exit_code).to eq(2)
+      payload = JSON.parse(stderr)
+      expect(payload.dig('error', 'code')).to eq('drift_block')
+      expect(payload.dig('error', 'details', 'step_id')).to eq('a')
     end
   end
 
