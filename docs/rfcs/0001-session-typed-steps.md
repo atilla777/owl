@@ -23,7 +23,7 @@ Source-of-truth: Owl Constitution (article 23, `load_policy: required`). RFC о�
 
 ## 2. Session types
 
-**Implementation anchors.** Constants in `lib/owl/steps/internal/step_projection.rb:14` (`SESSION_TYPES = %w[discussion execution]`) and `:16` (`DEFAULT_SESSION_TYPE = 'execution'`); the `session_type(step)` projector lives at `lib/owl/steps/internal/step_projection.rb:49-59`. Workflow schema validates `session_type` in `lib/owl/workflows/internal/workflow_validator.rb:140` (error message points back to this RFC §2).
+**Implementation anchors.** Constants in `lib/owl/steps/internal/step_projection.rb:14` (`SESSION_TYPES = %w[discussion execution]`) and `:16` (`DEFAULT_SESSION_TYPE = 'execution'`); the `session_type(step)` projector lives at `lib/owl/steps/internal/step_projection.rb:49-59`. Workflow schema validates `session_type` in `lib/owl/workflows/internal/workflow_validator.rb:140` (error message points back to this RFC §2). Runtime enforcement: `lib/owl/steps/internal/active_step_lock.rb` persists the declared `session_type` to `.owl/local/active_step.yaml` between `owl step start` and `owl step complete`; `owl step report` rejects with `session_type_mismatch` (exit 2) when the report frontmatter disagrees with the lock.
 
 `session_type` — атрибут логической сессии работы агента, известный orchestrator до её спавна. Минимум 2 значения, каждое со строго заданными свойствами:
 

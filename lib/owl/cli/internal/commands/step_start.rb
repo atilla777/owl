@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'optparse'
 
 require_relative '../../../steps/api'
+require_relative '../../../steps/internal/active_step_lock'
 require_relative '../../../steps/internal/drift_detector'
 require_relative '../json_printer'
 require_relative 'drift_warning_printer'
@@ -19,14 +21,17 @@ module Owl
             options = parse_options(argv)
             unless options[:task_id] && options[:step_id]
               return JsonPrinter.failure(
-                stderr,
-                code: :invalid_arguments,
-                message: 'TASK-ID and STEP-ID are required.'
+                stderr, code: :invalid_arguments, message: 'TASK-ID and STEP-ID are required.'
               )
             end
 
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
+
+            unless options[:force]
+              lock_block = check_existing_lock(root: root, options: options, stderr: stderr)
+              return lock_block if lock_block
+            end
 
             unless options[:ignore_modification]
               events = Owl::Steps::Internal::DriftDetector.call(
@@ -36,30 +41,81 @@ module Owl
             end
 
             result = Owl::Steps::Api.start(
-              root: root,
-              task_id: options[:task_id],
-              step_id: options[:step_id],
+              root: root, task_id: options[:task_id], step_id: options[:step_id],
               variant: options[:variant]
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            payload = {
-              ok: true,
-              task_id: options[:task_id],
-              step: result.value[:step]
-            }
-            paths = Owl::Steps::Api.local_paths(root: root, task_id: options[:task_id])
-            payload[:task_path] = paths.value[:task_file].task_path if paths.ok?
-            JsonPrinter.success(stdout, payload)
+            write_active_step_lock(root: root, options: options)
+            emit_success(stdout: stdout, result: result, root: root, options: options)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end
 
+          def check_existing_lock(root:, options:, stderr:)
+            existing = Owl::Steps::Internal::ActiveStepLock.load(root: root)
+            return nil unless existing.ok? && existing.value
+            return nil if Owl::Steps::Internal::ActiveStepLock.matches?(
+              existing.value, task_id: options[:task_id], step_id: options[:step_id]
+            )
+
+            stderr.puts(JSON.generate({
+                                        ok: false,
+                                        error: {
+                                          code: 'active_step_locked',
+                                          message: 'Another step is already locked. Use --force to override.',
+                                          details: {
+                                            locked_task_id: existing.value['task_id'],
+                                            locked_step_id: existing.value['step_id'],
+                                            requested_task_id: options[:task_id],
+                                            requested_step_id: options[:step_id]
+                                          }
+                                        }
+                                      }))
+            2
+          end
+
+          def write_active_step_lock(root:, options:)
+            session_type = resolve_session_type(root: root, options: options)
+            Owl::Steps::Internal::ActiveStepLock.write(
+              root: root, task_id: options[:task_id], step_id: options[:step_id],
+              session_type: session_type, variant: options[:variant]
+            )
+          end
+
+          def emit_success(stdout:, result:, root:, options:)
+            payload = { ok: true, task_id: options[:task_id], step: result.value[:step] }
+            paths = Owl::Steps::Api.local_paths(root: root, task_id: options[:task_id])
+            payload[:task_path] = paths.value[:task_file].task_path if paths.ok?
+            JsonPrinter.success(stdout, payload)
+          end
+
+          # Pulls session_type out of the step bundle for the lock-file record.
+          # Falls back to 'execution' (the StepProjection default) when the
+          # bundle cannot be resolved — the lock then carries the conservative
+          # value rather than failing the start path.
+          def resolve_session_type(root:, options:)
+            bundle = Owl::Steps::Api.show(
+              root: root, task_id: options[:task_id], step_id: options[:step_id]
+            )
+            return 'execution' if bundle.err?
+
+            bundle.value[:step]['session_type'] || 'execution'
+          end
+
           def parse_options(argv)
-            options = { root: nil, task_id: nil, step_id: nil, variant: nil, ignore_modification: false }
+            options = {
+              root: nil, task_id: nil, step_id: nil, variant: nil,
+              ignore_modification: false, force: false
+            }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl step start TASK-ID STEP-ID [--variant NAME] [--ignore-modification] [--root PATH] [--json]'
+              opts.banner = <<~BANNER
+                Usage: owl step start TASK-ID STEP-ID [--variant NAME] [--force] [--ignore-modification] [--root PATH] [--json]
+              BANNER
               opts.on('--variant NAME', String) { |v| options[:variant] = v }
+              opts.on('--force', 'Override an existing active-step lock for a different step') do
+                options[:force] = true
+              end
               opts.on('--ignore-modification', 'Suppress artifact_modified_after_complete warnings') { options[:ignore_modification] = true }
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }

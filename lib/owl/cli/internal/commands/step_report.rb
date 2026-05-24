@@ -2,7 +2,9 @@
 
 require 'json'
 require 'optparse'
+require 'yaml'
 
+require_relative '../../../steps/internal/active_step_lock'
 require_relative '../../../storage/api'
 require_relative '../../../subagents/internal/output_spec'
 require_relative '../../../subagents/internal/report_paths'
@@ -111,6 +113,9 @@ module Owl
               end
             end
 
+            mismatch_result = check_session_type_against_lock(body: body, root: root, stderr: stderr)
+            return mismatch_result if mismatch_result
+
             path = Owl::Subagents::Internal::ReportPaths.report_path(
               root: root, task_id: options[:task_id], step_id: options[:step_id]
             )
@@ -160,6 +165,53 @@ module Owl
             { error: "File not found: #{path}" }
           rescue StandardError => e
             { error: "Failed to read #{path}: #{e.message}" }
+          end
+
+          # When an active-step lock exists, the report frontmatter's
+          # session_type must match the locked session_type (RFC #1 §2).
+          # Returns nil when no enforcement is needed, or exit code 2 +
+          # writes a session_type_mismatch payload to stderr when it is.
+          def check_session_type_against_lock(body:, root:, stderr:)
+            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root)
+            return nil if lock.err? || lock.value.nil?
+
+            locked = lock.value['session_type']
+            return nil if locked.nil?
+
+            reported = report_session_type(body)
+            return nil if reported.nil? || reported == locked
+
+            stderr.puts(JSON.generate({
+                                        ok: false,
+                                        error: {
+                                          code: 'session_type_mismatch',
+                                          message: "Report session_type #{reported.inspect} does not match " \
+                                                   "active step session_type #{locked.inspect}.",
+                                          details: {
+                                            locked_session_type: locked,
+                                            report_session_type: reported,
+                                            locked_task_id: lock.value['task_id'],
+                                            locked_step_id: lock.value['step_id']
+                                          }
+                                        }
+                                      }))
+            2
+          end
+
+          # Pull session_type from the report's YAML frontmatter without
+          # running the full OutputSpec validator (which would also require
+          # required-section checks the caller hasn't necessarily opted into).
+          def report_session_type(body)
+            return nil unless body.is_a?(String) && body.start_with?("---\n")
+
+            end_idx = body.index("\n---\n", 4)
+            return nil if end_idx.nil?
+
+            yaml_segment = body[4..(end_idx - 1)]
+            parsed = YAML.safe_load(yaml_segment, permitted_classes: [], permitted_symbols: [])
+            parsed.is_a?(Hash) ? parsed['session_type'] : nil
+          rescue Psych::SyntaxError
+            nil
           end
 
           def parse_options(argv)

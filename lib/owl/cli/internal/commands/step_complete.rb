@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'optparse'
 
 require_relative '../../../steps/api'
+require_relative '../../../steps/internal/active_step_lock'
 require_relative '../../../steps/internal/drift_detector'
 require_relative '../json_printer'
 require_relative 'drift_warning_printer'
@@ -35,23 +37,48 @@ module Owl
               DriftWarningPrinter.call(events, stderr: stderr)
             end
 
+            mismatch = lock_mismatch_response(root: root, options: options, stderr: stderr)
+            return mismatch if mismatch
+
             result = Owl::Steps::Api.complete(
-              root: root,
-              task_id: options[:task_id],
-              step_id: options[:step_id]
+              root: root, task_id: options[:task_id], step_id: options[:step_id]
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            payload = {
-              ok: true,
-              task_id: options[:task_id],
-              step: result.value[:step]
-            }
+            Owl::Steps::Internal::ActiveStepLock.clear(root: root)
+            emit_success(stdout: stdout, result: result, root: root, options: options)
+          rescue OptionParser::ParseError => e
+            JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
+          end
+
+          def emit_success(stdout:, result:, root:, options:)
+            payload = { ok: true, task_id: options[:task_id], step: result.value[:step] }
             paths = Owl::Steps::Api.local_paths(root: root, task_id: options[:task_id])
             payload[:task_path] = paths.value[:task_file].task_path if paths.ok?
             JsonPrinter.success(stdout, payload)
-          rescue OptionParser::ParseError => e
-            JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
+          end
+
+          def lock_mismatch_response(root:, options:, stderr:)
+            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root)
+            return nil unless lock.ok? && lock.value
+            return nil if Owl::Steps::Internal::ActiveStepLock.matches?(
+              lock.value, task_id: options[:task_id], step_id: options[:step_id]
+            )
+
+            stderr.puts(JSON.generate({
+                                        ok: false,
+                                        error: {
+                                          code: 'active_step_mismatch',
+                                          message: 'Active-step lock relates to a different step.',
+                                          details: {
+                                            locked_task_id: lock.value['task_id'],
+                                            locked_step_id: lock.value['step_id'],
+                                            requested_task_id: options[:task_id],
+                                            requested_step_id: options[:step_id]
+                                          }
+                                        }
+                                      }))
+            2
           end
 
           def parse_options(argv)

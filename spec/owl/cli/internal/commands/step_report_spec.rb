@@ -4,6 +4,7 @@ require 'json'
 require 'stringio'
 
 require 'owl/cli/api'
+require 'owl/steps/internal/active_step_lock'
 require 'owl/subagents/internal/output_spec'
 
 RSpec.describe 'owl step report CLI subcommand' do
@@ -199,6 +200,82 @@ RSpec.describe 'owl step report CLI subcommand' do
       exit_code, _stdout, stderr = run(['step', 'report', '--schema'], cwd: Pathname.new(Dir.pwd))
       expect(exit_code).to eq(0)
       expect(stderr).to be_empty
+    end
+  end
+
+  describe 'session_type lock enforcement (RFC #1 §2)' do
+    let(:execution_report) do
+      <<~MD
+        ---
+        status: returned_normally
+        summary: "Done."
+        session_type: execution
+        ---
+
+        ## Result
+
+        x.
+      MD
+    end
+
+    let(:discussion_report) do
+      <<~MD
+        ---
+        status: returned_normally
+        summary: "Done."
+        session_type: discussion
+        ---
+
+        ## Result
+
+        x.
+      MD
+    end
+
+    it 'allows the write when no active-step lock exists (backward compat)' do
+      with_tmp_project do |root|
+        init_project(root)
+        exit_code, _stdout, _stderr = run(
+          ['step', 'report', '--task-id', 'TASK-NL', '--step-id', 'plan',
+           '--body', '-', '--root', root.to_s],
+          cwd: root, stdin: StringIO.new(execution_report)
+        )
+        expect(exit_code).to eq(0)
+      end
+    end
+
+    it 'rejects with exit 2 when the report session_type does not match the lock' do
+      with_tmp_project do |root|
+        init_project(root)
+        Owl::Steps::Internal::ActiveStepLock.write(
+          root: root, task_id: 'TASK-MM', step_id: 'plan', session_type: 'execution'
+        )
+        exit_code, _stdout, stderr = run(
+          ['step', 'report', '--task-id', 'TASK-MM', '--step-id', 'plan',
+           '--body', '-', '--root', root.to_s],
+          cwd: root, stdin: StringIO.new(discussion_report)
+        )
+        expect(exit_code).to eq(2)
+        payload = JSON.parse(stderr)
+        expect(payload.dig('error', 'code')).to eq('session_type_mismatch')
+        expect(payload.dig('error', 'details', 'locked_session_type')).to eq('execution')
+        expect(payload.dig('error', 'details', 'report_session_type')).to eq('discussion')
+      end
+    end
+
+    it 'allows the write when session_type matches the lock' do
+      with_tmp_project do |root|
+        init_project(root)
+        Owl::Steps::Internal::ActiveStepLock.write(
+          root: root, task_id: 'TASK-OK', step_id: 'plan', session_type: 'execution'
+        )
+        exit_code, _stdout, _stderr = run(
+          ['step', 'report', '--task-id', 'TASK-OK', '--step-id', 'plan',
+           '--body', '-', '--root', root.to_s],
+          cwd: root, stdin: StringIO.new(execution_report)
+        )
+        expect(exit_code).to eq(0)
+      end
     end
   end
 
