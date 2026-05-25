@@ -3,6 +3,8 @@
 require 'pathname'
 require 'yaml'
 
+require_relative 'cache'
+
 module Owl
   module Artifacts
     module Internal
@@ -20,7 +22,9 @@ module Owl
                     { path: registry_path.to_s }]
           end
 
-          raw = YAML.safe_load(registry_path.read, aliases: false)
+          raw = Cache.fetch_yaml(registry_path) do
+            YAML.safe_load(registry_path.read, aliases: false)
+          end
           unless raw.is_a?(Hash)
             return [:err, :artifacts_registry_invalid,
                     "Artifacts registry is not a YAML mapping: #{registry_path}",

@@ -3,6 +3,8 @@
 require 'pathname'
 require 'yaml'
 
+require_relative 'cache'
+
 module Owl
   module Workflows
     module Internal
@@ -18,7 +20,9 @@ module Owl
 
           return { present: false, source_path: source_path.to_s } unless source_path.exist?
 
-          raw = YAML.safe_load(source_path.read, aliases: false)
+          raw = Cache.fetch_yaml(source_path) do
+            YAML.safe_load(source_path.read, aliases: false)
+          end
           return { present: true, source_path: source_path.to_s, body: nil } unless raw.is_a?(Hash)
 
           {

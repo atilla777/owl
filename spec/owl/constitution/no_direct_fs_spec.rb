@@ -30,6 +30,7 @@ module OwlConstitutionFixtures
   ALLOWLIST = %w[
     artifacts/backends/filesystem.rb
     artifacts/internal/artifact_type_loader.rb
+    artifacts/internal/cache.rb
     artifacts/internal/registry_loader.rb
     artifacts/internal/source_loader.rb
     artifacts/internal/task_artifact_resolver.rb
@@ -60,6 +61,7 @@ module OwlConstitutionFixtures
     validation/internal/schema_check.rb
     validation/internal/schema_resolver.rb
     workflows/backends/filesystem.rb
+    workflows/internal/cache.rb
     workflows/internal/registry_loader.rb
     workflows/internal/source_loader.rb
     internal/backend_resolver.rb
