@@ -100,7 +100,7 @@ RSpec.describe 'owl step report CLI subcommand' do
       end
     end
 
-    it 'rejects missing --task-id with invalid_arguments' do
+    it 'rejects missing --task-id with no_current_task when no current.yaml or lock exists' do
       with_tmp_project do |root|
         init_project(root)
         exit_code, _stdout, stderr = run(
@@ -108,7 +108,7 @@ RSpec.describe 'owl step report CLI subcommand' do
           cwd: root, stdin: StringIO.new(valid_report)
         )
         expect(exit_code).to eq(1)
-        expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('no_current_task')
       end
     end
 

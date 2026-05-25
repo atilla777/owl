@@ -27,7 +27,7 @@ Do not use this skill to invent workflow stages, edit `.owl/` config, or run pro
 ## Outputs
 
 - Each step's artifact (when the step declares one) written through the executor skill at the path returned by `owl artifact resolve` and validated `ok: true` by `owl artifact validate`.
-- Step status advanced through `owl step start` / `owl step complete` / `owl step skip` — owl re-runs the validate gate at `complete` time.
+- Step status advanced through `owl step start` / `owl step complete` / `owl step skip` — owl re-runs the validate gate at `complete` time. After `step start` writes `.owl/local/active_step.yaml`, subsequent `step complete` / `skip` / `reopen` / `report` accept omitted `TASK-ID` / `STEP-ID` and resolve them from that lock; the success payload reports `resolved_task_id_source` and `resolved_step_id_source` (`"explicit"` | `"active_step_lock"` | `"current_pointer"` | `"running_step_inference"`) so the orchestrator can verify what it acted on.
 - Workflow-terminal effects when the workflow declares them (typically `owl publish` and `owl archive`).
 - A short human-facing summary at end of run, or a stop report when human input is required.
 

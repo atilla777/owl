@@ -4,6 +4,7 @@ require 'optparse'
 
 require_relative '../../../steps/api'
 require_relative '../json_printer'
+require_relative 'step_id_resolver'
 require_relative 'task_support'
 
 module Owl
@@ -15,16 +16,12 @@ module Owl
 
           def run(argv:, stdout:, stderr:, cwd:, env: ENV.to_h) # rubocop:disable Lint/UnusedMethodArgument
             options = parse_options(argv)
-            unless options[:task_id] && options[:step_id]
-              return JsonPrinter.failure(
-                stderr,
-                code: :invalid_arguments,
-                message: 'TASK-ID and STEP-ID are required.'
-              )
-            end
 
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
+
+            resolution = StepIdResolver.apply!(root: root, options: options, allow_running_inference: true)
+            return JsonPrinter.failure(stderr, **TaskSupport.error_payload(resolution)) if resolution.err?
 
             result = Owl::Steps::Api.skip(
               root: root,
@@ -37,7 +34,9 @@ module Owl
             payload = {
               ok: true,
               task_id: options[:task_id],
-              step: result.value[:step]
+              step: result.value[:step],
+              resolved_task_id_source: options[:resolved_task_id_source],
+              resolved_step_id_source: options[:resolved_step_id_source]
             }
             paths = Owl::Steps::Api.local_paths(root: root, task_id: options[:task_id])
             payload[:task_path] = paths.value[:task_file].task_path if paths.ok?

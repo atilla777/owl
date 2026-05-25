@@ -9,6 +9,7 @@ require_relative '../../../storage/api'
 require_relative '../../../subagents/internal/output_spec'
 require_relative '../../../subagents/internal/report_paths'
 require_relative '../json_printer'
+require_relative 'step_id_resolver'
 require_relative 'task_support'
 
 module Owl
@@ -40,16 +41,11 @@ module Owl
             return schema_mode(stdout: stdout) if options[:schema]
             return template_mode(stdout: stdout) if options[:template]
 
-            unless options[:task_id] && options[:step_id]
-              return JsonPrinter.failure(
-                stderr,
-                code: :invalid_arguments,
-                message: '--task-id and --step-id are required.'
-              )
-            end
-
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
+
+            resolution = StepIdResolver.apply!(root: root, options: options, allow_running_inference: true)
+            return JsonPrinter.failure(stderr, **TaskSupport.error_payload(resolution)) if resolution.err?
 
             if options[:read]
               read_mode(stdout: stdout, stderr: stderr, root: root, options: options)
@@ -127,7 +123,9 @@ module Owl
                                   task_id: options[:task_id],
                                   step_id: options[:step_id],
                                   path: path.to_s,
-                                  bytes: body.bytesize
+                                  bytes: body.bytesize,
+                                  resolved_task_id_source: options[:resolved_task_id_source],
+                                  resolved_step_id_source: options[:resolved_step_id_source]
                                 })
           end
 

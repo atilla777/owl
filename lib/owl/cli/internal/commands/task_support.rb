@@ -24,7 +24,12 @@ module Owl
           end
 
           def error_payload(err_result)
-            { code: err_result.code, message: err_result.message, details: err_result.details }
+            payload = { code: err_result.code, message: err_result.message, details: err_result.details }
+            if err_result.respond_to?(:error_class) && err_result.error_class
+              payload[:error_class] =
+                err_result.error_class
+            end
+            payload
           end
         end
       end

@@ -105,12 +105,12 @@ RSpec.describe 'owl step reopen CLI subcommand' do
     end
   end
 
-  it 'fails with invalid_arguments when TASK-ID is missing' do
+  it 'fails with no_current_task when TASK-ID is missing and no current.yaml or lock exists' do
     with_tmp_project do |root|
       setup_project(root)
       exit_code, _stdout, stderr = run(['step', 'reopen', '--root', root.to_s], cwd: root)
       expect(exit_code).to eq(1)
-      expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+      expect(JSON.parse(stderr).dig('error', 'code')).to eq('no_current_task')
     end
   end
 

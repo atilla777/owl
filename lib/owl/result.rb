@@ -12,7 +12,7 @@ module Owl
       end
     end
 
-    Err = Data.define(:code, :message, :details) do
+    Err = Data.define(:code, :message, :details, :error_class) do
       def ok?
         false
       end
@@ -26,8 +26,8 @@ module Owl
       Ok.new(value: value)
     end
 
-    def self.err(code:, message:, details: {})
-      Err.new(code: code, message: message, details: details)
+    def self.err(code:, message:, details: {}, error_class: nil)
+      Err.new(code: code, message: message, details: details, error_class: error_class)
     end
   end
 end
