@@ -1,3 +1,11 @@
+---
+step_id: "brief"
+applies_to_session_type: "discussion"
+applies_to_variants: ["problem_inventory"]
+intended_audience: "orchestrator"
+summary: "Inventory refactor problems for the composite task (problem_inventory variant)."
+---
+
 # Purpose
 
 Capture a refactor-driven brief for a **composite** task: an inventory

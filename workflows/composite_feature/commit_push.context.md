@@ -1,3 +1,10 @@
+---
+step_id: "commit_push"
+applies_to_session_type: "execution"
+intended_audience: "subagent"
+summary: "Commit composite workflow changes and push the branch."
+---
+
 # Purpose
 
 Stage the parent task's own artifacts (brief, design, decomposition,

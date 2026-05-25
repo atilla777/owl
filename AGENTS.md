@@ -329,6 +329,40 @@ Step описывает:
 - may_create_tasks (флаг разрешения порождать child tasks).
 ```
 
+### Frontmatter for `.context.md`
+
+Шаги ссылаются на текстовый контекст через `context_file:` (или `variants.<name>.context_file:`). Файл `.context.md` может опционально начинаться с YAML-frontmatter, который явно описывает, к какому шагу относится контекст:
+
+```yaml
+---
+step_id: design
+applies_to_session_type: discussion
+intended_audience: orchestrator
+applies_to_variants: [feature]   # только для variant-шагов
+summary: "Краткое описание шага."
+---
+```
+
+Поля (все опциональные):
+
+```text
+- step_id                   — id шага из workflow.yaml; ошибка, если не совпадает с id шага, к которому файл подключён.
+- applies_to_session_type   — discussion | execution; должен совпадать с session_type шага.
+- applies_to_variants       — массив variant-ключей; на не-variant-шаге даёт ошибку variants_not_applicable.
+- intended_audience         — orchestrator | subagent.
+- summary                   — однострочное описание; рантайм не использует, только для людей.
+```
+
+Naming-convention для context-файлов: `<step_id>[.<variant>].context.md` (3 или 4 dot-сегмента в basename). Файлы с большим числом сегментов (`brief.feature.v2.context.md`) или dotted step_id не выводятся автоматически; для них требуется явный `step_id` во frontmatter.
+
+Валидация запускается из `owl workflow validate` после KOS-155 (`FilesystemRefsCheck`). По умолчанию missing-frontmatter и противоречия дают **warnings**; чтобы повысить до error для отдельного шага — задайте `drift_policy: block` (см. [Решение 8 — drift_policy](#решение-8)). Для понижения до полного игнора — `drift_policy: ignore`.
+
+Схема контракта — `schemas/step_context_frontmatter.json`. Локальный override через `.owl/schemas/step_context_frontmatter.json` (см. KOS-154) применяется без перезапуска: его можно ужесточить (например, убрать значение из enum) — существующие репо-файлы тогда начнут падать на schema-violation, что by design.
+
+Ошибки frontmatter-контракта дают exit code `4` и `error_class: "step_context_frontmatter"` в JSON-payload `owl workflow validate`, отличный от обычной `validation` (exit 1). Возможные `code:` в `error.details.errors` — `step_context_frontmatter_step_id_mismatch`, `step_context_frontmatter_session_type_mismatch`, `step_context_frontmatter_variants_not_applicable`, `step_context_frontmatter_unknown_variant`, `step_context_frontmatter_additional_property`, `step_context_frontmatter_schema_violation`, `step_context_frontmatter_missing` (warning), `step_context_frontmatter_parse_error`, `step_context_frontmatter_invalid_root`, `step_context_frontmatter_unterminated`.
+
+Future work (вне scope KOS-156): `step_context` как полноценный artifact-type со своим шаблоном и required-секциями (Variant 2), и CLI `owl artifact resolve <TASK> step_context --step-id X` для авторинга через CLI (Variant 3).
+
 ### Skill
 
 Исполнитель конкретного шага.

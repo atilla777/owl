@@ -1,3 +1,10 @@
+---
+step_id: "implement"
+applies_to_session_type: "execution"
+intended_audience: "subagent"
+summary: "Execute the plan checklist and record the verification artifact."
+---
+
 # Purpose
 
 Execute the `plan` checklist — write code and tests together, run the

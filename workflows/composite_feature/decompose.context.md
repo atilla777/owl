@@ -1,3 +1,10 @@
+---
+step_id: "decompose"
+applies_to_session_type: "discussion"
+intended_audience: "orchestrator"
+summary: "Decompose the composite feature into child tasks."
+---
+
 # Purpose
 
 Carve the parent's `brief` and `design` into non-overlapping child

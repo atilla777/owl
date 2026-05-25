@@ -1,3 +1,10 @@
+---
+step_id: "merge_docs"
+applies_to_session_type: "execution"
+intended_audience: "subagent"
+summary: "Merge published docs into the repository."
+---
+
 # Purpose
 
 Apply the `design` artifact to project documentation under `docs/` per

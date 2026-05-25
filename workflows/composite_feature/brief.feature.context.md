@@ -1,3 +1,11 @@
+---
+step_id: "brief"
+applies_to_session_type: "discussion"
+applies_to_variants: ["feature"]
+intended_audience: "orchestrator"
+summary: "Collect feature requirements for the composite task (feature variant)."
+---
+
 # Purpose
 
 Capture the brief for a composite (multi-child) task: turn a rough

@@ -1,3 +1,11 @@
+---
+step_id: "brief"
+applies_to_session_type: "discussion"
+applies_to_variants: ["problem_inventory"]
+intended_audience: "orchestrator"
+summary: "Inventory refactor problems (problem_inventory variant)."
+---
+
 # Purpose
 
 Capture a refactor-driven brief: inventory the **problems** in a piece

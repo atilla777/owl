@@ -1,3 +1,11 @@
+---
+step_id: "brief"
+applies_to_session_type: "discussion"
+applies_to_variants: ["root_cause"]
+intended_audience: "orchestrator"
+summary: "Find bug root cause for the composite task (root_cause variant)."
+---
+
 # Purpose
 
 Capture a bug-driven brief for a **composite** task: a single root

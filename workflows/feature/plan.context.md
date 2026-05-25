@@ -1,3 +1,10 @@
+---
+step_id: "plan"
+applies_to_session_type: "discussion"
+intended_audience: "orchestrator"
+summary: "Turn the brief and design into an execution plan."
+---
+
 # Purpose
 
 Break the brief's acceptance criteria and the design's API into an

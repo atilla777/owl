@@ -1,3 +1,11 @@
+---
+step_id: "brief"
+applies_to_session_type: "discussion"
+applies_to_variants: ["root_cause"]
+intended_audience: "orchestrator"
+summary: "Find bug root cause (root_cause variant)."
+---
+
 # Purpose
 
 Capture a bug-driven brief: record the observed symptoms, a reliable

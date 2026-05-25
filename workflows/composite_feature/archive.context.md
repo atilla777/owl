@@ -1,3 +1,10 @@
+---
+step_id: "archive"
+applies_to_session_type: "execution"
+intended_audience: "subagent"
+summary: "Archive the completed composite task."
+---
+
 # Purpose
 
 Move `tasks/<PARENT-ID>/` into

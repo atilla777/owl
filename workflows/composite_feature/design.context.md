@@ -1,3 +1,10 @@
+---
+step_id: "design"
+applies_to_session_type: "discussion"
+intended_audience: "orchestrator"
+summary: "Produce a composite-task design."
+---
+
 # Purpose
 
 Produce the parent-level `design` with

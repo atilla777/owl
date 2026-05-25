@@ -1,3 +1,10 @@
+---
+step_id: "commit_push"
+applies_to_session_type: "execution"
+intended_audience: "subagent"
+summary: "Commit all workflow changes and push the branch."
+---
+
 # Purpose
 
 Stage every change made during this workflow (code, tests, docs,

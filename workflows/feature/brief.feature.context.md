@@ -1,3 +1,11 @@
+---
+step_id: "brief"
+applies_to_session_type: "discussion"
+applies_to_variants: ["feature"]
+intended_audience: "orchestrator"
+summary: "Collect feature requirements (feature variant)."
+---
+
 # Purpose
 
 Capture the brief for a new task: turn a rough request into a structured

@@ -1,3 +1,10 @@
+---
+step_id: "review_code"
+applies_to_session_type: "execution"
+intended_audience: "subagent"
+summary: "Review the implementation against plan and brief."
+---
+
 # Purpose
 
 Self-review the code changes and the verification report. Record

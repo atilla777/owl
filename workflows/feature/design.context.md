@@ -1,3 +1,10 @@
+---
+step_id: "design"
+applies_to_session_type: "discussion"
+intended_audience: "orchestrator"
+summary: "Produce a design when the brief leaves architectural choices open."
+---
+
 # Purpose
 
 Produce a design with `Context / Decision / Alternatives / Risks / API`

@@ -1,3 +1,10 @@
+---
+step_id: "review"
+applies_to_session_type: "execution"
+intended_audience: "subagent"
+summary: "Review the decomposition and prepared child tasks."
+---
+
 # Purpose
 
 Self-review the parent's `design` and `decomposition` before the
