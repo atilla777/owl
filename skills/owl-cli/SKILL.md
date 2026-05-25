@@ -34,7 +34,7 @@ Do not use this skill to decide what workflow stage runs next, what spec to writ
 ## Source Of Truth
 
 - Treat `bin/owl` JSON responses as authoritative. Do not parse `.owl/` config, `tasks/index.yaml`, or `task.yaml` files directly.
-- Treat repository Markdown (`AGENTS.md`, `ARCHITECTURE.md`, `REQUIREMENTS.md`, `IMPLEMENTATION_PLAN.md`) as historical fallback after KOS migration; current workflow state lives in KOS application state.
+- Treat repository Markdown (`AGENTS.md`, `ARCHITECTURE.md`, `REQUIREMENTS.md`, `docs/historical/2026-05-implementation-plan.md`) as historical fallback after KOS migration; current workflow state lives in KOS application state.
 - When `bin/owl` returns a structured error, surface its message to the caller rather than guessing recovery — the CLI is the contract.
 - Pass `--json` to every read command that supports it; agent-facing commands return stable JSON shapes designed for parsing.
 

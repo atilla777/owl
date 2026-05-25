@@ -601,8 +601,10 @@ is disabled in `.rubocop.yml`, but `-A` would silently re-enable it.
 │   └── validation/               # artifact validation
 ├── spec/owl/...                  # RSpec
 ├── CLAUDE.md                     # KOS bootstrap entrypoint (for Owl's own development)
-├── AGENTS.md / ARCHITECTURE.md / REQUIREMENTS.md / IMPLEMENTATION_PLAN.md
+├── AGENTS.md / ARCHITECTURE.md / REQUIREMENTS.md
 │                                 # historical fallback — see CLAUDE.md
+├── docs/historical/2026-05-implementation-plan.md
+│                                 # archived IMPLEMENTATION_PLAN snapshot — current roadmap lives in KOS
 └── README.md                     # this file
 ```
 

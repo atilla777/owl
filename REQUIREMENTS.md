@@ -1,6 +1,6 @@
 # Owl — Требования к системе
 
-Этот документ описывает функциональные требования к Owl, примеры конфигураций/схем/артефактов и интерфейс CLI. Концептуальное описание — в [AGENTS.md](AGENTS.md), архитектура — в [ARCHITECTURE.md](ARCHITECTURE.md), план реализации — в [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+Этот документ описывает функциональные требования к Owl, примеры конфигураций/схем/артефактов и интерфейс CLI. Концептуальное описание — в [AGENTS.md](AGENTS.md), архитектура — в [ARCHITECTURE.md](ARCHITECTURE.md), исторический план реализации — в [IMPLEMENTATION_PLAN.md (архивный снапшот)](docs/historical/2026-05-implementation-plan.md).
 
 ---
 

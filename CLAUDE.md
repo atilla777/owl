@@ -39,9 +39,9 @@ Repository memory has been migrated into KOS knowledge:
 - `Owl architecture: ARCHITECTURE.md` (article 25) — full verbatim source.
 - `Owl requirements: REQUIREMENTS.md` (article 26) — full verbatim source.
 
-The legacy files (`AGENTS.md`, `ARCHITECTURE.md`, `REQUIREMENTS.md`, `IMPLEMENTATION_PLAN.md`) stay in the repository as historical / human-readable fallback. Do not treat them as active workflow state. Active project memory lives in the KOS knowledge articles above.
+The legacy files (`AGENTS.md`, `ARCHITECTURE.md`, `REQUIREMENTS.md`) stay in the repository as historical / human-readable fallback. Do not treat them as active workflow state. Active project memory lives in the KOS knowledge articles above. The implementation-plan snapshot has been archived to `docs/historical/2026-05-implementation-plan.md`.
 
-`IMPLEMENTATION_PLAN.md` was intentionally **not** imported — it is a staged roadmap and should become a hierarchy of KOS tasks rather than a knowledge article.
+`docs/historical/2026-05-implementation-plan.md` (originally `IMPLEMENTATION_PLAN.md`) was intentionally **not** imported into KOS knowledge — it is a staged roadmap and should become a hierarchy of KOS tasks rather than a knowledge article.
 
 ## Safety Rules
 

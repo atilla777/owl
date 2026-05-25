@@ -1,5 +1,7 @@
 # Owl — План реализации
 
+> **Archived snapshot (2026-05).** The current roadmap lives in KOS tasks — use `/kos-orchestrator`. This file is kept as historical context only.
+
 > **Status: исторический snapshot.** Этот документ описывал поэтапный план до MVP;
 > большинство этапов уже выполнено и оформлено в KOS как задачи проекта Owl.
 > Источник истины для актуальных workflow-шагов и артефактов — YAML под

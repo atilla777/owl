@@ -6,7 +6,7 @@
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — высокоуровневая архитектура, компоненты, структура папок, пример StepInvocation, дерево задач.
 - [REQUIREMENTS.md](REQUIREMENTS.md) — функциональные требования, примеры конфигураций/схем/артефактов, интерфейс CLI.
-- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) — поэтапный план реализации до MVP и далее.
+- [IMPLEMENTATION_PLAN.md (архивный снапшот)](docs/historical/2026-05-implementation-plan.md) — поэтапный план реализации до MVP и далее (исторический snapshot; актуальный roadmap живёт в KOS).
 
 ---
 

@@ -1,6 +1,6 @@
 # Owl — Архитектура
 
-Этот документ описывает архитектуру системы Owl: высокоуровневую схему, компоненты, структуру папок и пример StepInvocation. Концептуальное описание проекта — в [AGENTS.md](AGENTS.md), требования — в [REQUIREMENTS.md](REQUIREMENTS.md), план реализации — в [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+Этот документ описывает архитектуру системы Owl: высокоуровневую схему, компоненты, структуру папок и пример StepInvocation. Концептуальное описание проекта — в [AGENTS.md](AGENTS.md), требования — в [REQUIREMENTS.md](REQUIREMENTS.md), исторический план реализации — в [IMPLEMENTATION_PLAN.md (архивный снапшот)](docs/historical/2026-05-implementation-plan.md).
 
 ---
 
