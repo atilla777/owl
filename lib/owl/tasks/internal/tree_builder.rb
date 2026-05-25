@@ -23,18 +23,32 @@ module Owl
           children_by_parent = entries.group_by { |e| e['parent_id'].to_s }
           roots = entries.select { |e| e['parent_id'].to_s.empty? }
 
-          tree = roots.map { |entry| build_node(entry, children_by_parent, 0, Set.new) }
-          Result.ok(tasks: tree)
+          warnings = []
+          tree = roots.map { |entry| build_node(entry, children_by_parent, 0, Set.new, [], warnings) }
+          Result.ok(tasks: tree, warnings: warnings)
         end
 
-        def build_node(entry, children_by_parent, depth, seen)
+        def build_node(entry, children_by_parent, depth, seen, ancestor_ids, warnings)
           id = entry['id'].to_s
-          return node_payload(entry).merge(children: [], truncated: true) if depth >= MAX_DEPTH || seen.include?(id)
+          path = (ancestor_ids + [id]).join('/')
+
+          if seen.include?(id)
+            warnings << { code: 'tree_cycle', at_path: path, cycle_id: id }
+            return node_payload(entry).merge(children: [], truncated: true)
+          end
+
+          if depth >= MAX_DEPTH
+            warnings << { code: 'tree_truncated', at_path: path, max_depth: MAX_DEPTH }
+            return node_payload(entry).merge(children: [], truncated: true)
+          end
 
           next_seen = seen + [id]
+          next_ancestors = ancestor_ids + [id]
           kids = children_by_parent[id] || []
           node_payload(entry).merge(
-            children: kids.map { |child| build_node(child, children_by_parent, depth + 1, next_seen) }
+            children: kids.map do |child|
+              build_node(child, children_by_parent, depth + 1, next_seen, next_ancestors, warnings)
+            end
           )
         end
 

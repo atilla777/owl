@@ -21,7 +21,10 @@ module Owl
             result = Owl::Tasks::Api.tree(root: root)
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            JsonPrinter.success(stdout, { ok: true, tasks: result.value[:tasks] })
+            JsonPrinter.success(
+              stdout,
+              { ok: true, tasks: result.value[:tasks], warnings: result.value[:warnings] }
+            )
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end

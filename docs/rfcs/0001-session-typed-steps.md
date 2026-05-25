@@ -160,6 +160,23 @@ Every error JSON payload contains a top-level `error.error_class` field equal to
 
 **Implementation anchors.** `lib/owl/cli/internal/json_printer.rb` declares `EXIT_CODES = { validation: 1, recoverable: 2, fatal: 3 }` and `failure(..., error_class:)`. Existing recoverable returns route through this dispatcher: `active_step_locked` and `drift_block` in `step_start.rb`, `active_step_mismatch` in `step_complete.rb`, `session_type_mismatch` in `step_report.rb`.
 
+### 4.7 Warnings (success-payload)
+
+Success-payloads (`ok: true`, exit code 0) may carry a top-level `warnings: WarningEntry[]` array — informational signals about a partial or degraded result that the orchestrator must observe without treating the call as a failure. The contract:
+
+- `warnings` is always an array when present. Commands that opt into the contract emit `warnings: []` on the clean path so consumers can iterate without nil-guards.
+- A `WarningEntry` is a JSON object with mandatory `code` (string, stable across versions) and `at_path` (string, command-specific locator). Code-specific extra fields are allowed; warnings never carry `error_class`.
+- Warnings are not error payloads. They never change the exit code. To surface a recoverable failure, use `JsonPrinter.failure(..., error_class: :recoverable)` instead.
+
+Initial codes:
+
+| Code              | CLI                | Extra fields              | Trigger                                                                |
+| ----------------- | ------------------ | ------------------------- | ---------------------------------------------------------------------- |
+| `tree_truncated`  | `owl task tree`    | `max_depth`               | `TreeBuilder` cut a branch at `MAX_DEPTH` (default 32).                |
+| `tree_cycle`      | `owl task tree`    | `cycle_id`                | `TreeBuilder` detected a repeating id while walking ancestors.         |
+
+**Implementation anchors.** `lib/owl/tasks/internal/tree_builder.rb` accumulates warnings in `call` and emits them in `build_node` (cycle check runs before depth check, so a cycle on a deep branch reports `tree_cycle`, not `tree_truncated`). `lib/owl/cli/internal/commands/task_tree.rb` forwards them as the top-level `warnings` key.
+
 ## 5. owl step report CLI
 
 **Implementation anchors.** CLI command implementation: `lib/owl/cli/internal/commands/step_report.rb` (write/read/validate flow + `--schema` and `--template` discovery flags). Storage write via `Owl::Storage::Api.write`. Dispatch entry: `lib/owl/cli/api.rb:87` (help text references this RFC §5). Public schema source: `schemas/step_report.json` (loaded by `lib/owl/subagents/internal/output_spec.rb` as `OutputSpec::SCHEMA`). Bundle injection: `lib/owl/steps/internal/bundle_builder.rb` populates `step_report_schema` for execution-typed steps so subagents see the contract without a separate round-trip.

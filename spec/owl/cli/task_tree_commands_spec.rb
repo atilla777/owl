@@ -2,8 +2,10 @@
 
 require 'json'
 require 'stringio'
+require 'yaml'
 
 require 'owl/cli/api'
+require 'owl/tasks/internal/tree_builder'
 
 RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create CLI subcommands' do
   def run(argv, cwd:)
@@ -83,6 +85,33 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create C
         expect(body['ok']).to be(true)
         expect(body['tasks'].first['id']).to eq('TASK-0001')
         expect(body['tasks'].first['children'].first['id']).to eq('TASK-0002')
+        expect(body['warnings']).to eq([])
+      end
+    end
+
+    it 'emits a top-level tree_truncated warning when MAX_DEPTH is exceeded' do
+      with_tmp_project do |root|
+        init_with_workflows(root)
+        max_depth = Owl::Tasks::Internal::TreeBuilder::MAX_DEPTH
+        entries = (1..(max_depth + 1)).map do |i|
+          {
+            'id' => format('TASK-%04d', i),
+            'title' => "Node #{i}",
+            'workflow' => 'feature',
+            'kind' => 'task',
+            'parent_id' => (i == 1 ? nil : format('TASK-%04d', i - 1)),
+            'status' => 'todo'
+          }
+        end
+        write("#{root}/tasks/index.yaml", YAML.dump({ 'schema_version' => 1, 'tasks' => entries }))
+
+        exit_code, stdout, stderr = run(['task', 'tree', '--root', root.to_s, '--json'], cwd: root)
+        expect(stderr).to eq('')
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body['warnings'].size).to eq(1)
+        expect(body['warnings'].first['code']).to eq('tree_truncated')
+        expect(body['warnings'].first['max_depth']).to eq(max_depth)
       end
     end
   end
@@ -234,5 +263,4 @@ RSpec.describe 'owl task tree-/children-/parent-/aggregate-status/child create C
       end
     end
   end
-
 end
