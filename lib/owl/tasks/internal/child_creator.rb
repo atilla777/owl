@@ -6,6 +6,7 @@ require_relative '../../result'
 require_relative '../../artifacts/api'
 require_relative '../../steps/internal/status_writer'
 require_relative '../../storage/api'
+require_relative 'allowed_children_guard'
 require_relative 'paths'
 require_relative 'task_reader'
 
@@ -30,6 +31,14 @@ module Owl
 
           chain_check = walk_parent_chain(tasks_root: tasks_root, start_id: parent_id)
           return chain_check if chain_check.is_a?(Result::Err)
+
+          guard = AllowedChildrenGuard.call(
+            root: root,
+            parent_id: parent_id,
+            parent_workflow_key: parent_payload.dig('workflow', 'key'),
+            child_workflow_key: workflow
+          )
+          return guard if guard.err?
 
           create_result = creator.call(
             root: root,

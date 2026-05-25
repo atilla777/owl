@@ -117,7 +117,8 @@ Workflow должен быть YAML-файлом.
 - archive behavior;
 - skill delegation;
 - validation requirements;
-- (для composite) правила декомпозиции и агрегации статуса.
+- (для composite) правила декомпозиции и агрегации статуса;
+- (для composite) `allowed_children` — whitelist ключей workflow для child-задач (absent ⇒ permissive, `[]` ⇒ strict deny, непустой список ⇒ enumerated whitelist). Authoritative описание — `schemas/workflow.json` (`allowed_children.description`).
 ```
 
 Workflow должен быть валидируемым через JSON Schema.
@@ -719,6 +720,7 @@ id: composite_feature
 kind: composite_task
 title: Composite feature workflow
 version: "1.0"
+allowed_children: [feature]   # seeded: composite_feature принимает только child-workflow `feature`
 
 selection:
   aliases:

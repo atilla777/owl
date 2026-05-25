@@ -6,6 +6,7 @@ require 'yaml'
 require_relative '../../result'
 require_relative '../../artifacts/api'
 require_relative '../../validation/internal/schema_check'
+require_relative 'allowed_children_check'
 require_relative 'filesystem_refs_check'
 require_relative 'graph_builder'
 require_relative 'step_context_frontmatter_check'
@@ -35,6 +36,9 @@ module Owl
             errors << error_at(e[:path], e[:message], code: e[:keyword])
           end
           errors.concat(validate_top_level(body))
+          AllowedChildrenCheck.call(body, root).each do |e|
+            errors << error_at(e[:path], e[:message], code: e[:code])
+          end
           errors.concat(validate_steps(body, root))
 
           if errors.empty?

@@ -3,6 +3,7 @@ kind: composite_task
 title: Composite feature
 description: Workflow for a large feature decomposed into child tasks.
 execution_mode: autonomous_after_brief
+allowed_children: [feature]
 
 artifacts:
   brief:

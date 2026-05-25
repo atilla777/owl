@@ -18,6 +18,11 @@
     "publishes": {
       "type": "array",
       "items": { "$ref": "#/$defs/publish_rule" }
+    },
+    "allowed_children": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Whitelist of child workflow keys; meaningful only on kind: composite_task. Absent => permissive (any child allowed). Empty array => strict deny (no children allowed). Non-empty array => enumerated whitelist."
     }
   },
   "$defs": {

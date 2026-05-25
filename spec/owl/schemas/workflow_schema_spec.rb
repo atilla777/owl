@@ -47,4 +47,16 @@ RSpec.describe 'workflow JSON Schema' do
   it 'forbids step.context and step.context_file together via not/required' do
     expect(schema.dig('$defs', 'step', 'not', 'required')).to eq(%w[context context_file])
   end
+
+  it 'declares allowed_children as an array of non-empty string items' do
+    prop = schema.dig('properties', 'allowed_children')
+    expect(prop['type']).to eq('array')
+    expect(prop.dig('items', 'type')).to eq('string')
+    expect(prop.dig('items', 'minLength')).to eq(1)
+  end
+
+  it 'documents allowed_children semantics relative to composite_task kind' do
+    prop = schema.dig('properties', 'allowed_children')
+    expect(prop['description']).to include('composite_task')
+  end
 end

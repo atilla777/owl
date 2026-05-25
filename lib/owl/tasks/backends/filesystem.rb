@@ -5,6 +5,7 @@ require_relative '../backend'
 require_relative '../local'
 require_relative '../internal/abandon_writer'
 require_relative '../internal/aggregate_status'
+require_relative '../internal/allowed_children_guard'
 require_relative '../internal/archive/orchestrator'
 require_relative '../internal/child_creator'
 require_relative '../internal/children_lister'
@@ -61,6 +62,9 @@ module Owl
           paths_result = Internal::Paths.resolve(root: @root)
           return paths_result if paths_result.err?
 
+          guard = guard_parent_allows_child(parent_id, workflow, paths_result.value[:tasks])
+          return guard if guard&.err?
+
           snapshot_result = Internal::WorkflowSnapshot.snapshot(root: @root, workflow_key: workflow)
           return snapshot_result if snapshot_result.err?
 
@@ -68,10 +72,7 @@ module Owl
           return variant_validation if variant_validation&.err?
 
           paths = paths_result.value
-          task_id = Internal::IdGenerator.next_id(
-            tasks_root: paths[:tasks],
-            index_path: paths[:index]
-          )
+          task_id = Internal::IdGenerator.next_id(tasks_root: paths[:tasks], index_path: paths[:index])
 
           payload = Internal::TaskWriter.build_payload(
             task_id: task_id,
@@ -269,6 +270,25 @@ module Owl
         def create_via_self(root:, workflow:, title:, parent_id: nil, kind: nil)
           _ = root
           create(workflow: workflow, title: title, parent_id: parent_id, kind: kind)
+        end
+
+        # Bridge to AllowedChildrenGuard for the `task create --parent` route.
+        # Returns nil when no parent_id is given (back-compat short-circuit).
+        # When the parent task cannot be read we let the rest of create proceed
+        # so existing error paths (unknown task, missing workflow snapshot)
+        # surface their own errors with unchanged codes.
+        def guard_parent_allows_child(parent_id, workflow, tasks_root)
+          return nil if parent_id.nil?
+
+          parent_read = Internal::TaskReader.read(tasks_root: tasks_root, task_id: parent_id)
+          return nil if parent_read.err?
+
+          Internal::AllowedChildrenGuard.call(
+            root: @root,
+            parent_id: parent_id,
+            parent_workflow_key: parent_read.value[:payload].dig('workflow', 'key'),
+            child_workflow_key: workflow
+          )
         end
 
         def validate_step_variants(snapshot, raw)
