@@ -1,0 +1,23 @@
+id: brief
+title: Brief
+kind: markdown
+description: Task brief — problem, goal, user scenarios, edge cases, acceptance criteria.
+default_template: templates/default.md
+
+front_matter:
+  type: object
+  required: [status, summary]
+  properties:
+    status:
+      type: string
+      enum: [draft, approved]
+    summary:
+      type: string
+
+validation:
+  required_sections:
+    - Problem
+    - Goal
+    - Scenarios
+    - Edge cases
+    - Acceptance criteria

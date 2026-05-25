@@ -1,0 +1,80 @@
+id: composite_feature
+kind: composite_task
+title: Composite feature
+description: Workflow for a large feature decomposed into child tasks.
+execution_mode: autonomous_after_brief
+allowed_children: [feature]
+
+artifacts:
+  brief:
+    type: brief
+    storage:
+      role: tasks
+      path: "{{task.id}}/brief.md"
+  design:
+    type: design
+    optional: true
+    storage:
+      role: tasks
+      path: "{{task.id}}/design.md"
+  decomposition:
+    type: decomposition
+    storage:
+      role: tasks
+      path: "{{task.id}}/decomposition.md"
+  review:
+    type: review
+    storage:
+      role: tasks
+      path: "{{task.id}}/review.md"
+
+steps:
+  - id: brief
+    skill: owl-step-discussion
+    session_type: discussion
+    tier: advanced
+    creates: [brief]
+    default_variant: feature
+    variants:
+      feature:
+        context_file: brief.feature.context.md
+        title: "Collect feature requirements"
+      root_cause:
+        context_file: brief.root_cause.context.md
+        title: "Find bug root cause"
+      problem_inventory:
+        context_file: brief.problem_inventory.context.md
+        title: "Inventory refactor problems"
+  - id: design
+    skill: owl-step-discussion
+    session_type: discussion
+    tier: advanced
+    context_file: design.context.md
+    requires: [brief]
+    creates: [design]
+  - id: decompose
+    skill: owl-step-discussion
+    session_type: discussion
+    tier: advanced
+    context_file: decompose.context.md
+    requires: [brief]
+    creates: [decomposition]
+  - id: review
+    skill: owl-step-execution
+    session_type: execution
+    tier: advanced
+    context_file: review.context.md
+    requires: [decompose]
+    creates: [review]
+  - id: archive
+    skill: owl-step-execution
+    session_type: execution
+    tier: standard
+    context_file: archive.context.md
+    requires: [review]
+  - id: commit_push
+    skill: owl-step-execution
+    session_type: execution
+    tier: standard
+    context_file: commit_push.context.md
+    requires: [archive]

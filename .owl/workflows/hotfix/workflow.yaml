@@ -1,0 +1,111 @@
+---
+id: hotfix
+kind: task
+title: Hotfix
+description: Workflow for an urgent fix — issue → patch-plan → tasks → apply → verify → archive.
+execution_mode: autonomous_after_brief
+artifacts:
+  brief:
+    type: brief
+    storage:
+      role: tasks
+      path: "{{task.id}}/brief.md"
+  design:
+    type: design
+    optional: true
+    storage:
+      role: tasks
+      path: "{{task.id}}/design.md"
+  plan:
+    type: plan
+    storage:
+      role: tasks
+      path: "{{task.id}}/plan.md"
+  review:
+    type: review
+    storage:
+      role: tasks
+      path: "{{task.id}}/review.md"
+  verification:
+    type: verification
+    storage:
+      role: tasks
+      path: "{{task.id}}/verification.md"
+publishes:
+- from: "{{task.id}}/design.md"
+  to: "{{task.id}}/design.md"
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  creates:
+  - brief
+  default_variant: feature
+  variants:
+    feature:
+      context_file: brief.feature.context.md
+      title: Collect feature requirements
+    root_cause:
+      context_file: brief.root_cause.context.md
+      title: Find bug root cause
+    problem_inventory:
+      context_file: brief.problem_inventory.context.md
+      title: Inventory refactor problems
+- id: design
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: design.context.md
+  requires:
+  - brief
+  creates:
+  - design
+- id: plan
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: plan.context.md
+  requires:
+  - brief
+  creates:
+  - plan
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - plan
+  creates:
+  - verification
+- id: review_code
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: review_code.context.md
+  requires:
+  - implement
+  creates:
+  - review
+- id: merge_docs
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: merge_docs.context.md
+  requires:
+  - review_code
+- id: archive
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: archive.context.md
+  requires:
+  - merge_docs
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - archive

@@ -1,0 +1,11 @@
+id: decomposition
+title: Decomposition
+kind: markdown
+description: Slicing of a composite task into child tasks — goal, child list, execution order.
+default_template: templates/default.md
+
+validation:
+  required_sections:
+    - Goal
+    - Children
+    - Order

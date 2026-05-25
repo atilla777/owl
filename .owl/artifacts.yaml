@@ -1,0 +1,15 @@
+schema_version: 1
+
+artifacts:
+  brief:
+    source: "artifacts/brief/artifact.yaml"
+  design:
+    source: "artifacts/design/artifact.yaml"
+  plan:
+    source: "artifacts/plan/artifact.yaml"
+  review:
+    source: "artifacts/review/artifact.yaml"
+  decomposition:
+    source: "artifacts/decomposition/artifact.yaml"
+  verification:
+    source: "artifacts/verification/artifact.yaml"
