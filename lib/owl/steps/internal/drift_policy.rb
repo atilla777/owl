@@ -15,13 +15,24 @@ module Owl
       module DriftPolicy
         POLICIES = %w[block warn ignore].freeze
 
+        # Per-check built-in defaults applied when the step has no explicit
+        # `drift_policy:`. For step_context_frontmatter the default is :warn
+        # regardless of session_type (Variant 1 is a soft contract; existing
+        # `.context.md` files without frontmatter must not break validation
+        # before the migration commit lands).
+        BUILT_IN_CHECK_DEFAULTS = {
+          step_context_frontmatter: :warn
+        }.freeze
+
         module_function
 
-        def for(step_payload, override_ignore: false)
+        def for(step_payload, override_ignore: false, check: nil)
           return :ignore if override_ignore
 
           explicit = step_payload && step_payload['drift_policy']&.to_s
           return explicit.to_sym if POLICIES.include?(explicit)
+
+          return BUILT_IN_CHECK_DEFAULTS.fetch(check) if check && BUILT_IN_CHECK_DEFAULTS.key?(check)
 
           discussion?(step_payload) ? :warn : :block
         end

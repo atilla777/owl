@@ -8,6 +8,7 @@ require_relative '../../artifacts/api'
 require_relative '../../validation/internal/schema_check'
 require_relative 'filesystem_refs_check'
 require_relative 'graph_builder'
+require_relative 'step_context_frontmatter_check'
 
 module Owl
   module Workflows
@@ -268,7 +269,20 @@ module Owl
         end
 
         def validate_filesystem_refs(body:, backend:, source_dir:)
-          FilesystemRefsCheck.call(body: body, backend: backend, source_dir: source_dir)
+          refs_result = FilesystemRefsCheck.call(body: body, backend: backend, source_dir: source_dir)
+          return refs_result if refs_result.err?
+
+          frontmatter_result = StepContextFrontmatterCheck.call(
+            body: body, backend: backend, source_dir: source_dir
+          )
+          return frontmatter_result if frontmatter_result.err?
+
+          if frontmatter_result.value.is_a?(Hash) && frontmatter_result.value[:warnings].is_a?(Array)
+            warnings = frontmatter_result.value[:warnings]
+            return Result.ok(checked: true, warnings: warnings) unless warnings.empty?
+          end
+
+          refs_result
         end
       end
     end

@@ -3,6 +3,7 @@
 require 'optparse'
 
 require_relative '../../../workflows/api'
+require_relative '../../../workflows/internal/step_context_frontmatter_check'
 require_relative '../json_printer'
 require_relative 'task_support'
 
@@ -30,7 +31,8 @@ module Owl
                 stderr,
                 code: result.code,
                 message: result.message,
-                details: result.details
+                details: result.details,
+                error_class: error_class_for(result.details)
               )
             end
 
@@ -45,6 +47,19 @@ module Owl
             JsonPrinter.success(stdout, payload)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
+          end
+
+          # Maps `:step_context_frontmatter` failures from
+          # `StepContextFrontmatterCheck` onto the distinct CLI error_class.
+          # Detection uses the `details[:source]` sentinel set by that check
+          # so we do not collide with workflow_validation_failed shapes that
+          # carry per-step schema or graph errors.
+          def error_class_for(details)
+            return :validation unless details.is_a?(Hash)
+            return :step_context_frontmatter if details[:source].to_s ==
+                                                Owl::Workflows::Internal::StepContextFrontmatterCheck::CHECK_KEY.to_s
+
+            :validation
           end
 
           def parse_options(argv)

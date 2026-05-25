@@ -8,6 +8,7 @@ require_relative '../../storage/api'
 require_relative '../backend'
 require_relative '../local'
 require_relative '../internal/default_template'
+require_relative '../internal/frontmatter_parser'
 require_relative '../internal/graph_builder'
 require_relative '../internal/ready_resolver'
 require_relative '../internal/registry_loader'
@@ -270,6 +271,15 @@ module Owl
           end
 
           read_result
+        end
+
+        def read_step_context_frontmatter(source_dir:, step_id:, relative_path:)
+          read_result = read_step_context(
+            source_dir: source_dir, step_id: step_id, relative_path: relative_path
+          )
+          return read_result if read_result.err?
+
+          Internal::FrontmatterParser.parse(read_result.value)
         end
 
         def local_paths_for(key: nil)

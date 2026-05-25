@@ -10,6 +10,13 @@ RSpec.describe Owl::Workflows::Internal::WorkflowValidator, '.validate_filesyste
     def read_step_context(source_dir:, step_id:, relative_path:) # rubocop:disable Lint/UnusedMethodArgument
       Owl::Result.ok(content: 'ok')
     end
+
+    # KOS-156: the wired-in StepContextFrontmatterCheck calls this method on
+    # the backend after KOS-155 passes; treat empty frontmatter as no-op
+    # because legacy KOS-155 tests do not care about frontmatter behavior.
+    def read_step_context_frontmatter(source_dir:, step_id:, relative_path:) # rubocop:disable Lint/UnusedMethodArgument
+      Owl::Result.ok(frontmatter: {}, body: '')
+    end
   end
 
   missing_file_backend = Class.new do
@@ -20,6 +27,10 @@ RSpec.describe Owl::Workflows::Internal::WorkflowValidator, '.validate_filesyste
         details: { step_id: step_id, relative_path: relative_path }
       )
     end
+
+    def read_step_context_frontmatter(source_dir:, step_id:, relative_path:)
+      read_step_context(source_dir: source_dir, step_id: step_id, relative_path: relative_path)
+    end
   end
 
   escape_backend = Class.new do
@@ -29,6 +40,10 @@ RSpec.describe Owl::Workflows::Internal::WorkflowValidator, '.validate_filesyste
         message: "Step '#{step_id}' context_file '#{relative_path}' escapes the workflow source directory.",
         details: { step_id: step_id, relative_path: relative_path }
       )
+    end
+
+    def read_step_context_frontmatter(source_dir:, step_id:, relative_path:)
+      read_step_context(source_dir: source_dir, step_id: step_id, relative_path: relative_path)
     end
   end
 
@@ -72,12 +87,15 @@ RSpec.describe Owl::Workflows::Internal::WorkflowValidator, '.validate_filesyste
     expect(result.value).to eq(skipped: true)
   end
 
-  it 'returns ok when backend reports every context file ok' do
+  it 'returns ok when backend reports every context file ok (empty-frontmatter backend → warnings only)' do
     result = described_class.validate_filesystem_refs(
       body: step_with_variants, backend: ok_backend.new, source_dir: Pathname.new('/tmp')
     )
     expect(result).to be_ok
-    expect(result.value).to eq(checked: true)
+    # KOS-156: an empty-frontmatter backend emits one warning per variant (missing frontmatter)
+    expect(result.value[:checked]).to be(true)
+    expect(result.value[:warnings].map { |w| w[:code] })
+      .to all(eq('step_context_frontmatter_missing'))
   end
 
   it 'reports missing step-level context_file with the /steps/<idx>/context_file locator' do
@@ -137,6 +155,10 @@ RSpec.describe Owl::Workflows::Internal::WorkflowValidator, '.validate_filesyste
       def read_step_context(source_dir:, step_id:, relative_path:)
         @calls << relative_path
         Owl::Result.ok(content: 'ok')
+      end
+
+      def read_step_context_frontmatter(source_dir:, step_id:, relative_path:) # rubocop:disable Lint/UnusedMethodArgument
+        Owl::Result.ok(frontmatter: {}, body: '')
       end
     end.new
 

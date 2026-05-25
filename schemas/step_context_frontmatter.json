@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://owl.dev/schemas/step_context_frontmatter/v1.json",
+  "title": "Step context frontmatter",
+  "description": "Optional YAML frontmatter contract for `.context.md` files referenced from a workflow step's `context_file:` field. Every field is optional; presence is checked against the step shape by `Owl::Workflows::Internal::StepContextFrontmatterCheck` during `owl workflow validate`. Local override: `.owl/schemas/step_context_frontmatter.json` via `Owl::Validation::Internal::SchemaResolver` (see KOS-154).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "step_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifier of the workflow step this context file belongs to. When present must match the step's `id:` in workflow.yaml."
+    },
+    "applies_to_session_type": {
+      "type": "string",
+      "enum": ["discussion", "execution"],
+      "description": "Session kind the context targets. When present must match the step's `session_type:`."
+    },
+    "applies_to_variants": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Variant keys this context applies to. Only meaningful on steps that declare a `variants:` block. For variant-bound files (e.g. `brief.feature.context.md`) the derived variant must appear in this list."
+    },
+    "intended_audience": {
+      "type": "string",
+      "enum": ["orchestrator", "subagent"],
+      "description": "Whether the context is authored for the orchestrator session or for an isolated subagent invocation."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-line human summary; cosmetic, not consumed by the runtime."
+    }
+  }
+}

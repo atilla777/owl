@@ -49,6 +49,15 @@ module Owl
         raise NotImplementedError
       end
 
+      # Returns `Result.ok(body: String, frontmatter: Hash)` for backends that
+      # also surface the optional YAML frontmatter declared at the head of a
+      # `.context.md` file. Existing `read_step_context` callers (KOS-155
+      # FilesystemRefsCheck, StepContextResolver, bundle_builder) continue to
+      # consume the raw body and are unaffected.
+      def read_step_context_frontmatter(source_dir:, step_id:, relative_path:)
+        raise NotImplementedError
+      end
+
       def seeded_sources
         raise NotImplementedError
       end

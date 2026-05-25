@@ -61,14 +61,29 @@ RSpec.describe Owl::Cli::Internal::JsonPrinter do
   end
 
   describe '::EXIT_CODES' do
-    it 'maps the three classes to their canonical exit codes' do
+    it 'maps the four classes to their canonical exit codes' do
       expect(described_class::EXIT_CODES).to eq(
-        validation: 1, recoverable: 2, fatal: 3
+        validation: 1, recoverable: 2, fatal: 3, step_context_frontmatter: 4
       )
     end
 
     it 'is frozen' do
       expect(described_class::EXIT_CODES).to be_frozen
+    end
+  end
+
+  describe '.failure with :step_context_frontmatter error_class (KOS-156)' do
+    it 'maps :step_context_frontmatter to exit 4' do
+      exit_code = described_class.failure(
+        stderr,
+        code: :workflow_validation_failed,
+        message: 'frontmatter contract violation',
+        details: { source: 'step_context_frontmatter', errors: [] },
+        error_class: :step_context_frontmatter
+      )
+      expect(exit_code).to eq(4)
+      payload = JSON.parse(stderr.string)
+      expect(payload.dig('error', 'error_class')).to eq('step_context_frontmatter')
     end
   end
 end

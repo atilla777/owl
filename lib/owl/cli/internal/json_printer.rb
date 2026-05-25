@@ -8,15 +8,22 @@ module Owl
       # JSON-payload printer for the env-agnostic CLI contract.
       #
       # Failures carry both a specific `code` (e.g. `'drift_block'`) and a
-      # broad `error_class` (`'validation' | 'recoverable' | 'fatal'`) that
-      # maps deterministically to the process exit code via EXIT_CODES.
-      # Orchestrator scripts read either source: the exit code for a fast
-      # branch and the JSON payload for full detail (RFC #1 §4.6).
+      # broad `error_class` that maps deterministically to the process exit
+      # code via EXIT_CODES. Orchestrator scripts read either source: the
+      # exit code for a fast branch and the JSON payload for full detail
+      # (RFC #1 §4.6).
+      #
+      # Exit codes:
+      #   1  validation               — workflow / artifact / argument schema or shape error
+      #   2  recoverable              — drift, lock, retryable runtime condition
+      #   3  fatal                    — unrecoverable runtime (missing gem assets, etc.)
+      #   4  step_context_frontmatter — `.context.md` frontmatter contract violation (KOS-156)
       module JsonPrinter
         EXIT_CODES = {
           validation: 1,
           recoverable: 2,
-          fatal: 3
+          fatal: 3,
+          step_context_frontmatter: 4
         }.freeze
 
         module_function
