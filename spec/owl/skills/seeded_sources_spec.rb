@@ -39,6 +39,29 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
   let(:files) { Owl::Skills::Api.seeded_sources }
   let(:paths) { files.map { |entry| entry[:relative_path] } }
 
+  describe 'agent-target prefixes' do
+    it 'defaults to the Claude Code layout (.claude/) when no target is given' do
+      expect(paths).to all(match(%r{\A\.claude/(skills|commands)/}))
+    end
+
+    it 'materializes the OpenCode layout (.opencode/) for targets: [:opencode]' do
+      opencode_paths = Owl::Skills::Api.seeded_sources(targets: %i[opencode])
+                                       .map { |entry| entry[:relative_path] }
+      expect(opencode_paths).to all(match(%r{\A\.opencode/(skills|commands)/}))
+      expect(opencode_paths).to include('.opencode/skills/owl-orchestrator/SKILL.md')
+      expect(opencode_paths).to include('.opencode/commands/owl-orchestrator.md')
+    end
+
+    it 'materializes both layouts for targets: [:claude, :opencode] without dropping files' do
+      both = Owl::Skills::Api.seeded_sources(targets: %i[claude opencode])
+                             .map { |entry| entry[:relative_path] }
+      claude_only = Owl::Skills::Api.seeded_sources(targets: %i[claude]).length
+      expect(both.length).to eq(claude_only * 2)
+      expect(both).to include('.claude/skills/owl-cli/SKILL.md')
+      expect(both).to include('.opencode/skills/owl-cli/SKILL.md')
+    end
+  end
+
   describe 'universal-skill seeded surface' do
     it 'does not ship any per-step `owl-step-<id>` SKILL.md' do
       stale = OWL_STEP_HARDCODED_STEP_IDS.select do |id|

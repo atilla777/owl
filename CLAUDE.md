@@ -16,6 +16,8 @@ The Owl CLI is self-hosted — this repository dogfoods its own tool.
 
 Materialised by `owl init` into `.claude/skills/owl-*` and `.claude/commands/owl-*`. Refresh by re-running `bin/owl init --force` after changes in `skills/owl-*`.
 
+The target layout is selectable: `bin/owl init --agent claude|opencode|both` writes the skills/commands into Claude Code's `.claude/` layout (default), OpenCode's `.opencode/` layout, or both. The choice is persisted to `.owl/config.yaml` under `settings.agent_targets` and honoured by later `--force` re-runs.
+
 Primary entrypoints:
 
 - `/owl-orchestrator` — drive the current Owl task through its workflow end-to-end. Default for "what should I work on next?" or "continue".

@@ -18,9 +18,11 @@ module Owl
       module Scaffolder
         module_function
 
-        def call(root:, force: false)
+        def call(root:, force: false, agent_targets: Owl::Skills::Internal::SeededSources::DEFAULT_TARGETS)
           root_path = Pathname.new(root.to_s).expand_path
-          files = LayoutFiles.call(root: root_path, project_id: derive_project_id(root_path))
+          files = LayoutFiles.call(
+            root: root_path, project_id: derive_project_id(root_path), agent_targets: agent_targets
+          )
 
           created = []
           skipped = []

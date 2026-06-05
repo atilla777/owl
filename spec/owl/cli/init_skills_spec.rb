@@ -177,4 +177,34 @@ RSpec.describe 'owl init — Owl::Skills integration' do
       expect(target.read).not_to eq("# mutated by the test\n")
     end
   end
+
+  it 'materializes the OpenCode layout with --agent opencode' do
+    with_tmp_project do |root|
+      exit_code, _stdout, _stderr = run(['init', '--root', root.to_s, '--agent', 'opencode'], cwd: root)
+      expect(exit_code).to eq(0)
+
+      expect((root + '.opencode/skills/owl-orchestrator/SKILL.md').exist?).to be(true)
+      expect((root + '.opencode/commands/owl-orchestrator.md').exist?).to be(true)
+      expect((root + '.claude').exist?).to be(false)
+    end
+  end
+
+  it 'materializes both layouts with --agent both' do
+    with_tmp_project do |root|
+      exit_code, _stdout, _stderr = run(['init', '--root', root.to_s, '--agent', 'both'], cwd: root)
+      expect(exit_code).to eq(0)
+
+      expect((root + '.claude/skills/owl-cli/SKILL.md').exist?).to be(true)
+      expect((root + '.opencode/skills/owl-cli/SKILL.md').exist?).to be(true)
+    end
+  end
+
+  it 'rejects an unsupported --agent value' do
+    with_tmp_project do |root|
+      exit_code, _stdout, stderr = run(['init', '--root', root.to_s, '--agent', 'cursor'], cwd: root)
+      expect(exit_code).not_to eq(0)
+      body = JSON.parse(stderr)
+      expect(body['error']['code']).to eq('invalid_arguments')
+    end
+  end
 end

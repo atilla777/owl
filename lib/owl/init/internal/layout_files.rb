@@ -16,7 +16,7 @@ module Owl
 
         module_function
 
-        def call(root:, project_id:)
+        def call(root:, project_id:, agent_targets: Owl::Skills::Internal::SeededSources::DEFAULT_TARGETS)
           base = [
             { path: "#{root}/.owl/config.yaml",
               contents: Owl::Config::Api.default_template(project_id: project_id) },
@@ -38,7 +38,7 @@ module Owl
           base + overlays \
                + seeded_files(root: root, sources: Owl::Workflows::Api.seeded_sources) \
                + seeded_files(root: root, sources: Owl::Artifacts::Api.seeded_sources) \
-               + seeded_files(root: root, sources: Owl::Skills::Api.seeded_sources)
+               + seeded_files(root: root, sources: Owl::Skills::Api.seeded_sources(targets: agent_targets))
         end
 
         def seeded_files(root:, sources:)

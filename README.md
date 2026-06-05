@@ -444,6 +444,52 @@ If any file is missing, re-run `owl init --force` or copy from
 `skills/<name>/SKILL.md` in this repository by hand. **Do not invent
 SKILL.md content** — the seeded versions are the contract.
 
+### 5b. Choosing the agent layout (Claude Code / OpenCode)
+
+By default `owl init` materializes skills and commands into Claude
+Code's layout (`.claude/skills/`, `.claude/commands/`). OpenCode uses
+its own folders, so `owl init` takes an `--agent` flag to pick the
+target layout:
+
+```bash
+owl init                      # .claude/  (default — Claude Code)
+owl init --agent opencode     # .opencode/  (OpenCode only)
+owl init --agent both         # both layouts
+```
+
+| `--agent`  | Skills materialized to | Commands materialized to |
+| ---------- | ---------------------- | ------------------------ |
+| `claude`   | `.claude/skills/`      | `.claude/commands/`      |
+| `opencode` | `.opencode/skills/`    | `.opencode/commands/`    |
+| `both`     | both of the above      | both of the above        |
+
+The choice is persisted to `.owl/config.yaml` under
+`settings.agent_targets`, so a later `owl init --force` re-materializes
+into the same layout without re-passing `--agent`.
+
+**Why a flag and not the `.claude/` defaults.** OpenCode *can* read
+`.claude/skills/<name>/SKILL.md` natively, but its Claude-compatibility
+can be turned off, and it never reads `.claude/commands/` (custom
+commands only live under `.opencode/commands/`). `--agent opencode`
+sidesteps both issues by writing OpenCode's own layout directly.
+
+**Agent installing Owl: ask first.** When you don't already know which
+harness will drive the project, ask the user via `AskUserQuestion`
+("Claude Code, OpenCode, or both?") *before* running `owl init`, then
+pass the matching `--agent` value. This is the same "agent asks, then
+calls the CLI" pattern used throughout this README.
+
+Verify the chosen layout, e.g. for OpenCode:
+
+```bash
+ls .opencode/skills/owl-orchestrator/SKILL.md
+ls .opencode/commands/owl-orchestrator.md
+```
+
+Then `/owl-orchestrator`, `/owl-task-create`, etc. work in the OpenCode
+TUI exactly as they do in Claude Code. Decide per project whether to
+commit `.opencode/` or add it to `.gitignore` (step 4).
+
 ### 6. Configure runtime settings (optional)
 
 `owl init` already seeded a working `.owl/config.yaml` with sensible

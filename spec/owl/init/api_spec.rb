@@ -3,8 +3,13 @@
 require 'pathname'
 
 require 'owl/init/api'
+require 'owl/config/api'
 
 RSpec.describe Owl::Init::Api do
+  def agent_targets_in(root)
+    Owl::Config::Api.read_key(root: root.to_s, key: 'settings.agent_targets').value[:value]
+  end
+
   describe '.scaffold' do
     it 'creates the canonical project layout under root and reports created paths' do
       with_tmp_project do |root|
@@ -74,6 +79,48 @@ RSpec.describe Owl::Init::Api do
 
         overlay_body = Pathname.new("#{root}/.owl/overlays/brief.md").read
         expect(overlay_body).to include('Optional project overlay for the `brief` step')
+      end
+    end
+
+    context 'with agent_targets' do
+      it 'defaults to the Claude Code layout and records it in settings.agent_targets' do
+        with_tmp_project do |root|
+          described_class.scaffold(root: root)
+
+          expect(Pathname.new("#{root}/.claude/skills/owl-orchestrator/SKILL.md").exist?).to be(true)
+          expect(Pathname.new("#{root}/.opencode").exist?).to be(false)
+          expect(agent_targets_in(root)).to eq(%w[claude])
+        end
+      end
+
+      it 'materializes the OpenCode layout and records it when agent_targets: [:opencode]' do
+        with_tmp_project do |root|
+          described_class.scaffold(root: root, agent_targets: %i[opencode])
+
+          expect(Pathname.new("#{root}/.opencode/skills/owl-orchestrator/SKILL.md").exist?).to be(true)
+          expect(Pathname.new("#{root}/.opencode/commands/owl-orchestrator.md").exist?).to be(true)
+          expect(Pathname.new("#{root}/.claude").exist?).to be(false)
+          expect(agent_targets_in(root)).to eq(%w[opencode])
+        end
+      end
+
+      it 'materializes both layouts when agent_targets: [:claude, :opencode]' do
+        with_tmp_project do |root|
+          described_class.scaffold(root: root, agent_targets: %i[claude opencode])
+
+          expect(Pathname.new("#{root}/.claude/skills/owl-cli/SKILL.md").exist?).to be(true)
+          expect(Pathname.new("#{root}/.opencode/skills/owl-cli/SKILL.md").exist?).to be(true)
+          expect(agent_targets_in(root)).to eq(%w[claude opencode])
+        end
+      end
+
+      it 'honours the persisted target on a forced re-run with no explicit agent_targets' do
+        with_tmp_project do |root|
+          described_class.scaffold(root: root, agent_targets: %i[opencode])
+          described_class.scaffold(root: root, force: true)
+
+          expect(agent_targets_in(root)).to eq(%w[opencode])
+        end
       end
     end
   end

@@ -7,8 +7,8 @@ module Owl
     module Api
       module_function
 
-      def seeded_sources
-        Internal::SeededSources.files
+      def seeded_sources(targets: Internal::SeededSources::DEFAULT_TARGETS)
+        Internal::SeededSources.files(targets: targets)
       end
     end
   end

@@ -65,7 +65,31 @@ module Owl
           errors = []
           errors.concat(validate_settings_language(settings['language']))
           errors.concat(validate_settings_storage(settings['storage']))
+          errors.concat(validate_settings_agent_targets(settings['agent_targets']))
           errors
+        end
+
+        SUPPORTED_AGENT_TARGETS = %w[claude opencode].freeze
+
+        def validate_settings_agent_targets(agent_targets)
+          return [] if agent_targets.nil?
+
+          unless agent_targets.is_a?(Array) && !agent_targets.empty?
+            return [{
+              code: :invalid_settings_agent_targets_shape,
+              message: 'settings.agent_targets must be a non-empty array when present'
+            }]
+          end
+
+          unsupported = agent_targets.reject { |target| SUPPORTED_AGENT_TARGETS.include?(target) }
+          return [] if unsupported.empty?
+
+          [{
+            code: :unsupported_settings_agent_target,
+            message: "settings.agent_targets contains unsupported value(s): #{unsupported.join(', ')}; " \
+                     "supported: #{SUPPORTED_AGENT_TARGETS.join(', ')}",
+            details: { unsupported: unsupported, supported: SUPPORTED_AGENT_TARGETS }
+          }]
         end
 
         def validate_settings_language(language)

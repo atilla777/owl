@@ -77,6 +77,39 @@ RSpec.describe Owl::Config::Backends::Filesystem do
         expect(result.details[:errors]).not_to be_empty
       end
     end
+
+    def body_with_agent_targets(value)
+      parsed = YAML.safe_load(valid_body)
+      parsed['settings']['agent_targets'] = value
+      parsed.to_yaml
+    end
+
+    it 'returns Ok when settings.agent_targets holds supported values' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", body_with_agent_targets(%w[claude opencode]))
+        expect(build(root: root).validate).to be_ok
+      end
+    end
+
+    it 'returns Err for an unsupported settings.agent_targets value' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", body_with_agent_targets(%w[cursor]))
+        result = build(root: root).validate
+        expect(result).to be_err
+        expect(result.details[:errors].map { |e| e[:code] })
+          .to include(:unsupported_settings_agent_target)
+      end
+    end
+
+    it 'returns Err when settings.agent_targets is not a non-empty array' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", body_with_agent_targets([]))
+        result = build(root: root).validate
+        expect(result).to be_err
+        expect(result.details[:errors].map { |e| e[:code] })
+          .to include(:invalid_settings_agent_targets_shape)
+      end
+    end
   end
 
   describe '#read_key' do
