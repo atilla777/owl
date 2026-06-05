@@ -6,7 +6,6 @@ require 'pathname'
 require_relative '../../../result'
 require_relative '../atomic_yaml_writer'
 require_relative '../index_rebuilder'
-require_relative 'current_resetter'
 require_relative 'path_rename'
 
 module Owl
@@ -17,14 +16,13 @@ module Owl
           module_function
 
           def call(source_dir:, destination_path:, archived_payload:, task_yaml_relative:,
-                   tasks_root:, index_path:, local_state_root:, task_id:)
+                   tasks_root:, index_path:, task_id:)
             state = build_state(
               source_dir: source_dir,
               destination_path: destination_path,
               task_yaml_relative: task_yaml_relative,
               tasks_root: tasks_root,
               index_path: index_path,
-              local_state_root: local_state_root,
               task_id: task_id
             )
 
@@ -40,7 +38,7 @@ module Owl
           end
 
           def build_state(source_dir:, destination_path:, task_yaml_relative:,
-                          tasks_root:, index_path:, local_state_root:, task_id:)
+                          tasks_root:, index_path:, task_id:)
             source = Pathname.new(source_dir.to_s)
             {
               source: source,
@@ -49,7 +47,6 @@ module Owl
               previous_task_yaml_bytes: nil,
               tasks_root: tasks_root,
               index_path: index_path,
-              local_state_root: local_state_root,
               task_id: task_id
             }
           end
@@ -91,22 +88,13 @@ module Owl
             )
           end
 
+          # The current-task pointer is intentionally NOT reset here. An archived
+          # task stays the current task so the workflow can finish its
+          # post-archive steps (e.g. `commit_push`). The pointer is reset later,
+          # when the final step completes (see Steps::Api.complete).
           def finalize_current(state)
-            reset_result = CurrentResetter.reset_if_matches(
-              local_state_root: state[:local_state_root], task_id: state[:task_id]
-            )
-            if reset_result.err?
-              rollback_index(state)
-              restore_task_yaml(state)
-              return Result.err(
-                code: :archive_current_reset_failed,
-                message: reset_result.message,
-                details: reset_result.details
-              )
-            end
-
             Result.ok(
-              current_reset: reset_result.value[:reset],
+              current_reset: false,
               previous_task_yaml_bytes: state[:previous_task_yaml_bytes]
             )
           end
@@ -123,15 +111,6 @@ module Owl
             return unless state[:dest].exist?
 
             PathRename.call(source: state[:dest], dest: state[:source])
-          end
-
-          def rollback_index(state)
-            rollback_rename(state)
-            Owl::Tasks::Internal::IndexRebuilder.rebuild(
-              tasks_root: state[:tasks_root], index_path: state[:index_path]
-            )
-          rescue StandardError
-            # Best-effort rollback; upstream error is already being reported.
           end
         end
       end

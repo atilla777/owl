@@ -91,6 +91,107 @@ RSpec.describe Owl::Archive::Api do
       end
     end
 
+    # End-to-end reproduction of the reported deadlock: a feature-style
+    # workflow whose `archive` step runs `owl archive`, followed by a
+    # `commit_push` step. At archive time the `archive` step is `running`
+    # and `commit_push` is `pending`; the archive side effect must still run.
+    def feature_with_archive_yaml
+      <<~YAML
+        id: feature
+        kind: task
+        steps:
+          - id: implement
+          - id: review_code
+            requires: [implement]
+          - id: merge_docs
+            requires: [review_code]
+          - id: archive
+            requires: [merge_docs]
+          - id: commit_push
+            requires: [archive]
+      YAML
+    end
+
+    it 'archives while the archive step is running and commit_push is pending' do
+      with_tmp_project do |root|
+        task_id = setup_project(root, workflow_yaml: feature_with_archive_yaml, title: 'Archive Me')
+        mark_all_done(root, task_id, %w[implement review_code merge_docs])
+        force_step_status(root, task_id, 'archive', 'running')
+        # commit_push stays pending
+
+        result = described_class.archive_task(root: root, task_id: task_id, now: now)
+        dest = Pathname.new("#{root}/tasks/archive/2026-05-17-#{task_id}-archive-me")
+
+        aggregate_failures do
+          expect(result).to be_ok
+          expect(dest.directory?).to be(true)
+          expect((Pathname.new(root) + 'tasks' + task_id).exist?).to be(false)
+        end
+      end
+    end
+
+    it 'drives the full archive -> commit_push flow end-to-end via the CLI' do
+      # The exact reported sequence: after the archive side effect moves the
+      # task out of tasks/<id>/, the workflow must still complete `archive` and
+      # `commit_push` against the archived location, and only THEN release the
+      # current pointer.
+      with_tmp_project do |root|
+        task_id = setup_project(root, workflow_yaml: feature_with_archive_yaml, title: 'E2E')
+        mark_all_done(root, task_id, %w[implement review_code])
+        run_cli(['task', 'use', task_id, '--root', root.to_s, '--json'], cwd: root)
+        pointer_path = Pathname.new("#{root}/.owl/local/current.yaml")
+        live_dir = Pathname.new("#{root}/tasks/#{task_id}")
+        archived_dir = Pathname.new("#{root}/tasks/archive/2026-05-17-#{task_id}-e2e")
+
+        run_cli(['step', 'start', task_id, 'merge_docs', '--root', root.to_s, '--json'], cwd: root)
+        run_cli(['step', 'complete', task_id, 'merge_docs', '--root', root.to_s, '--json'], cwd: root)
+        run_cli(['step', 'start', task_id, 'archive', '--root', root.to_s, '--json'], cwd: root)
+
+        # Archive side effect: directory moves, pointer is preserved.
+        archive_result = described_class.archive_task(root: root, task_id: task_id, now: now)
+
+        # status resolves the archived task mid-flow (was task_not_found before).
+        status_code, status_out, = run_cli(['status', task_id, '--root', root.to_s, '--json'], cwd: root)
+
+        # Completing `archive` resolves the moved task (was unknown_step_id before)
+        # and does NOT release the pointer while commit_push is still pending.
+        complete_archive, = run_cli(['step', 'complete', task_id, 'archive', '--root', root.to_s, '--json'], cwd: root)
+        pointer_after_archive_step = pointer_path.exist?
+
+        # Post-archive step runs and completes; the final completion releases the pointer.
+        start_push, = run_cli(['step', 'start', task_id, 'commit_push', '--root', root.to_s, '--json'], cwd: root)
+        complete_push, = run_cli(['step', 'complete', task_id, 'commit_push', '--root', root.to_s, '--json'], cwd: root)
+
+        aggregate_failures do
+          expect(archive_result).to be_ok
+          expect(live_dir.exist?).to be(false)
+          expect(archived_dir.directory?).to be(true)
+          expect(pointer_path.exist?).to be(false) # released only after the final step
+          expect(status_code).to eq(0)
+          expect(JSON.parse(status_out).dig('task', 'id')).to eq(task_id)
+          expect(complete_archive).to eq(0)
+          expect(pointer_after_archive_step).to be(true)
+          expect(start_push).to eq(0)
+          expect(complete_push).to eq(0)
+        end
+      end
+    end
+
+    it 'still blocks archival when a pre-archive step is not done' do
+      with_tmp_project do |root|
+        task_id = setup_project(root, workflow_yaml: feature_with_archive_yaml, title: 't')
+        mark_all_done(root, task_id, %w[implement review_code])
+        force_step_status(root, task_id, 'merge_docs', 'running')
+        force_step_status(root, task_id, 'archive', 'running')
+
+        result = described_class.archive_task(root: root, task_id: task_id, now: now)
+        expect(result).to be_err
+        expect(result.code).to eq(:workflow_incomplete)
+        ids = result.details[:incomplete_steps].map { |s| s[:id] }
+        expect(ids).to eq(%w[merge_docs])
+      end
+    end
+
     it 'accepts a skipped publish step as opt-out' do
       with_tmp_project do |root|
         task_id = setup_project(root, title: 'Skipped publish')
@@ -188,7 +289,10 @@ RSpec.describe Owl::Archive::Api do
       end
     end
 
-    it 'resets .owl/local/current.yaml when archiving the current task' do
+    it 'keeps .owl/local/current.yaml pointing at the archived task (reset is deferred)' do
+      # Option-1 semantics: archival no longer clears the current pointer, so the
+      # workflow can still drive its post-archive steps (e.g. commit_push). The
+      # pointer is released later, when the final step completes.
       with_tmp_project do |root|
         task_id = setup_project(root, title: 'Current Task')
         mark_all_done(root, task_id, %w[specify verify publish])
@@ -199,8 +303,9 @@ RSpec.describe Owl::Archive::Api do
 
         result = described_class.archive_task(root: root, task_id: task_id, now: now)
         expect(result).to be_ok
-        expect(result.value[:current_reset]).to be(true)
-        expect(pointer_path.exist?).to be(false)
+        expect(result.value[:current_reset]).to be(false)
+        expect(pointer_path.exist?).to be(true)
+        expect(YAML.safe_load(pointer_path.read)['task_id']).to eq(task_id)
       end
     end
 

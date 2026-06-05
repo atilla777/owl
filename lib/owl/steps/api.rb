@@ -6,6 +6,7 @@ require_relative '../tasks/internal/paths'
 require_relative '../tasks/internal/task_reader'
 require_relative '../workflows/api'
 require_relative '../workflows/internal/graph_builder'
+require_relative 'internal/archive_finalizer'
 require_relative 'internal/artifact_sha_collector'
 require_relative 'internal/bundle_builder'
 require_relative 'internal/invocation_builder'
@@ -91,12 +92,18 @@ module Owl
         sha_result = Internal::ArtifactShaCollector.call(root: root, task_id: task_id, step_id: step_id)
         attributes['content_sha'] = sha_result.value if sha_result.ok? && !sha_result.value.nil?
 
-        strip_local(Internal::StatusWriter.update(
-                      tasks_root: paths.value[:tasks],
-                      task_id: task_id,
-                      step_id: step_id,
-                      attributes: attributes
-                    ))
+        write = strip_local(Internal::StatusWriter.update(
+                              tasks_root: paths.value[:tasks],
+                              task_id: task_id,
+                              step_id: step_id,
+                              attributes: attributes
+                            ))
+        return write if write.err?
+
+        Internal::ArchiveFinalizer.call(
+          tasks_root: paths.value[:tasks], local_state_root: paths.value[:local_state], task_id: task_id
+        )
+        write
       end
 
       def reopen(root:, task_id:, step_id:, cascade: false)

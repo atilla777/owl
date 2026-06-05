@@ -127,7 +127,6 @@ module Owl
               task_yaml_relative: Owl::Tasks::Internal::TaskReader::TASK_FILENAME,
               tasks_root: context[:paths][:tasks],
               index_path: context[:paths][:index],
-              local_state_root: context[:paths][:local_state],
               task_id: context[:task_id]
             )
             return move if move.err?
