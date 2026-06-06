@@ -7,7 +7,7 @@ require 'yaml'
 require 'owl/cli/api'
 
 SEEDED_WORKFLOW_KEYS = %w[feature composite_feature].freeze
-SEEDED_ARTIFACT_KEYS = %w[brief design plan review decomposition verification spec].freeze
+SEEDED_ARTIFACT_KEYS = %w[brief design plan review decomposition verification spec spec_delta].freeze
 
 RSpec.describe 'owl init seeded workflow + artifact templates' do
   def run(argv, cwd:)
@@ -33,7 +33,7 @@ RSpec.describe 'owl init seeded workflow + artifact templates' do
     end
   end
 
-  it 'materializes an artifact.yaml + templates/default.md for each of the seven artifact types' do
+  it 'materializes an artifact.yaml + templates/default.md for each of the eight artifact types' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
 
@@ -48,13 +48,16 @@ RSpec.describe 'owl init seeded workflow + artifact templates' do
         expect(parsed['id']).to eq(key)
         expect(parsed['kind']).to eq('markdown')
         expect(parsed['default_template']).to eq('templates/default.md')
-        expect(parsed.dig('validation', 'required_sections')).to be_an(Array)
+        # Every seeded artifact declares validation rules — either a
+        # `required_sections` set or (e.g. spec_delta) `required_patterns`.
+        validation = parsed['validation']
+        expect(validation['required_sections'] || validation['required_patterns']).to be_an(Array)
       end
     end
   end
 
   describe 'owl config validate --json' do
-    it 'returns valid: true with all two workflows + seven artifacts on a fresh init' do
+    it 'returns valid: true with all two workflows + eight artifacts on a fresh init' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
         exit_code, stdout, _stderr = run(['config', 'validate', '--root', root.to_s, '--json'], cwd: root)
@@ -63,7 +66,7 @@ RSpec.describe 'owl init seeded workflow + artifact templates' do
         expect(body['valid']).to be(true)
         expect(body.dig('workflows', 'count')).to eq(2)
         expect(body.dig('workflows', 'keys')).to match_array(SEEDED_WORKFLOW_KEYS)
-        expect(body.dig('artifacts', 'count')).to eq(7)
+        expect(body.dig('artifacts', 'count')).to eq(8)
         expect(body.dig('artifacts', 'keys')).to match_array(SEEDED_ARTIFACT_KEYS)
         expect(body['errors']).to eq([])
       end

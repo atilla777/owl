@@ -8,6 +8,7 @@ require_relative 'internal/spec_locator'
 require_relative 'internal/merge_engine'
 require_relative 'internal/spec_document'
 require_relative 'internal/trace_checker'
+require_relative 'internal/task_merger'
 
 module Owl
   module Specs
@@ -74,6 +75,18 @@ module Owl
           dangling: report[:dangling],
           unverified: report[:unverified]
         )
+      end
+
+      # Merge a task's optional `spec_delta` artifact into its domain's living
+      # spec and gate on traceability. Resolves the task's `spec_delta`, applies
+      # it via the P4 engine (`apply`), then runs the P5 trace with `strict:
+      # true` as a gate. When the task declares no delta this is a graceful
+      # no-op (`ok: true, applied: false, reason: 'no_spec_delta'`). A trace
+      # gate failure returns `ok: false` but does NOT roll back the applied
+      # delta. `dry_run: true` previews without writing. Delegates to
+      # `Internal::TaskMerger`.
+      def merge_task(root:, task_id:, dry_run: false)
+        Internal::TaskMerger.merge(root: root, task_id: task_id, dry_run: dry_run)
       end
 
       # Preview a delta merge without writing: returns the before/after spec

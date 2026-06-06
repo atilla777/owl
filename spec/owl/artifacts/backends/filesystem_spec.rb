@@ -29,13 +29,13 @@ RSpec.describe Owl::Artifacts::Backends::Filesystem do
   end
 
   describe '#registry' do
-    it 'returns Ok with the seven seeded artifact entries on a seeded project' do
+    it 'returns Ok with the eight seeded artifact entries on a seeded project' do
       with_tmp_project do |root|
         write("#{root}/.owl/artifacts.yaml", described_class.new(root: nil).default_template)
         result = described_class.new(root: root).registry
         expect(result).to be_ok
         expect(result.value[:entries].map { |e| e[:key] }).to contain_exactly(
-          'brief', 'design', 'plan', 'review', 'decomposition', 'verification', 'spec'
+          'brief', 'design', 'plan', 'review', 'decomposition', 'verification', 'spec', 'spec_delta'
         )
       end
     end
@@ -50,13 +50,13 @@ RSpec.describe Owl::Artifacts::Backends::Filesystem do
   end
 
   describe '#list' do
-    it 'lists seven seeded artifacts with source-present metadata after seed' do
+    it 'lists eight seeded artifacts with source-present metadata after seed' do
       with_tmp_project do |root|
         seed_project(root)
         result = described_class.new(root: root).list
         expect(result).to be_ok
         expect(result.value.map { |e| e[:key] }).to contain_exactly(
-          'brief', 'design', 'plan', 'review', 'decomposition', 'verification', 'spec'
+          'brief', 'design', 'plan', 'review', 'decomposition', 'verification', 'spec', 'spec_delta'
         )
         expect(result.value).to all(include(source_present: true))
       end
@@ -179,21 +179,21 @@ RSpec.describe Owl::Artifacts::Backends::Filesystem do
   end
 
   describe '#default_template' do
-    it 'returns a YAML mapping with the seven seeded artifact entries' do
+    it 'returns a YAML mapping with the eight seeded artifact entries' do
       parsed = YAML.safe_load(described_class.new(root: nil).default_template)
       expect(parsed['artifacts'].keys).to contain_exactly(
-        'brief', 'design', 'plan', 'review', 'decomposition', 'verification', 'spec'
+        'brief', 'design', 'plan', 'review', 'decomposition', 'verification', 'spec', 'spec_delta'
       )
     end
   end
 
   describe '#seeded_sources' do
-    it 'returns seven artifact YAMLs and seven Markdown skeletons' do
+    it 'returns eight artifact YAMLs and eight Markdown skeletons' do
       sources = described_class.new(root: nil).seeded_sources
       yaml_files = sources.select { |f| f[:relative_path].end_with?('artifact.yaml') }
       markdown_files = sources.select { |f| f[:relative_path].end_with?('templates/default.md') }
-      expect(yaml_files.size).to eq(7)
-      expect(markdown_files.size).to eq(7)
+      expect(yaml_files.size).to eq(8)
+      expect(markdown_files.size).to eq(8)
     end
   end
 end

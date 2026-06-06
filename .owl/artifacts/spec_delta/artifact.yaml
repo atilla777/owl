@@ -1,0 +1,26 @@
+id: spec_delta
+title: Spec Delta
+kind: markdown
+description: Structural delta against a domain's living spec — ADDED/MODIFIED/REMOVED Requirements applied deterministically by `owl spec merge` (P4 engine) and gated by `owl spec trace --strict` (P5).
+default_template: templates/default.md
+
+front_matter:
+  type: object
+  required: [domain, status]
+  properties:
+    domain:
+      type: string
+    status:
+      type: string
+      enum: [draft, merged]
+
+validation:
+  required_patterns:
+    - pattern: '(?m)^## (ADDED|MODIFIED|REMOVED) Requirements'
+      type: regex
+      level: error
+      description: >-
+        A spec delta must declare at least one `## ADDED Requirements`,
+        `## MODIFIED Requirements`, or `## REMOVED Requirements` section so an
+        empty delta fails early (see the Requirement/Scenario grammar in
+        docs/agents/31_Owl_Requirement_Scenario_grammar.md).

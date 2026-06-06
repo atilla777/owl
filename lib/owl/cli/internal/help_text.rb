@@ -48,7 +48,7 @@ module Owl
             artifact validate       Validate a task artifact (existence, sections, patterns, front matter).
             publish                 Publish task artifacts to the docs storage role per workflow `publishes` rules.
             archive                 Move a completed task into the archive role; or read-only list|show|read of archived tasks.
-            spec                    Project-level domain specs: list|show|path|validate|trace DOMAIN [--strict]; diff|apply DOMAIN --delta PATH [--dry-run] (structural delta-merge).
+            spec                    Project-level domain specs: list|show|path|validate|trace DOMAIN [--strict]; diff|apply DOMAIN --delta PATH [--dry-run] (structural delta-merge); merge TASK-ID [--dry-run] (apply a task's spec_delta + trace gate).
             instructions            Show the next ready step packaged with its SKILL.md summary (JSON).
             status                  Show workflow progress for a task (steps, progress, blockers, children).
 

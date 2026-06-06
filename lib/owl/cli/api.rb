@@ -21,6 +21,7 @@ require_relative 'internal/commands/publish'
 require_relative 'internal/commands/spec_apply'
 require_relative 'internal/commands/spec_diff'
 require_relative 'internal/commands/spec_list'
+require_relative 'internal/commands/spec_merge'
 require_relative 'internal/commands/spec_path'
 require_relative 'internal/commands/spec_show'
 require_relative 'internal/commands/spec_trace'
@@ -127,6 +128,7 @@ module Owl
         when 'trace' then Internal::Commands::SpecTrace.run(**kwargs)
         when 'diff' then Internal::Commands::SpecDiff.run(**kwargs)
         when 'apply' then Internal::Commands::SpecApply.run(**kwargs)
+        when 'merge' then Internal::Commands::SpecMerge.run(**kwargs)
         else unknown_command(stderr, "spec #{subcommand}".strip)
         end
       end
