@@ -47,6 +47,9 @@ module Owl
                     docs:
                       path: "{{project.root}}/docs"
 
+                    specs:
+                      path: "{{project.root}}/specs"
+
             settings:
               language:
                 communication: en
@@ -58,6 +61,7 @@ module Owl
                   tasks: "{{project.root}}/tasks"
                   docs: "{{project.root}}/docs"
                   archive: "{{project.root}}/tasks/archive"
+                  specs: "{{project.root}}/specs"
 
               workflows:
                 enabled: []

@@ -26,6 +26,8 @@ storage:
           path: "{{project.root}}/tasks/archive"
         docs:
           path: "{{project.root}}/docs"
+        specs:
+          path: "{{project.root}}/specs"
 settings:
   language:
     communication: ru
@@ -35,5 +37,6 @@ settings:
       tasks: "{{project.root}}/tasks"
       docs: "{{project.root}}/docs"
       archive: "{{project.root}}/tasks/archive"
+      specs: "{{project.root}}/specs"
   workflows:
     enabled: []

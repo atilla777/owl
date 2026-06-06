@@ -30,7 +30,13 @@ RSpec.describe 'Seeded artifact template skeletons' do
     run(['init', '--root', root.to_s], cwd: root)
   end
 
-  Owl::Artifacts::Internal::SeededSources.keys.each do |artifact_key| # rubocop:disable Style/HashEachMethods
+  # `spec` is a project-level (domain-addressed) artifact, not task-scoped, so it
+  # is excluded here — its seeded template is validated via Owl::Specs::Api specs.
+  task_scoped_keys = Owl::Artifacts::Internal::SeededSources.keys.select do |key|
+    SEEDED_ARTIFACT_TEST_WORKFLOW.key?(key)
+  end
+
+  task_scoped_keys.each do |artifact_key|
     it "validates the seeded default template skeleton for #{artifact_key}" do
       with_tmp_project do |root|
         init_project(root)

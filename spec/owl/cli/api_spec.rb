@@ -193,7 +193,7 @@ RSpec.describe Owl::Cli::Api do
         expect(body.dig('storage', 'active_profile')).to eq('default')
         expect(body.dig('storage', 'roles_present')).to include(*Owl::Storage::Api::STANDARD_ROLES)
         expect(body.dig('workflows', 'count')).to eq(2)
-        expect(body.dig('artifacts', 'count')).to eq(6)
+        expect(body.dig('artifacts', 'count')).to eq(7)
         expect(body['errors']).to eq([])
       end
     end
@@ -619,14 +619,14 @@ RSpec.describe Owl::Cli::Api do
   end
 
   describe 'owl artifact-type list' do
-    it 'returns the six seeded artifact types on a fresh project' do
+    it 'returns the seven seeded artifact types on a fresh project' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
         exit_code, stdout, _stderr = run(['artifact-type', 'list', '--root', root.to_s, '--json'], cwd: root)
         expect(exit_code).to eq(0)
         keys = JSON.parse(stdout)['artifact_types'].map { |a| a['key'] }
         expect(keys).to contain_exactly(
-          'brief', 'design', 'plan', 'review', 'decomposition', 'verification'
+          'brief', 'design', 'plan', 'review', 'decomposition', 'verification', 'spec'
         )
       end
     end

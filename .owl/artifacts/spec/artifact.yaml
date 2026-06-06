@@ -1,0 +1,23 @@
+id: spec
+title: Spec
+kind: markdown
+description: Project-level, domain-addressed living specification — a formal Requirement/Scenario contract persisted at specs/<domain>/spec.md.
+default_template: templates/default.md
+
+front_matter:
+  type: object
+  required: [status, summary]
+  properties:
+    status:
+      type: string
+      enum: [draft, active]
+    summary:
+      type: string
+
+validation:
+  required_sections:
+    - Purpose
+    - Requirements
+  require_scenarios: true
+  require_when_then: true
+  forbid_placeholders: true

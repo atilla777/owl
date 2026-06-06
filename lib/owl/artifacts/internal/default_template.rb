@@ -25,6 +25,8 @@ module Owl
                 source: "artifacts/decomposition/artifact.yaml"
               verification:
                 source: "artifacts/verification/artifact.yaml"
+              spec:
+                source: "artifacts/spec/artifact.yaml"
           YAML
         end
 

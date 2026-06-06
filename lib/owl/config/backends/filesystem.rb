@@ -160,10 +160,33 @@ module Owl
             project: raw_hash['project'] || {},
             owl_section: raw_hash['owl'] || {},
             workflow: raw_hash['workflow'] || {},
-            storage: raw_hash['storage'] || {},
+            storage: inject_role_defaults(raw_hash['storage'] || {}),
             settings_section: raw_hash['settings'] || {},
             raw: raw_hash
           )
+        end
+
+        # Backward compatibility: inject defaults for storage roles introduced
+        # after the initial schema (e.g. `specs`) into every profile that omits
+        # them, so legacy `.owl/config.yaml` files keep passing `STANDARD_ROLES`
+        # validation and resolving the new role. Operates on a deep copy so the
+        # on-disk config is never rewritten with the injected default.
+        def inject_role_defaults(storage)
+          storage = deep_dup(storage)
+          profiles = storage['profiles']
+          return storage unless profiles.is_a?(Hash)
+
+          profiles.each_value do |profile|
+            next unless profile.is_a?(Hash)
+
+            roles = (profile['roles'] ||= {})
+            next unless roles.is_a?(Hash)
+
+            Owl::Storage::Api::ROLE_DEFAULTS.each do |role, path|
+              roles[role] ||= { 'path' => path }
+            end
+          end
+          storage
         end
 
         def deep_dup(value)

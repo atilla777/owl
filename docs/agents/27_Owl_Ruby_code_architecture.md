@@ -30,6 +30,8 @@ architecture** — discipline границ доменов.
   адаптеры файлового backend.
 - `Owl::Steps` — Step invocations, ready/blocked steps.
 - `Owl::Validation` — structural / semantic валидация артефактов.
+- `Owl::Specs` — project-level, domain-addressed living specs (`specs/<domain>/spec.md`):
+  read / resolve / validate через `specs` storage role.
 - `Owl::Cli` — тонкий entry-point: парсинг аргументов, JSON-вывод, exit codes.
 
 ## 3. Namespace и фасад

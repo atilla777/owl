@@ -27,7 +27,14 @@ module Owl
     #   SQLite storage backend lands, these will be re-routed through
     #   `BackendResolver` and the facade signatures will gain `root:`.
     module Api
-      STANDARD_ROLES = %w[control local_state index tasks archive docs].freeze
+      STANDARD_ROLES = %w[control local_state index tasks archive docs specs].freeze
+
+      # Roles added after the initial schema that legacy `.owl/config.yaml`
+      # files may omit. The config layer injects these defaults at
+      # profile-resolution time (without rewriting user files) so existing
+      # projects keep validating and resolving — see
+      # `Owl::Config::Backends::Filesystem#build_document`.
+      ROLE_DEFAULTS = { 'specs' => '{{project.root}}/specs' }.freeze
 
       module_function
 
