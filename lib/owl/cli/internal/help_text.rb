@@ -15,10 +15,17 @@ module Owl
             workflow new            Scaffold a new workflow definition at .owl/workflows/<id>/workflow.yaml.
             workflow validate       Validate a workflow definition by ID or path (JSON output).
             workflow show           Render workflow as ASCII diagram (live by TASK-ID, abstract by --workflow KEY) or return legacy JSON definition by bare KEY.
+            workflow source         Show the raw workflow.yaml body for round-trip editing: source show ID.
+            workflow context        Show/set a step's context-file body: context <show|set> ID STEP [--variant V] [--body -]. `set` refuses managed workflows.
+            workflow register       Add a workflow to .owl/workflows.yaml (project-owned by default; --managed to mark read-only).
+            workflow unregister     Remove a workflow from .owl/workflows.yaml (source files untouched).
             artifact-type list      List declared artifact types (JSON output).
-            artifact-type new       Scaffold a new artifact type definition at .owl/artifacts/<id>/artifact.yaml.
+            artifact-type new       Scaffold a new artifact type at .owl/artifacts/<id>/artifact.yaml (--from TYPE_ID to clone, --register to add to registry).
             artifact-type validate  Validate an artifact type definition by ID or path (JSON output).
             artifact-type show      Show an artifact type definition by ID (JSON output).
+            artifact-type template  Show/set/validate a template body: template <show|set|validate> ID [--template NAME] [--body -]. `set` refuses managed (Owl-shipped) types.
+            artifact-type register  Add an artifact type to .owl/artifacts.yaml (project-owned by default; --managed to mark read-only).
+            artifact-type unregister Remove an artifact type from .owl/artifacts.yaml (source files untouched).
             config get              Get a value at a settings.* dot-path (JSON output).
             config set              Set a value at a settings.* dot-path; validates before write.
             config show             Print settings + storage roles snapshot (JSON output).
@@ -49,8 +56,11 @@ module Owl
             publish                 Publish task artifacts to the docs storage role per workflow `publishes` rules.
             archive                 Move a completed task into the archive role; or read-only list|show|read of archived tasks.
             spec                    Project-level domain specs: list|show|path|validate|trace DOMAIN [--strict]; diff|apply DOMAIN --delta PATH [--dry-run] (structural delta-merge); merge TASK-ID [--dry-run] (apply a task's spec_delta + trace gate).
+            overlay                 Inspect context overlays for a step: overlay <list|show|validate> STEP-ID [--variant V].
             instructions            Show the next ready step packaged with its SKILL.md summary (JSON).
             status                  Show workflow progress for a task (steps, progress, blockers, children).
+            upgrade                 Refresh this project's copied Owl seed files (skills, managed workflow/artifact files, registry merge) after a gem update; preserves project-owned content. --dry-run to preview.
+            self-update             Update the owl-cli gem itself from github main (clone→build→install). --check to compare versions only.
 
           Global options:
             --help, -h              Show this help message.

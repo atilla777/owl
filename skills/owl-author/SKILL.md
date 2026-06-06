@@ -26,7 +26,6 @@ The skill has three modes:
 
 Do not use this skill for:
 
-- registering a workflow / artifact-type in `.owl/workflows.yaml` / `.owl/artifacts.yaml` — the `new` CLI deliberately writes only the source file; registry inclusion is an explicit follow-up step (manual edit) so ad-hoc experiments do not pollute the registry.
 - editing task-scoped artifacts (use `owl-step-run` instead — those are per-task artifact files in `tasks/`).
 - mid-stream renames of an existing definition that already has child tasks bound to it (out of scope for v1; flag as a separate task).
 - configuring runtime settings (`settings.*`) — that's `owl-init` for bootstrap and `owl config set` for ongoing edits.
@@ -74,7 +73,7 @@ Do not use this skill for:
 6. **Q6 — `front_matter`**: ask which keys are required (default: `status`, `summary`). For each key ask `type` (string/object/array/boolean/integer/null) and optional `enum`.
 7. **Q7 — `template.body`**: ask for the default template body. The body is written in `settings.language.artifacts`. Headings inside the body should mirror `required_sections` (English) for byte-for-byte validation.
 8. **Q8 — confirm**: show the assembled YAML and ask for confirmation.
-9. **Persist**: pipe the body into `owl artifact-type new --id <id> --body -`. The CLI auto-seeds a minimal `templates/default.md` next to the new `artifact.yaml`. v1 owl-author cannot push a custom template body — `owl artifact-type new --body -` writes `artifact.yaml`, not `templates/default.md`. If the user supplied a custom template body in Q7, tell them to edit `.owl/artifacts/<id>/templates/default.md` manually (registering a CLI surface for templates is a separate follow-up task).
+9. **Persist**: pipe the body into `owl artifact-type new --id <id> --body -`. The CLI auto-seeds a minimal `templates/default.md` next to the new `artifact.yaml`. If the user supplied a custom template body in Q7, write it via `owl artifact-type template set <id> --body -` (use `--template <name>` for additional templates). Validate it with `owl artifact-type template validate <id>`. To make the type project-wide, add `--register` to `new`, or run `owl artifact-type register <id>` (project-owned, `managed: false`). To start from an existing type, clone with `owl artifact-type new --from <base> --id <new>`. Managed (Owl-shipped) types are read-only: `template set` refuses them — clone first.
 10. **Validate**: `owl artifact-type validate <id-or-path> --json`. On `ok: true`, summarize; on failure, surface errors.
 
 ### Mode C — Edit existing
@@ -119,4 +118,5 @@ Stop and return control to the user with a concrete decision request when:
 - `owl workflow new --kind composite_task` seeds with a one-step `decompose` baseline; Mode A typically expands it through Q6 into a full multi-step composite workflow.
 - For `--from` cloning (e.g. "make a new workflow from feature"), use `owl workflow new --id <new-id> --from feature`. The skill may offer this as a shortcut when the user says "start from <existing>".
 - Validate-by-path vs validate-by-id: when a new workflow is not yet registered in `.owl/workflows.yaml`, only `owl workflow validate .owl/workflows/<id>/workflow.yaml` works. The skill uses the source path from the `new` response to validate freshly scaffolded definitions.
-- Registry inclusion (`.owl/workflows.yaml` / `.owl/artifacts.yaml`) is out of scope for this skill (constitution-aligned: ad-hoc experiments should not auto-publish). Direct the user to add the entry manually when they want to make the definition project-wide.
+- Registry inclusion is via CLI, not manual edits: `new` deliberately does not register (so ad-hoc experiments do not pollute the registry), but `owl workflow|artifact-type register <id>` (or `new --register`) adds the entry as project-owned (`managed: false`), and `unregister` removes it. Seeded/Owl-shipped definitions are `managed: true` (read-only, upgrade-safe); customize by cloning with `--from`, then editing the copy.
+- Step context files and workflow bodies round-trip via CLI too: `owl workflow source show <id>` (raw YAML), `owl workflow context show|set <id> <step> [--variant V]`. `context set` refuses managed workflows.

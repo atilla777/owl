@@ -52,7 +52,8 @@ for the full install recipe.
   **variants** of the `brief` step.
 - **Declarative artifacts.** Every step declares which artifact(s) it
   produces; each artifact type has a Markdown template, a required-
-  section list, and frontmatter schema. Artifacts are validated on
+  section list (each section `error` = blocking or `warning` =
+  recommended), and frontmatter schema. Artifacts are validated on
   step completion.
 - **Session-typed step model.** Every step declares `session_type:
   discussion | execution` ([RFC #1](docs/rfcs/0001-session-typed-steps.md) §2). Discussion steps run in the main
@@ -70,6 +71,15 @@ for the full install recipe.
 - **Pluggable storage.** Storage roles (`tasks`, `docs`, `archive`,
   `control`, `local_state`, `index`) live in `.owl/config.yaml`;
   workflow YAML never hard-codes physical paths.
+- **Upgrade-safe customization.** Owl-shipped workflows and artifact
+  types are `managed: true` (read-only from the project side); you
+  customize by cloning them to a project-owned copy (`--from`, `managed:
+  false`). `owl self-update` updates the gem; `owl upgrade` then refreshes
+  a project's copied seed files in place, preserving everything you own.
+- **Full authoring via CLI.** Workflows, artifact types, their templates,
+  step-context prompts, and registry entries are all created and edited
+  through `owl workflow …` / `owl artifact-type …` — no hand-editing of
+  `.owl/` files (see [Authoring](#authoring-new-workflows)).
 - **Slash-command surface for agents.** `owl init`, `owl-task-create`,
   `owl-task-next`, `owl-orchestrator`, `owl-step-discussion`,
   `owl-step-execution`, `owl-author` are installed into `.claude/` so
@@ -150,9 +160,9 @@ After `owl init`, an Owl-managed project has this shape:
 | Location                                  | Purpose                                                                 |
 | ----------------------------------------- | ----------------------------------------------------------------------- |
 | `bin/owl`                                 | CLI entrypoint — the only sanctioned interface to project state.        |
-| `.owl/config.yaml`                        | Control plane — storage role paths, language, enabled workflows, `context_overlays`. |
-| `.owl/workflows.yaml`                     | Workflow registry — `key → source path` for each enabled workflow.      |
-| `.owl/artifacts.yaml`                     | Artifact-type registry — `key → source path` for each artifact type.    |
+| `.owl/config.yaml`                        | Control plane — storage role paths, language, enabled workflows, `context_overlays`, `owl.version` (materializing version). |
+| `.owl/workflows.yaml`                     | Workflow registry — per entry `key → source path`, `enabled`, and `managed` (provenance: Owl-shipped vs project-owned). |
+| `.owl/artifacts.yaml`                     | Artifact-type registry — per entry `key → source path` and `managed` (provenance). |
 | `.owl/workflows/<id>/workflow.yaml`       | Declared workflow (steps, artifacts, publishes, variants).              |
 | `.owl/workflows/<id>/<step>.context.md`   | Per-step prompt the universal executor follows.                         |
 | `.owl/artifacts/<type>/artifact.yaml`     | Artifact-type definition (frontmatter schema, required sections).       |
@@ -160,6 +170,7 @@ After `owl init`, an Owl-managed project has this shape:
 | `.owl/overlays/<step>.md`                 | Cross-workflow overlay merged into the step prompt (one per step id).   |
 | `.owl/overlays/<step>/<variant>.md`       | Variant-specific overlay merged on top of `.owl/overlays/<step>.md`.    |
 | `.owl/local/current.yaml`                 | "Current task" pointer (per-clone, not committed).                      |
+| `.owl/.backup/<timestamp>/`               | Files replaced by `owl upgrade` (rollback copies; gitignored).          |
 | `tasks/<TASK-ID>/task.yaml`               | Task state — workflow key, step statuses, variants, parent_id.          |
 | `tasks/<TASK-ID>/{brief,design,plan,…}.md`| Active task artifacts.                                                  |
 | `tasks/index.yaml`                        | Cached task index (rebuildable via `owl task index rebuild`).           |
@@ -187,8 +198,11 @@ Owl materializes into a target project on `owl init`:
 | `schemas/*.json`                | (not copied — used in-process)        |
 
 JSON Schemas under `schemas/` (`workflow.json`, `artifact.json`,
-`step_invocation.json`) are validated in-process — they constrain
-what a workflow / artifact / step bundle is allowed to look like.
+`step_invocation.json`, `step_report.json`,
+`step_context_frontmatter.json`) are validated in-process — they
+constrain what a workflow / artifact / step bundle is allowed to look
+like. Because they live in the gem (never copied into a project), they
+are always current and never need an `owl upgrade`.
 
 ### Session-typed step model
 
@@ -267,11 +281,21 @@ context_overlays:
 Behavior: empty files and HTML-comment-only stubs (the `owl init` seed) are
 skipped, so a placeholder overlay never pollutes context until you add real
 text; duplicate paths are de-duped; an overlay larger than 8 KB is still
-merged but flagged `warning: too_long` for the step log. Inspect the merged
-result with `owl step show <TASK-ID> <STEP-ID> --json` — the `overlays[]` array
-lists each `source` / `body` / `warning`. Rule of thumb: text unique to one
-step → layer 1; an existing `docs/…` doc you want to reuse across steps →
-layer 3.
+merged but flagged `warning: too_long` for the step log. Rule of thumb: text
+unique to one step → layer 1; an existing `docs/…` doc you want to reuse across
+steps → layer 3.
+
+Inspect overlay resolution directly with the `owl overlay` commands (handy
+when an overlay "isn't applying"):
+
+```bash
+owl overlay list  <STEP-ID> [--variant V] --json   # every candidate path, found/missing, in order
+owl overlay show  <STEP-ID> [--variant V] --json   # the bodies that actually apply
+owl overlay validate <STEP-ID> [--variant V] --json # applied count + warnings (too_long, …)
+```
+
+The same merged array is also embedded in `owl step show <TASK-ID> <STEP-ID>
+--json` under `overlays[]` (each `source` / `body` / `warning`).
 
 ## CLI usage example
 
@@ -301,6 +325,8 @@ owl task create --workflow feature \
 owl task create --workflow feature \
   --title "Inventory and untangle Invoicing::Engine" \
   --variant brief=problem_inventory --json
+# For the full discover→decompose→rollup refactor flow, see
+# docs/recipes/refactor-discovery.md (composite_feature + problem_inventory).
 
 # 3d. Or a big initiative that decomposes into child tasks
 owl task create --workflow composite_feature \
@@ -347,7 +373,11 @@ owl step show TASK-ID STEP --json      # step + context + template bundle
 owl artifact resolve TASK-ID TYPE --json
 owl artifact validate TASK-ID TYPE --json
 owl config show --json
-owl workflow show ID --json
+owl workflow show ID --json                 # rendered ASCII / legacy JSON
+owl workflow source show ID --json          # raw workflow.yaml body (round-trip edit)
+owl workflow context show ID STEP --json    # a step's context-file body
+owl artifact-type template show ID --json   # an artifact template body
+owl overlay show STEP-ID --json             # overlays that apply to a step
 ```
 
 ## For AI agents: installing Owl in a target project
@@ -417,8 +447,8 @@ alone. Pass `--force` only if the user explicitly asks to overwrite.
 - `.owl/workflows/feature/` and `.owl/workflows/composite_feature/`
   (workflow YAML + per-step `.context.md` files + brief variants)
 - `.owl/artifacts/<type>/` for `brief`, `design`, `plan`, `review`,
-  `verification`, `decomposition` (each with `artifact.yaml` and
-  default Markdown templates)
+  `verification`, `decomposition`, `spec`, `spec_delta` (each with
+  `artifact.yaml` and default Markdown templates)
 - `.owl/overlays/<step>.md` — one overlay per step id (`brief`, `design`,
   `plan`, `implement`, `review_code`, `merge_docs`, `archive`, `commit_push`)
 - `tasks/index.yaml` — empty task index
@@ -452,6 +482,9 @@ archive-staging dirs do not get committed:
 
 # Owl atomic-archive staging (per-transaction work dirs; transient)
 tasks/.archive-staging/
+
+# Owl upgrade backups (rollback copies written by `owl upgrade`)
+.owl/.backup/
 ```
 
 ### 5. Required Owl skills (must be present in `.claude/skills/`)
@@ -570,7 +603,7 @@ in `.owl/workflows.yaml` (seeded by `owl init`); `owl workflow list
 ```bash
 owl config validate --json     # → {ok: true, errors: []}
 owl workflow list --json       # → at least `feature` and `composite_feature`
-owl artifact-type list --json  # → brief, design, plan, review, verification, decomposition
+owl artifact-type list --json  # → brief, design, plan, review, verification, decomposition, spec, spec_delta
 ```
 
 If any of these returns `ok: false` or an empty list, stop and ask
@@ -613,8 +646,12 @@ decisions the wizard / first-task creation actually require.
   missing from `owl --help`, stop and report — do not invent flags.
 - **Use `--json` for every read.** JSON shapes are the stable
   contract; human-readable output is not.
-- **Workflow YAML and artifact templates are edited through
-  `owl-author`**, not by direct file edits.
+- **Workflow / artifact-type definitions, templates, and step-context
+  prompts are edited through the CLI** — `owl-author` or the underlying
+  `owl workflow …` / `owl artifact-type …` commands (`template set`,
+  `context set`, `register`, …) — never by direct file edits. Owl-shipped
+  (`managed: true`) definitions are read-only; clone with `--from` to
+  customize.
 - **Settings are edited through `owl config set settings.<path>`**,
   not by editing `.owl/config.yaml` by hand.
 - **Composite archives are atomic.** When `owl archive PARENT-ID`
@@ -625,6 +662,50 @@ decisions the wizard / first-task creation actually require.
   autonomous-by-default execution, stop conditions surfaced as a
   single explicit question.
 
+## Updating Owl
+
+Owl content is split in two: the **gem** (`owl-cli` — CLI code, plus the
+seed files) and each **project's copies** of those seeds, materialized
+into `.owl/` and `.claude/` at `owl init`. Because the copies are
+per-project, a gem update does not reach them — you refresh each project
+explicitly. Two commands, two scopes:
+
+```bash
+owl self-update            # update the gem itself from github main (global, once)
+owl self-update --check    # compare installed version with main, don't install
+owl upgrade                # refresh THIS project's copied seed files (run per project)
+owl upgrade --dry-run      # show what would change without writing
+```
+
+`owl self-update` clones `main`, builds the gemspec, and `gem install`s
+the result (a git URL can't be `gem install`ed directly). Under a managed
+Ruby or Bundler it may need `sudo` / a manual `bundle update`; it reports
+the exact failure if so.
+
+`owl upgrade` is **provenance-aware** — it only touches Owl-owned content
+and never your customizations:
+
+| Refreshed (Owl-owned) | Preserved (project-owned) |
+| --------------------- | ------------------------- |
+| `.claude`/`.opencode` skills + commands (`owl-*`) | `.owl/overlays/*`, `tasks/**` |
+| Seed files of `managed: true` workflows / artifact types | Seed files of `managed: false` clones |
+| `.owl/workflows.yaml` / `.owl/artifacts.yaml` (managed entries merged in) | Your `managed: false` registry entries + `default_workflow` |
+| — | `.owl/config.yaml` (only `owl.version` is stamped) |
+
+Replaced files are first copied to `.owl/.backup/<timestamp>/` (skip with
+`--no-backup`). JSON schemas need no refresh — they live in the gem and
+are read in-process. The version that materialized a project is recorded
+in `.owl/config.yaml` (`owl.version`); `owl upgrade` reports the
+`from → to` jump.
+
+The clean update flow for several projects:
+
+```bash
+owl self-update                 # 1. bump the gem once
+cd /path/to/project-a && owl upgrade   # 2. refresh each project
+cd /path/to/project-b && owl upgrade
+```
+
 ## Authoring new workflows
 
 The fastest path is the agent-driven `/owl-author` slash command — it
@@ -632,17 +713,47 @@ walks you through three modes (create workflow, create artifact-type,
 edit existing) via Q&A and persists every change through
 `owl workflow ...` / `owl artifact-type ...` (no direct YAML editing).
 
-To scaffold by hand:
+Everything `owl-author` does is also available as plain CLI, so an
+artifact type or workflow can be created and fully filled in without
+touching `.owl/` by hand.
+
+### Artifact types
 
 ```bash
-owl workflow new --id my_workflow --kind task --json
-owl artifact-type new --id my_artifact --json
-owl workflow validate my_workflow --json
+# Create (optionally cloning an existing type) and register it.
+owl artifact-type new --id my_plan --from plan --register --json
+#   --from <id>   clone another type's definition + template
+#   --register    add to .owl/artifacts.yaml as project-owned (managed: false)
+
+# Read / write / validate the template body (use --template NAME for variants).
+owl artifact-type template show     my_plan --json
+owl artifact-type template set      my_plan --body - < template.md
+owl artifact-type template validate my_plan --json
+
+owl artifact-type validate   my_plan --json     # validate the definition shape
+owl artifact-type register   my_plan            # register an existing definition
+owl artifact-type unregister my_plan            # remove from the registry (files kept)
 ```
 
-Then drop the per-step `.context.md` files next to the generated
-`workflow.yaml`, and the workflow will appear in `owl workflow list`
-without a restart.
+`template set` refuses Owl-shipped (`managed: true`) types — clone first
+with `--from`, then edit the copy. This keeps your customizations
+upgrade-safe (see [Updating Owl](#updating-owl)).
+
+### Workflows
+
+```bash
+owl workflow new --id my_flow --kind task --from feature --register --json
+owl workflow source  show my_flow --json                 # raw workflow.yaml for round-trip edits
+owl workflow context show my_flow brief --variant feature --json
+owl workflow context set  my_flow brief --body - < brief.context.md
+owl workflow validate my_flow --json
+owl workflow register   my_flow --enabled true
+owl workflow unregister my_flow
+```
+
+A full rewrite round-trips through `owl workflow source show ID` →
+edit → `owl workflow new --id ID --body - --force`. The workflow
+appears in `owl workflow list` immediately, no restart.
 
 ## Testing
 
@@ -679,6 +790,8 @@ is disabled in `.rubocop.yml`, but `-A` would silently re-enable it.
 │   ├── archive/                  # archive subtree + slug generator
 │   ├── publish/                  # publishes rules
 │   ├── skills/                   # thin loader over repo-root skills/ + commands/
+│   ├── context/                  # step-context overlay resolution
+│   ├── upgrade/                  # owl self-update (gem) + owl upgrade (project refresh)
 │   ├── instructions/             # next-step packaging
 │   └── validation/               # artifact validation
 ├── spec/owl/...                  # RSpec

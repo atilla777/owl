@@ -21,3 +21,9 @@ validation:
     - Summary
     - Commands
     - Outcomes
+    - name: Not run
+      level: warning
+    - name: Failures or blockers
+      level: warning
+    - name: Residual risks
+      level: warning

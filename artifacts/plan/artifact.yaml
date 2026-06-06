@@ -5,7 +5,20 @@ description: Ordered checklist of concrete code changes for the implement step.
 default_template: templates/default.md
 
 validation:
+  # Required (error) sections are the historical minimum. The recommended
+  # (warning) sections below enrich the contract without breaking existing
+  # plans; a project that wants them enforced clones plan and flips level.
   required_sections:
     - Goal
     - Checklist
     - Smoke test
+    - name: Scope
+      level: warning
+    - name: Constraints
+      level: warning
+    - name: Files to inspect
+      level: warning
+    - name: Tests and verification
+      level: warning
+    - name: Out of scope
+      level: warning

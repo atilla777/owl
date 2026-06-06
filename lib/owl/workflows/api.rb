@@ -38,6 +38,30 @@ module Owl
         strip_local(with_backend(root) { |backend| backend.validate(id_or_path: id_or_path) })
       end
 
+      def source_show(root:, id:)
+        with_backend(root) { |backend| backend.source_show(id: id) }
+      end
+
+      def register(root:, id:, enabled: true, managed: false, title: nil, source: nil, force: false)
+        with_backend(root) do |backend|
+          backend.register(id: id, enabled: enabled, managed: managed, title: title, source: source, force: force)
+        end
+      end
+
+      def unregister(root:, id:)
+        with_backend(root) { |backend| backend.unregister(id: id) }
+      end
+
+      def context_show(root:, id:, step_id:, variant: nil)
+        with_backend(root) { |backend| backend.context_show(workflow_key: id, step_id: step_id, variant: variant) }
+      end
+
+      def context_set(root:, id:, step_id:, body:, variant: nil)
+        with_backend(root) do |backend|
+          backend.context_set(workflow_key: id, step_id: step_id, body: body, variant: variant)
+        end
+      end
+
       def graph(root:, workflow_key:)
         with_backend(root) { |backend| backend.graph(workflow_key: workflow_key) }
       end

@@ -47,7 +47,11 @@ module Owl
         def normalize(key, body)
           {
             key: key.to_s,
-            source: body['source']
+            source: body['source'],
+            # Provenance for upgrade-safety: seeded/Owl-shipped types default to
+            # managed (read-only from the project side). Project-owned copies are
+            # registered with `managed: false` and may be edited via the CLI.
+            managed: body['managed'] != false
           }
         end
       end

@@ -81,6 +81,7 @@ module OwlConstitutionFixtures
     subagents/internal/tier_map.rb
     subagents/internal/report_paths.rb
     specs/internal/trace_checker.rb
+    upgrade/internal/self_update.rb
   ].freeze
 end
 

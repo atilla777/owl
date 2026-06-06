@@ -153,6 +153,100 @@ module Owl
           )
         end
 
+        def source_show(id:)
+          lookup = find(key: id)
+          return lookup if lookup.err?
+
+          source = lookup.value[:source]
+          path = source[:source_path] ? Pathname.new(source[:source_path]) : nil
+          unless path&.exist?
+            return Result.err(
+              code: :workflow_source_missing,
+              message: "Workflow source for '#{id}' is not present.",
+              details: { key: id.to_s, source_path: path&.to_s }
+            )
+          end
+
+          Result.ok(id: id.to_s, path: path.to_s, body: path.read)
+        end
+
+        def register(id:, enabled: true, managed: false, title: nil, source: nil, force: false)
+          id_str = id.to_s
+          raw, registry_path = load_registry_raw
+          return raw if raw.is_a?(Owl::Result::Err)
+
+          entries = raw['workflows'] ||= {}
+          if entries.key?(id_str) && !force
+            return Result.err(
+              code: :workflow_already_registered,
+              message: "Workflow '#{id_str}' is already registered in #{registry_path}.",
+              details: { id: id_str, path: registry_path.to_s }
+            )
+          end
+
+          entry = { 'enabled' => enabled ? true : false,
+                    'source' => (source || "workflows/#{id_str}/workflow.yaml").to_s,
+                    'managed' => managed ? true : false }
+          entry['title'] = title.to_s if title
+          entries[id_str] = entry
+          Owl::Storage::Api.write(path: registry_path, contents: YAML.dump(raw))
+          Result.ok(id: id_str, enabled: entry['enabled'], managed: entry['managed'],
+                    source: entry['source'], path: registry_path.to_s)
+        end
+
+        def unregister(id:)
+          id_str = id.to_s
+          raw, registry_path = load_registry_raw
+          return raw if raw.is_a?(Owl::Result::Err)
+
+          entries = raw['workflows'] || {}
+          unless entries.key?(id_str)
+            return Result.err(
+              code: :workflow_not_registered,
+              message: "Workflow '#{id_str}' is not registered in #{registry_path}.",
+              details: { id: id_str, path: registry_path.to_s }
+            )
+          end
+
+          entries.delete(id_str)
+          raw['workflows'] = entries
+          Owl::Storage::Api.write(path: registry_path, contents: YAML.dump(raw))
+          Result.ok(id: id_str, path: registry_path.to_s)
+        end
+
+        def context_show(workflow_key:, step_id:, variant: nil)
+          resolved = resolve_context_target(workflow_key: workflow_key, step_id: step_id, variant: variant)
+          return resolved if resolved.is_a?(Owl::Result::Err)
+
+          read = read_step_context(
+            source_dir: resolved[:source_dir], step_id: step_id, relative_path: resolved[:relative_path]
+          )
+          return read if read.err?
+
+          Result.ok(workflow_key: workflow_key.to_s, step_id: step_id.to_s,
+                    path: (resolved[:source_dir] + resolved[:relative_path]).to_s, body: read.value)
+        end
+
+        def context_set(workflow_key:, step_id:, body:, variant: nil)
+          guard = guard_project_owned(id: workflow_key)
+          return guard if guard.is_a?(Owl::Result::Err)
+
+          resolved = resolve_context_target(workflow_key: workflow_key, step_id: step_id, variant: variant)
+          return resolved if resolved.is_a?(Owl::Result::Err)
+
+          target = resolved[:source_dir] + resolved[:relative_path]
+          unless within?(base_dir: resolved[:source_dir], resolved: target.expand_path)
+            return Result.err(
+              code: :step_context_path_escape,
+              message: "Step '#{step_id}' context_file '#{resolved[:relative_path]}' escapes the workflow directory.",
+              details: { step_id: step_id.to_s, relative_path: resolved[:relative_path] }
+            )
+          end
+
+          Owl::Storage::Api.write(path: target, contents: body.to_s)
+          Result.ok(workflow_key: workflow_key.to_s, step_id: step_id.to_s, path: target.to_s)
+        end
+
         def graph(workflow_key:)
           lookup = find(key: workflow_key)
           return lookup if lookup.err?
@@ -312,6 +406,104 @@ module Owl
 
         def workflow_source_path(id:)
           Pathname.new(@root.to_s) + '.owl' + 'workflows' + id.to_s + 'workflow.yaml'
+        end
+
+        def load_registry_raw
+          registry_path = Pathname.new(@root.to_s) + '.owl' + 'workflows.yaml'
+          unless registry_path.exist?
+            return [
+              Result.err(
+                code: :workflows_registry_missing,
+                message: "Workflows registry not found at #{registry_path}.",
+                details: { path: registry_path.to_s }
+              ),
+              registry_path
+            ]
+          end
+
+          raw = YAML.safe_load(registry_path.read, aliases: false)
+          raw = {} unless raw.is_a?(Hash)
+          [raw, registry_path]
+        end
+
+        def guard_project_owned(id:)
+          registry_result = registry
+          return registry_result if registry_result.err?
+
+          entry = registry_result.value[:entries].find { |e| e[:key] == id.to_s }
+          return nil unless entry && entry[:managed]
+
+          Result.err(
+            code: :workflow_managed,
+            message: "Workflow '#{id}' is managed (Owl-shipped) and read-only. " \
+                     "Clone it first: owl workflow new --from #{id} --id <new> --register.",
+            details: { id: id.to_s }
+          )
+        end
+
+        # Resolve the step's context-file path (variant-aware) relative to the
+        # workflow source dir. Returns { source_dir:, relative_path: } or an Err.
+        def resolve_context_target(workflow_key:, step_id:, variant:)
+          lookup = find(key: workflow_key)
+          return lookup if lookup.err?
+
+          source = lookup.value[:source]
+          return workflow_source_missing_error(workflow_key, source) unless source[:present]
+
+          source_dir = Pathname.new(source[:source_path].to_s).dirname
+          body = source[:body].is_a?(Hash) ? source[:body] : {}
+          step = Array(body['steps'] || body[:steps]).find { |s| s.is_a?(Hash) && s['id'].to_s == step_id.to_s }
+          return step_not_found_error(workflow_key, step_id) unless step
+
+          relative = context_file_for(step: step, variant: variant)
+          return relative if relative.is_a?(Owl::Result::Err)
+
+          { source_dir: source_dir, relative_path: relative }
+        end
+
+        def context_file_for(step:, variant:)
+          if step['variants'].is_a?(Hash)
+            name = (variant || step['default_variant']).to_s
+            return missing_context_file_error(step['id'], 'no variant chosen / default_variant') if name.empty?
+
+            vbody = step['variants'][name]
+            return unknown_variant_error_fs(step['id'], name, step['variants'].keys) unless vbody.is_a?(Hash)
+
+            file = vbody['context_file'].to_s
+            return missing_context_file_error(step['id'], "variant '#{name}'") if file.empty?
+
+            return file
+          end
+
+          file = step['context_file'].to_s
+          return missing_context_file_error(step['id'], 'step') if file.empty?
+
+          file
+        end
+
+        def step_not_found_error(workflow_key, step_id)
+          Result.err(
+            code: :unknown_step,
+            message: "Workflow '#{workflow_key}' has no step '#{step_id}'.",
+            details: { workflow_key: workflow_key.to_s, step_id: step_id.to_s }
+          )
+        end
+
+        def unknown_variant_error_fs(step_id, name, available)
+          Result.err(
+            code: :unknown_step_variant,
+            message: "Step '#{step_id}' has no variant '#{name}' (available: #{available.sort.inspect}).",
+            details: { step_id: step_id.to_s, variant: name, available: available.sort }
+          )
+        end
+
+        def missing_context_file_error(step_id, scope)
+          Result.err(
+            code: :step_context_file_undeclared,
+            message: "Step '#{step_id}' declares no context_file (#{scope}); " \
+                     'add it to the workflow source before setting its body.',
+            details: { step_id: step_id.to_s }
+          )
         end
 
         def workflow_source_missing_error(workflow_key, source)

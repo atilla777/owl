@@ -8,19 +8,35 @@ module Owl
 
         module_function
 
+        # Each entry is either a section name string (level defaults to `error`)
+        # or a `{ name:, level: error|warning }` mapping. Warning-level sections
+        # let a contract recommend structure without breaking existing artifacts.
         def check(body, required_sections)
-          required = Array(required_sections).map(&:to_s)
-          return [] if required.empty?
+          sections = Array(required_sections).filter_map { |entry| normalize(entry) }
+          return [] if sections.empty?
 
           present = extract_headings(body.to_s)
 
-          required.reject { |name| present.include?(name) }.map do |name|
+          sections.reject { |s| present.include?(s[:name]) }.map do |s|
             {
               type: 'missing_section',
-              section: name,
-              level: 'error',
-              description: "Required section '#{name}' not found."
+              section: s[:name],
+              level: s[:level],
+              description: "Required section '#{s[:name]}' not found."
             }
+          end
+        end
+
+        def normalize(entry)
+          if entry.is_a?(Hash)
+            name = (entry['name'] || entry[:name]).to_s
+            return nil if name.empty?
+
+            level = (entry['level'] || entry[:level]).to_s
+            { name: name, level: level == 'warning' ? 'warning' : 'error' }
+          else
+            name = entry.to_s
+            name.empty? ? nil : { name: name, level: 'error' }
           end
         end
 

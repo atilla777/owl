@@ -13,9 +13,20 @@ front_matter:
       enum: [open, resolved]
     summary:
       type: string
+    # Optional (not required) — validated only if present, so existing reviews
+    # stay valid. A project wanting them required clones review.
+    verdict:
+      type: string
+      enum: [accepted, accepted_with_followups, changes_required]
+    ready:
+      type: boolean
 
 validation:
   required_sections:
     - Summary
     - Findings
     - Resolution
+    - name: Remediation
+      level: warning
+    - name: Residual risks
+      level: warning

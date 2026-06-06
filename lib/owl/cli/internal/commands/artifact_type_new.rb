@@ -29,27 +29,43 @@ module Owl
               root: root,
               id: options[:id],
               body: body,
+              from: options[:from],
               force: options[:force]
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            payload = { ok: true }.merge(result.value)
-            paths = Owl::Artifacts::Api.local_paths(root: root, key: result.value[:id])
-            if paths.ok?
-              payload[:path] = paths.value.source_path
-              payload[:template_path] = paths.value.template_path
+            payload = attach_paths({ ok: true }.merge(result.value), root, result.value[:id])
+
+            if options[:register]
+              reg = Owl::Artifacts::Api.register(root: root, id: result.value[:id], managed: false)
+              return JsonPrinter.failure(stderr, **TaskSupport.error_payload(reg)) if reg.err?
+
+              payload[:registered] = true
             end
+
             JsonPrinter.success(stdout, payload)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end
 
+          def attach_paths(payload, root, id)
+            paths = Owl::Artifacts::Api.local_paths(root: root, key: id)
+            return payload unless paths.ok?
+
+            payload.merge(path: paths.value.source_path, template_path: paths.value.template_path)
+          end
+
           def parse_options(argv)
-            options = { id: nil, body: nil, root: nil, force: false }
+            options = { id: nil, body: nil, from: nil, root: nil, force: false, register: false }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl artifact-type new --id ID [--body -] [--force] [--root PATH] [--json]'
+              opts.banner = 'Usage: owl artifact-type new --id ID [--from TYPE_ID] [--body -] ' \
+                            '[--register] [--force] [--root PATH] [--json]'
               opts.on('--id ID', String) { |v| options[:id] = v }
+              opts.on('--from TYPE_ID', String) { |v| options[:from] = v }
               opts.on('--body BODY', String) { |v| options[:body] = v }
+              opts.on('--register', 'Register the new type (managed: false) in .owl/artifacts.yaml') do
+                options[:register] = true
+              end
               opts.on('--force', 'Overwrite existing artifact type source') { options[:force] = true }
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }

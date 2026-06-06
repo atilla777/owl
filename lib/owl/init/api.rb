@@ -5,6 +5,7 @@ require 'json'
 require_relative 'internal/scaffolder'
 require_relative '../config/api'
 require_relative '../skills/internal/seeded_sources'
+require_relative '../version'
 
 module Owl
   module Init
@@ -20,7 +21,16 @@ module Owl
         persisted = persist_targets(root: result.value[:root], targets: targets)
         return persisted if persisted.err?
 
+        stamped = stamp_version(root: result.value[:root])
+        return stamped if stamped.err?
+
         result
+      end
+
+      # Record the Owl version that materialized this project, so `owl upgrade`
+      # can detect version skew and refresh stale copies.
+      def stamp_version(root:)
+        Owl::Config::Api.write_key(root: root, key: 'owl.version', value: Owl::VERSION)
       end
 
       # Flag wins; otherwise honour the choice persisted on a prior init; else
@@ -42,7 +52,7 @@ module Owl
         )
       end
 
-      private_class_method :resolve_targets, :persist_targets
+      private_class_method :resolve_targets, :persist_targets, :stamp_version
     end
   end
 end

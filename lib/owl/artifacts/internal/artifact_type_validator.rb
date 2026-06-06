@@ -108,8 +108,7 @@ module Owl
           return [error_at('/validation', '`validation` must be a mapping when present.')] unless validation.is_a?(Hash)
 
           errors = []
-          errors.concat(validate_required_string_array(validation['required_sections'], '/validation/required_sections',
-                                                       'required_sections'))
+          errors.concat(validate_required_sections(validation['required_sections']))
           errors.concat(validate_required_patterns(validation['required_patterns']))
           errors.concat(validate_semantic_keys(validation))
           errors
@@ -144,6 +143,29 @@ module Owl
           return [] if value.is_a?(Array) && value.all? { |s| s.is_a?(String) && !s.strip.empty? }
 
           [error_at(path, "`validation.#{label}` must be an array of non-empty strings when present.")]
+        end
+
+        # `required_sections` entries may be a non-empty heading string or a
+        # `{ name: <non-empty string>, level?: error|warning }` mapping. The
+        # mapping form lets a contract recommend a section without blocking.
+        def validate_required_sections(value)
+          return [] if value.nil?
+          return [] if value.is_a?(Array) && value.all? { |entry| valid_section_entry?(entry) }
+
+          [error_at('/validation/required_sections',
+                    '`validation.required_sections` must be an array of non-empty strings or ' \
+                    '`{ name: <non-empty string>, level?: error|warning }` mappings when present.')]
+        end
+
+        def valid_section_entry?(entry)
+          return !entry.strip.empty? if entry.is_a?(String)
+          return false unless entry.is_a?(Hash)
+
+          name = entry['name'] || entry[:name]
+          level = entry['level'] || entry[:level]
+          return false unless name.is_a?(String) && !name.strip.empty?
+
+          level.nil? || %w[error warning].include?(level.to_s)
         end
 
         # `required_patterns` entries may be a non-empty regex string or a

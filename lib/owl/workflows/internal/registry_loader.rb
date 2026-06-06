@@ -53,7 +53,10 @@ module Owl
             source: body['source'],
             title: body['title'],
             aliases: Array(body['aliases']),
-            priority: body['priority']
+            priority: body['priority'],
+            # Provenance for upgrade-safety: seeded/Owl-shipped workflows default
+            # to managed (read-only); project-owned clones register managed: false.
+            managed: body['managed'] != false
           }
         end
       end

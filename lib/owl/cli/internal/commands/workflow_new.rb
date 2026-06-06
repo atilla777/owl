@@ -36,23 +36,40 @@ module Owl
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            payload = { ok: true }.merge(result.value)
-            paths = Owl::Workflows::Api.local_paths(root: root, key: result.value[:id])
-            payload[:path] = paths.value.source_path if paths.ok?
+            id = result.value[:id]
+            payload = attach_path({ ok: true }.merge(result.value), root, id)
+
+            if options[:register]
+              reg = Owl::Workflows::Api.register(root: root, id: id, managed: false)
+              return JsonPrinter.failure(stderr, **TaskSupport.error_payload(reg)) if reg.err?
+
+              payload[:registered] = true
+            end
+
             JsonPrinter.success(stdout, payload)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end
 
+          def attach_path(payload, root, id)
+            paths = Owl::Workflows::Api.local_paths(root: root, key: id)
+            return payload unless paths.ok?
+
+            payload.merge(path: paths.value.source_path)
+          end
+
           def parse_options(argv)
-            options = { id: nil, kind: 'task', from: nil, body: nil, root: nil, force: false }
+            options = { id: nil, kind: 'task', from: nil, body: nil, root: nil, force: false, register: false }
             parser = OptionParser.new do |opts|
               opts.banner = 'Usage: owl workflow new --id ID [--kind task|composite_task] ' \
-                            '[--from TEMPLATE_ID] [--body -] [--force] [--root PATH] [--json]'
+                            '[--from TEMPLATE_ID] [--body -] [--register] [--force] [--root PATH] [--json]'
               opts.on('--id ID', String) { |v| options[:id] = v }
               opts.on('--kind KIND', String) { |v| options[:kind] = v }
               opts.on('--from TEMPLATE_ID', String) { |v| options[:from] = v }
               opts.on('--body BODY', String) { |v| options[:body] = v }
+              opts.on('--register', 'Register the new workflow (managed: false) in .owl/workflows.yaml') do
+                options[:register] = true
+              end
               opts.on('--force', 'Overwrite existing workflow source') { options[:force] = true }
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }

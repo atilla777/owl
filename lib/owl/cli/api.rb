@@ -8,7 +8,9 @@ require_relative 'internal/commands/archive_show'
 require_relative 'internal/commands/artifact_resolve'
 require_relative 'internal/commands/artifact_type_list'
 require_relative 'internal/commands/artifact_type_new'
+require_relative 'internal/commands/artifact_type_register'
 require_relative 'internal/commands/artifact_type_show'
+require_relative 'internal/commands/artifact_type_template'
 require_relative 'internal/commands/artifact_type_validate'
 require_relative 'internal/commands/artifact_validate'
 require_relative 'internal/commands/config_get'
@@ -17,7 +19,9 @@ require_relative 'internal/commands/config_show'
 require_relative 'internal/commands/config_validate'
 require_relative 'internal/commands/init'
 require_relative 'internal/commands/instructions'
+require_relative 'internal/commands/overlay'
 require_relative 'internal/commands/publish'
+require_relative 'internal/commands/self_update'
 require_relative 'internal/commands/spec_apply'
 require_relative 'internal/commands/spec_diff'
 require_relative 'internal/commands/spec_list'
@@ -48,8 +52,12 @@ require_relative 'internal/commands/task_parent'
 require_relative 'internal/commands/task_ready_steps'
 require_relative 'internal/commands/task_tree'
 require_relative 'internal/commands/task_use'
+require_relative 'internal/commands/upgrade'
+require_relative 'internal/commands/workflow_context'
 require_relative 'internal/commands/workflow_list'
 require_relative 'internal/commands/workflow_new'
+require_relative 'internal/commands/workflow_register'
+require_relative 'internal/commands/workflow_source'
 require_relative 'internal/commands/workflow_diagram_data'
 require_relative 'internal/commands/workflow_diagram_renderer'
 require_relative 'internal/commands/workflow_show'
@@ -67,7 +75,9 @@ module Owl
         'init' => Internal::Commands::Init,
         'publish' => Internal::Commands::Publish,
         'instructions' => Internal::Commands::Instructions,
-        'status' => Internal::Commands::Status
+        'status' => Internal::Commands::Status,
+        'upgrade' => Internal::Commands::Upgrade,
+        'self-update' => Internal::Commands::SelfUpdate
       }.freeze
 
       module_function
@@ -97,6 +107,7 @@ module Owl
         case command
         when 'workflow'      then dispatch_workflow(args, **kwargs)
         when 'artifact-type' then dispatch_artifact_type(args, **kwargs)
+        when 'overlay'       then Internal::Commands::Overlay.run(argv: args, **kwargs)
         when 'config'        then dispatch_config(args, **kwargs)
         when 'task'          then dispatch_task(args, **kwargs)
         when 'step'          then dispatch_step(args, **kwargs)
@@ -148,10 +159,14 @@ module Owl
         subcommand = args.shift
         kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case subcommand
-        when 'list'     then Internal::Commands::WorkflowList.run(**kwargs)
-        when 'new'      then Internal::Commands::WorkflowNew.run(**kwargs)
-        when 'validate' then Internal::Commands::WorkflowValidate.run(**kwargs)
-        when 'show'     then Internal::Commands::WorkflowShow.run(**kwargs)
+        when 'list'       then Internal::Commands::WorkflowList.run(**kwargs)
+        when 'new'        then Internal::Commands::WorkflowNew.run(**kwargs)
+        when 'validate'   then Internal::Commands::WorkflowValidate.run(**kwargs)
+        when 'show'       then Internal::Commands::WorkflowShow.run(**kwargs)
+        when 'source'     then Internal::Commands::WorkflowSource.run(**kwargs)
+        when 'context'    then Internal::Commands::WorkflowContext.run(**kwargs)
+        when 'register'   then Internal::Commands::WorkflowRegister.run(**kwargs)
+        when 'unregister' then Internal::Commands::WorkflowRegister.unregister(**kwargs)
         else
           unknown_command(stderr, "workflow #{subcommand}".strip)
         end
@@ -161,10 +176,13 @@ module Owl
         subcommand = args.shift
         kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case subcommand
-        when 'list'     then Internal::Commands::ArtifactTypeList.run(**kwargs)
-        when 'new'      then Internal::Commands::ArtifactTypeNew.run(**kwargs)
-        when 'validate' then Internal::Commands::ArtifactTypeValidate.run(**kwargs)
-        when 'show'     then Internal::Commands::ArtifactTypeShow.run(**kwargs)
+        when 'list'       then Internal::Commands::ArtifactTypeList.run(**kwargs)
+        when 'new'        then Internal::Commands::ArtifactTypeNew.run(**kwargs)
+        when 'validate'   then Internal::Commands::ArtifactTypeValidate.run(**kwargs)
+        when 'show'       then Internal::Commands::ArtifactTypeShow.run(**kwargs)
+        when 'template'   then Internal::Commands::ArtifactTypeTemplate.run(**kwargs)
+        when 'register'   then Internal::Commands::ArtifactTypeRegister.run(**kwargs)
+        when 'unregister' then Internal::Commands::ArtifactTypeRegister.unregister(**kwargs)
         else
           unknown_command(stderr, "artifact-type #{subcommand}".strip)
         end

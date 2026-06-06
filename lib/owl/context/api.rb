@@ -29,6 +29,18 @@ module Owl
         overlays = Internal::FilesystemSource.read_all(paths: paths)
         Result.ok(overlays)
       end
+
+      # Enumerate every candidate overlay path for a step (found and missing),
+      # in resolution order, for authors debugging which overlays apply.
+      # Returns Result.ok([{ path:, present:, bytes: }, ...]).
+      def overlay_candidates(root:, step_id:, variant: nil)
+        paths = Internal::OverlayPaths.collect(root: root, step_id: step_id.to_s, variant: variant)
+        candidates = paths.map do |path|
+          present = path.file?
+          { path: path.to_s, present: present, bytes: present ? path.size : 0 }
+        end
+        Result.ok(candidates)
+      end
     end
   end
 end

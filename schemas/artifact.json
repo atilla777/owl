@@ -33,8 +33,17 @@
       "properties": {
         "required_sections": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
-          "description": "Literal H1/H2 headings that must appear in the artifact body. Per constitution 5.16 these are always written in English."
+          "items": {
+            "type": ["string", "object"],
+            "minLength": 1,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "level": { "type": "string", "enum": ["error", "warning"] }
+            },
+            "additionalProperties": true
+          },
+          "description": "Headings that should appear in the artifact body. Each entry is either a non-empty heading string (level defaults to `error`, blocking) or a mapping `{ name, level? }` where `level` is `error` (default) or `warning` (recommended, non-blocking). Per constitution 5.16 these are always written in English."
         },
         "required_patterns": {
           "type": "array",

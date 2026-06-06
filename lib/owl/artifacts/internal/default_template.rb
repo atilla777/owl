@@ -12,23 +12,34 @@ module Owl
           <<~YAML
             schema_version: 1
 
+            # `managed: true` marks Owl-shipped types as read-only from the project
+            # side (upgrade-safe). Customize by cloning: `owl artifact-type new
+            # --from <id> --id <new> --register` (project-owned, managed: false).
             artifacts:
               brief:
                 source: "artifacts/brief/artifact.yaml"
+                managed: true
               design:
                 source: "artifacts/design/artifact.yaml"
+                managed: true
               plan:
                 source: "artifacts/plan/artifact.yaml"
+                managed: true
               review:
                 source: "artifacts/review/artifact.yaml"
+                managed: true
               decomposition:
                 source: "artifacts/decomposition/artifact.yaml"
+                managed: true
               verification:
                 source: "artifacts/verification/artifact.yaml"
+                managed: true
               spec:
                 source: "artifacts/spec/artifact.yaml"
+                managed: true
               spec_delta:
                 source: "artifacts/spec_delta/artifact.yaml"
+                managed: true
           YAML
         end
 

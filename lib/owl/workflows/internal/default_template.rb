@@ -14,17 +14,22 @@ module Owl
 
             default_workflow: feature
 
+            # `managed: true` marks Owl-shipped workflows as read-only from the
+            # project side (upgrade-safe). Customize by cloning: `owl workflow new
+            # --from <id> --id <new> --register` (project-owned, managed: false).
             workflows:
               feature:
                 enabled: true
                 version: "1.0"
                 title: Feature
                 source: "workflows/feature/workflow.yaml"
+                managed: true
               composite_feature:
                 enabled: true
                 version: "1.0"
                 title: Composite feature
                 source: "workflows/composite_feature/workflow.yaml"
+                managed: true
           YAML
         end
 

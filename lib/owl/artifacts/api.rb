@@ -42,12 +42,32 @@ module Owl
         with_backend(root) { |backend| backend.resolve(task_id: task_id, artifact_key: artifact_key) }
       end
 
-      def scaffold(root:, id:, body: nil, force: false)
-        strip_local(with_backend(root) { |backend| backend.scaffold(id: id, body: body, force: force) })
+      def scaffold(root:, id:, body: nil, from: nil, force: false)
+        strip_local(with_backend(root) { |backend| backend.scaffold(id: id, body: body, from: from, force: force) })
       end
 
       def validate(root:, id_or_path:)
         strip_local(with_backend(root) { |backend| backend.validate(id_or_path: id_or_path) })
+      end
+
+      def template_show(root:, id:, template: 'default')
+        with_backend(root) { |backend| backend.template_show(id: id, template: template) }
+      end
+
+      def template_set(root:, id:, body:, template: 'default')
+        with_backend(root) { |backend| backend.template_set(id: id, body: body, template: template) }
+      end
+
+      def template_validate(root:, id:, template: 'default')
+        with_backend(root) { |backend| backend.template_validate(id: id, template: template) }
+      end
+
+      def register(root:, id:, source: nil, managed: false, force: false)
+        with_backend(root) { |backend| backend.register(id: id, source: source, managed: managed, force: force) }
+      end
+
+      def unregister(root:, id:)
+        with_backend(root) { |backend| backend.unregister(id: id) }
       end
 
       def local_paths(root:, key: nil)
