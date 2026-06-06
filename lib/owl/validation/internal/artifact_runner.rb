@@ -7,6 +7,10 @@ require_relative 'front_matter_parser'
 require_relative 'front_matter_validator'
 require_relative 'patterns_checker'
 require_relative 'sections_checker'
+require_relative 'empty_sections_checker'
+require_relative 'placeholders_checker'
+require_relative 'scenarios_checker'
+require_relative 'when_then_checker'
 
 module Owl
   module Validation
@@ -44,10 +48,27 @@ module Owl
           rules = descriptor[:validation] || {}
           sections = rules['required_sections'] || rules[:required_sections]
           patterns = rules['required_patterns'] || rules[:required_patterns]
-          violations.concat(SectionsChecker.check(fm_result[:body], sections))
-          violations.concat(PatternsChecker.check(fm_result[:body], patterns))
+          body_text = fm_result[:body]
+          violations.concat(SectionsChecker.check(body_text, sections))
+          violations.concat(PatternsChecker.check(body_text, patterns))
+          violations.concat(semantic_violations(body_text, rules))
 
           violations
+        end
+
+        def semantic_violations(body_text, rules)
+          violations = []
+          violations.concat(EmptySectionsChecker.check(body_text, rule_value(rules, 'forbid_empty_sections')))
+          violations.concat(PlaceholdersChecker.check(body_text, rule_value(rules, 'forbid_placeholders')))
+          violations.concat(ScenariosChecker.check(body_text, rule_value(rules, 'require_scenarios')))
+          violations.concat(WhenThenChecker.check(body_text, rule_value(rules, 'require_when_then')))
+          violations
+        end
+
+        def rule_value(rules, key)
+          return rules[key] if rules.key?(key)
+
+          rules[key.to_sym]
         end
 
         def exists?(path)

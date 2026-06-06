@@ -40,6 +40,23 @@
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
           "description": "Regular expressions that must match somewhere in the artifact body."
+        },
+        "forbid_empty_sections": {
+          "type": "boolean",
+          "description": "Opt-in semantic rule. When true, every heading must have non-whitespace body content (blank lines and HTML comments are ignored) before the next heading or EOF; otherwise an `empty_section` violation is raised."
+        },
+        "forbid_placeholders": {
+          "type": ["boolean", "array"],
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Opt-in semantic rule. `true` uses the default markers (TODO, TBD, FIXME, XXX, <...>); an array overrides them. Markers are matched as case-sensitive substrings outside fenced code blocks and raise `placeholder_text` violations."
+        },
+        "require_scenarios": {
+          "type": "boolean",
+          "description": "Opt-in semantic rule. When true, every `### Requirement` heading must be followed by at least one `#### Scenario` heading before the next level-3 heading or EOF; otherwise a `requirement_without_scenario` violation is raised."
+        },
+        "require_when_then": {
+          "type": "boolean",
+          "description": "Opt-in semantic rule. When true, every `#### Scenario` block must contain a WHEN line and a THEN line (leading bullets and bold tolerated); otherwise a `scenario_missing_clause` violation is raised."
         }
       }
     },

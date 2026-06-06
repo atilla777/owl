@@ -280,6 +280,102 @@ RSpec.describe Owl::Validation::Api do
     end
   end
 
+  describe 'semantic validation opt-in keys' do
+    def enable_semantic_brief(root, validation_yaml)
+      write("#{root}/.owl/artifacts/brief/artifact.yaml", <<~YAML)
+        id: brief
+        title: Brief
+        kind: markdown
+        validation:
+        #{validation_yaml.gsub(/^/, '  ')}
+      YAML
+    end
+
+    it 'surfaces all four new blocking violation types when the keys are declared' do
+      with_tmp_project do |root|
+        task_id = seed_full_project(root)
+        enable_semantic_brief(root, <<~YAML)
+          forbid_empty_sections: true
+          forbid_placeholders: true
+          require_scenarios: true
+          require_when_then: true
+        YAML
+        write("#{root}/tasks/#{task_id}/brief.md", <<~MD)
+          ## Summary
+
+          Filled.
+
+          ## Empty
+
+          ### Requirement: NoScenario
+
+          just prose with a TODO marker
+
+          ### Requirement: HasScenario
+
+          #### Scenario: half
+          - WHEN it happens
+        MD
+        result = described_class.artifact(root: root, task_id: task_id, artifact_key: 'brief')
+        types = result.value[:violations].map { |v| v[:type] }
+        expect(types).to include('empty_section', 'placeholder_text', 'requirement_without_scenario',
+                                 'scenario_missing_clause')
+        expect(result.value[:valid]).to be(false)
+        expect(result.value[:violations].all? { |v| v[:level] == 'error' }).to be(true)
+      end
+    end
+
+    it 'passes when the declared semantic rules are all satisfied' do
+      with_tmp_project do |root|
+        task_id = seed_full_project(root)
+        enable_semantic_brief(root, <<~YAML)
+          required_sections:
+            - Summary
+          forbid_empty_sections: true
+          forbid_placeholders: true
+          require_scenarios: true
+          require_when_then: true
+        YAML
+        write("#{root}/tasks/#{task_id}/brief.md", <<~MD)
+          ## Summary
+
+          All clear here.
+
+          ### Requirement: Solid
+
+          This requirement is described here.
+
+          #### Scenario: full
+          - WHEN it happens
+          - THEN it works
+        MD
+        result = described_class.artifact(root: root, task_id: task_id, artifact_key: 'brief')
+        expect(result.value[:valid]).to be(true)
+        expect(result.value[:violations]).to be_empty
+      end
+    end
+
+    it 'leaves behaviour unchanged for an artifact type that declares none of the new keys' do
+      with_tmp_project do |root|
+        task_id = seed_full_project(root)
+        enable_semantic_brief(root, <<~YAML)
+          required_sections:
+            - Summary
+        YAML
+        write("#{root}/tasks/#{task_id}/brief.md", <<~MD)
+          ## Summary
+
+          ## Empty section that would fail forbid_empty_sections
+
+          TODO leftover marker
+        MD
+        result = described_class.artifact(root: root, task_id: task_id, artifact_key: 'brief')
+        expect(result.value[:valid]).to be(true)
+        expect(result.value[:violations]).to be_empty
+      end
+    end
+  end
+
   describe '.task' do
     it 'aggregates results across all workflow artifacts and reports all_valid' do
       with_tmp_project do |root|

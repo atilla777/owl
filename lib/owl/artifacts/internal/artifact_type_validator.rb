@@ -112,7 +112,32 @@ module Owl
                                                        'required_sections'))
           errors.concat(validate_required_string_array(validation['required_patterns'], '/validation/required_patterns',
                                                        'required_patterns'))
+          errors.concat(validate_semantic_keys(validation))
           errors
+        end
+
+        SEMANTIC_BOOLEAN_KEYS = %w[forbid_empty_sections require_scenarios require_when_then].freeze
+
+        def validate_semantic_keys(validation)
+          errors = SEMANTIC_BOOLEAN_KEYS.flat_map do |key|
+            validate_boolean(validation[key], "/validation/#{key}", key)
+          end
+          errors.concat(validate_placeholders(validation['forbid_placeholders']))
+          errors
+        end
+
+        def validate_boolean(value, path, label)
+          return [] if value.nil? || [true, false].include?(value)
+
+          [error_at(path, "`validation.#{label}` must be a boolean when present.")]
+        end
+
+        def validate_placeholders(value)
+          return [] if value.nil? || [true, false].include?(value)
+          return [] if value.is_a?(Array) && value.all? { |s| s.is_a?(String) && !s.strip.empty? }
+
+          [error_at('/validation/forbid_placeholders',
+                    '`validation.forbid_placeholders` must be `true` or an array of non-empty strings when present.')]
         end
 
         def validate_required_string_array(value, path, label)
