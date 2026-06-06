@@ -31,6 +31,12 @@ artifacts:
     storage:
       role: tasks
       path: "{{task.id}}/verification.md"
+  spec_delta:
+    type: spec_delta
+    optional: true
+    storage:
+      role: tasks
+      path: "{{task.id}}/spec_delta.md"
 publishes:
 - from: "{{task.id}}/design.md"
   to: "{{task.id}}/design.md"

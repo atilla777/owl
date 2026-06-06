@@ -1,45 +1,14 @@
 ---
-id: hotfix
+id: TASK-0009
+title: Extend spec-merge wiring to hotfix/refactor workflows + polish flip_delta_status
+  and merge_task docs
+workflow:
+  key: feature
+  version: '1.0'
+  source: workflows/feature/workflow.yaml
 kind: task
-title: Hotfix
-description: Workflow for an urgent fix — issue → patch-plan → tasks → apply → verify → archive.
-execution_mode: autonomous_after_brief
-artifacts:
-  brief:
-    type: brief
-    storage:
-      role: tasks
-      path: "{{task.id}}/brief.md"
-  design:
-    type: design
-    optional: true
-    storage:
-      role: tasks
-      path: "{{task.id}}/design.md"
-  plan:
-    type: plan
-    storage:
-      role: tasks
-      path: "{{task.id}}/plan.md"
-  review:
-    type: review
-    storage:
-      role: tasks
-      path: "{{task.id}}/review.md"
-  verification:
-    type: verification
-    storage:
-      role: tasks
-      path: "{{task.id}}/verification.md"
-  spec_delta:
-    type: spec_delta
-    optional: true
-    storage:
-      role: tasks
-      path: "{{task.id}}/spec_delta.md"
-publishes:
-- from: "{{task.id}}/design.md"
-  to: "{{task.id}}/design.md"
+parent_id:
+created_at: '2026-06-06T14:37:51Z'
 steps:
 - id: brief
   skill: owl-step-discussion
@@ -58,6 +27,8 @@ steps:
     problem_inventory:
       context_file: brief.problem_inventory.context.md
       title: Inventory refactor problems
+  status: done
+  content_sha: b3ac2ab06ceab3ba9b67a11f9efc88d014700dd0417e7ceaaadd9c2ebfcdc5df
 - id: design
   skill: owl-step-discussion
   session_type: discussion
@@ -67,6 +38,8 @@ steps:
   - brief
   creates:
   - design
+  status: done
+  content_sha: cbe0997767cc7deb9f3c14717a56553e566adbaa7cef8e164ce1933a3ae77399
 - id: plan
   skill: owl-step-discussion
   session_type: discussion
@@ -76,6 +49,8 @@ steps:
   - brief
   creates:
   - plan
+  status: done
+  content_sha: 70ca33bd9531909d0e5a7e71fcfa61c41feb4b7665ed29e034e2b527ba864a2c
 - id: implement
   skill: owl-step-execution
   session_type: execution
@@ -85,6 +60,8 @@ steps:
   - plan
   creates:
   - verification
+  status: done
+  content_sha: cb20c10eccd02febeff965072737bf097c515e3b0fbacacb31f0c5255c272f54
 - id: review_code
   skill: owl-step-execution
   session_type: execution
@@ -94,6 +71,8 @@ steps:
   - implement
   creates:
   - review
+  status: done
+  content_sha: abd33f178d8c35a28eb8ad82f25bd4832c5129586633219d8c5409d58bea3751
 - id: merge_docs
   skill: owl-step-execution
   session_type: execution
@@ -101,6 +80,7 @@ steps:
   context_file: merge_docs.context.md
   requires:
   - review_code
+  status: done
 - id: archive
   skill: owl-step-execution
   session_type: execution
@@ -108,6 +88,7 @@ steps:
   context_file: archive.context.md
   requires:
   - merge_docs
+  status: done
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
@@ -115,3 +96,7 @@ steps:
   context_file: commit_push.context.md
   requires:
   - archive
+  status: running
+artifacts: []
+status: archived
+archived_at: '2026-06-06T14:54:44Z'

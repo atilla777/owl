@@ -157,4 +157,102 @@ RSpec.describe 'Owl::Specs::Api.merge_task idempotency and dry-run preview' do
       expect(Pathname.new("#{root}/specs/payments/spec.md").exist?).to be(false)
     end
   end
+
+  # --- surgical flip_delta_status (TASK-0009) -------------------------------
+
+  def delta_path(root, task_id)
+    Pathname.new("#{root}/tasks/#{task_id}/spec_delta.md")
+  end
+
+  def validate_artifact(root, task_id)
+    JSON.parse(run_cli(['artifact', 'validate', task_id, 'spec_delta', '--root', root.to_s, '--json'], cwd: root))
+  end
+
+  # A delta whose front matter carries EXTRA keys with specific quoting and
+  # indentation that a whole-hash YAML re-dump would reformat.
+  def extra_keys_delta
+    <<~MD
+      ---
+      domain: billing
+      summary: "Late fees, with a colon: yes"
+      status: draft
+      labels:
+        - billing
+        - fees
+      note: 'single-quoted value'
+      ---
+
+      ## ADDED Requirements
+
+      ### Requirement: Late fees
+      The system SHALL charge late fees.
+
+      #### Scenario: Late
+      - WHEN payment is late
+      - THEN a fee is added
+      - TEST: specs/billing/spec.md
+    MD
+  end
+
+  it 'flips ONLY the status line, preserving other front-matter keys/formatting and the body byte-for-byte' do
+    with_tmp_project do |root|
+      init_project(root)
+      seed_spec(root)
+      task_id = create_task(root)
+      original = extra_keys_delta
+      write_delta(root, task_id, original)
+
+      result = Owl::Specs::Api.merge_task(root: root, task_id: task_id)
+      expect(result.value).to include(ok: true, applied: true, reason: 'merged')
+
+      after = delta_path(root, task_id).read
+      expected = original.sub("status: draft\n", "status: merged\n")
+      expect(after).to eq(expected)
+
+      # Re-parses and re-validates against the spec_delta type.
+      parsed = Owl::Validation::Internal::FrontMatterParser.parse(after)
+      expect(parsed[:front_matter]).to include('domain' => 'billing', 'status' => 'merged',
+                                               'summary' => 'Late fees, with a colon: yes',
+                                               'note' => 'single-quoted value',
+                                               'labels' => %w[billing fees])
+      expect(validate_artifact(root, task_id)).to include('valid' => true)
+    end
+  end
+
+  def no_status_delta
+    <<~MD
+      ---
+      domain: billing
+      summary: "No status key here"
+      ---
+
+      ## ADDED Requirements
+
+      ### Requirement: Late fees
+      The system SHALL charge late fees.
+
+      #### Scenario: Late
+      - WHEN payment is late
+      - THEN a fee is added
+      - TEST: specs/billing/spec.md
+    MD
+  end
+
+  it 'appends status: merged at the end of the front-matter block when no status line exists' do
+    with_tmp_project do |root|
+      init_project(root)
+      seed_spec(root)
+      task_id = create_task(root)
+      original = no_status_delta
+      write_delta(root, task_id, original)
+
+      Owl::Specs::Api.merge_task(root: root, task_id: task_id)
+
+      after = delta_path(root, task_id).read
+      expected = original.sub("---\n\n## ADDED", "status: merged\n---\n\n## ADDED")
+      expect(after).to eq(expected)
+      expect(delta_status(root, task_id)).to eq('merged')
+      expect(validate_artifact(root, task_id)).to include('valid' => true)
+    end
+  end
 end

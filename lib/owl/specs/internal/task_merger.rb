@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'yaml'
-
 require_relative '../../result'
 require_relative '../../artifacts/api'
 require_relative '../../storage/api'
@@ -29,6 +27,10 @@ module Owl
       # trace:)`. `ok` is `false` when the trace gate fails (untraced/dangling),
       # but the applied delta is NOT rolled back — the merged spec is the new
       # contract and the trace is the "link tests" signal (design decision).
+      # On such a gate-fail the merged spec is persisted AND the delta's
+      # front-matter `status` is flipped to `merged`, so a re-run skips
+      # (`already_merged`) rather than re-applying; `owl spec trace --strict`
+      # remains the authoritative coverage gate.
       #
       # `dry_run: true` delegates to `Specs::Api.apply(dry_run: true)` which
       # writes nothing; the trace then reflects the current on-disk spec and
@@ -38,6 +40,7 @@ module Owl
       # `Owl::Artifacts::Api` — no direct `File`/`Dir`/`Pathname` I/O.
       module TaskMerger
         ARTIFACT_KEY = 'spec_delta'
+        FRONT_MATTER_FENCE = "---\n"
 
         module_function
 
@@ -99,24 +102,49 @@ module Owl
 
         # Best-effort flip of the delta's front-matter `status` to `merged`
         # after a successful non-dry-run apply, so a re-run is a clean skip.
-        # Splits front matter from body via the shared parser, swaps the status
-        # value, and re-serializes — the markdown body is preserved verbatim.
+        # Edits ONLY the first `---\n…\n---` front-matter block at the line
+        # level: replaces the existing `status:` line in place (or appends one
+        # when absent) and preserves every other front-matter line AND the
+        # markdown body byte-for-byte — a `status:` mention in the body is
+        # never touched.
         def flip_delta_status(delta_path)
-          body = Owl::Storage::Api.read(path: delta_path)
-          return body if body.err?
+          read = Owl::Storage::Api.read(path: delta_path)
+          return read if read.err?
 
-          parsed = Owl::Validation::Internal::FrontMatterParser.parse(body.value)
-          front_matter = parsed[:front_matter]
-          return Result.ok(nil) unless front_matter.is_a?(Hash)
+          rewritten = rewrite_status_line(read.value)
+          return Result.ok(nil) if rewritten.nil?
 
-          front_matter['status'] = 'merged'
-          contents = serialize_front_matter(front_matter) + parsed[:body]
-          Owl::Storage::Api.write(path: delta_path, contents: contents)
+          Owl::Storage::Api.write(path: delta_path, contents: rewritten)
         end
 
-        def serialize_front_matter(front_matter)
-          yaml = YAML.dump(front_matter).delete_prefix("---\n")
-          "---\n#{yaml}---\n"
+        # Returns the source with the front-matter `status` set to `merged`, or
+        # `nil` when there is no leading `---\n…\n---` front-matter block (no
+        # write needed). Mirrors `FrontMatterParser`'s fence detection so the
+        # closing fence and body bytes are carried over untouched.
+        def rewrite_status_line(source)
+          return nil unless source.start_with?(FRONT_MATTER_FENCE)
+
+          rest = source[FRONT_MATTER_FENCE.length..]
+          end_index = rest.index("\n---\n") || rest.index("\n---")
+          return nil unless end_index
+
+          fm_text = rest[0...end_index]
+          tail = rest[end_index..] || ''
+          FRONT_MATTER_FENCE + front_matter_with_merged_status(fm_text) + tail
+        end
+
+        # Surgical, line-level rewrite of a front-matter block's `status:` line.
+        def front_matter_with_merged_status(fm_text)
+          lines = fm_text.split("\n", -1)
+          idx = lines.index { |line| line.match?(/\Astatus\s*:/) }
+          if idx
+            lines[idx] = 'status: merged'
+            lines.join("\n")
+          elsif fm_text.empty?
+            'status: merged'
+          else
+            "#{fm_text}\nstatus: merged"
+          end
         end
 
         # Resolve the task's spec_delta artifact path. Returns
@@ -169,8 +197,8 @@ module Owl
         end
 
         private_class_method :apply_and_trace, :trace_merge, :merged_result, :flip_delta_status,
-                             :serialize_front_matter, :locate_delta, :read_delta_meta, :skipped,
-                             :already_merged, :missing_domain
+                             :rewrite_status_line, :front_matter_with_merged_status, :locate_delta,
+                             :read_delta_meta, :skipped, :already_merged, :missing_domain
       end
     end
   end
