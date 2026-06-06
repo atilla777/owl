@@ -180,4 +180,18 @@ RSpec.describe Owl::Steps::Api, '.reopen' do
       expect(step_status(root, task_id, 'c')).to eq('pending')
     end
   end
+
+  # The cascade reopen_targets guard is defensive: the public `reopen` path already rejects a
+  # missing workflow key earlier (artifact resolution / inspect), so the only way to reach the
+  # guard is an inspect payload that lacks `workflow.key`. Stub inspect to exercise it directly.
+  it 'reopen_targets errors with task_workflow_missing when the payload has no workflow key' do
+    allow(Owl::Tasks::Api).to receive(:inspect).and_return(
+      Owl::Result.ok(payload: { 'steps' => [{ 'id' => 'a', 'status' => 'done' }] })
+    )
+
+    result = described_class.reopen_targets(root: '/anywhere', task_id: 'TASK-0001', step_id: 'a', cascade: true)
+
+    expect(result).to be_err
+    expect(result.code).to eq(:task_workflow_missing)
+  end
 end
