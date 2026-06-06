@@ -96,7 +96,7 @@ steps:
   context_file: commit_push.context.md
   requires:
   - archive
-  status: running
+  status: done
 artifacts: []
 status: archived
 archived_at: '2026-06-06T13:53:52Z'
