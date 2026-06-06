@@ -109,6 +109,33 @@ RSpec.describe Owl::Specs::Api do
     end
   end
 
+  describe '.trace_body' do
+    it 'traces an in-memory spec body against the root without reading a spec file' do
+      with_tmp_project do |root|
+        init_project(root)
+        write("#{root}/spec/owl/demo_spec.rb", "# demo\n")
+        body = <<~MD
+          ## Requirements
+
+          ### Requirement: A
+          The system SHALL do A.
+
+          #### Scenario: One
+          - WHEN x
+          - THEN y
+          - TEST: spec/owl/demo_spec.rb
+        MD
+
+        result = described_class.trace_body(root: root, body: body)
+        expect(result).to be_ok
+        expect(result.value[:ok]).to be(true)
+        expect(result.value[:valid]).to be(true)
+        expect(result.value[:summary][:traced]).to eq(1)
+        expect(Pathname.new("#{root}/specs").exist?).to be(false)
+      end
+    end
+  end
+
   describe '.validate' do
     it 'validates a clean spec (the seeded template) as valid with no violations' do
       with_tmp_project do |root|

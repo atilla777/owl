@@ -80,6 +80,7 @@ module OwlConstitutionFixtures
     context/internal/overlay_paths.rb
     subagents/internal/tier_map.rb
     subagents/internal/report_paths.rb
+    specs/internal/trace_checker.rb
   ].freeze
 end
 

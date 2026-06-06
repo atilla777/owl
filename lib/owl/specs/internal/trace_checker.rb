@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'pathname'
+
 require_relative '../../storage/api'
 require_relative '../../validation/internal/section_scanner'
 
@@ -86,12 +88,27 @@ module Owl
             return :unverified
           end
 
-          if Owl::Storage::Api.exists?(path: "#{root}/#{ref}")
+          resolved = resolve_in_root(root, ref)
+          if resolved && Owl::Storage::Api.exists?(path: resolved)
             :traced
           else
             state[:dangling] << { requirement: requirement_name, scenario: scenario_name, ref: ref }
             :dangling
           end
+        end
+
+        # Lexically normalize the root-joined ref (expanding `.`/`..` WITHOUT
+        # touching the filesystem) and require it to stay under the normalized
+        # project root, so a path-like ref escaping the repo (e.g. `../x.rb`)
+        # can never be counted as traced. Returns the normalized in-root path
+        # to existence-check, or `nil` when the ref escapes the root. Pure path
+        # math — not filesystem I/O.
+        def resolve_in_root(root, ref)
+          root_path = Pathname.new(root.to_s).cleanpath
+          joined = (root_path + ref).cleanpath
+          return joined.to_s if joined == root_path || joined.to_s.start_with?("#{root_path}/")
+
+          nil
         end
 
         def rollup(classifications)
@@ -165,7 +182,7 @@ module Owl
         end
 
         private_class_method :trace_requirement, :classify_scenario, :scenario_status,
-                             :classify_ref, :rollup, :path_like?, :scenario_blocks,
+                             :classify_ref, :resolve_in_root, :rollup, :path_like?, :scenario_blocks,
                              :scenario_block, :test_refs, :clean_ref, :next_boundary_line,
                              :scenario_heading?, :summary
       end

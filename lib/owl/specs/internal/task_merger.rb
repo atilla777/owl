@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'yaml'
+
 require_relative '../../result'
 require_relative '../../artifacts/api'
 require_relative '../../storage/api'
@@ -47,10 +49,13 @@ module Owl
           return skipped if data[:skip]
 
           delta_path = data[:path]
-          domain_result = read_domain(delta_path)
-          return domain_result if domain_result.err?
+          meta = read_delta_meta(delta_path)
+          return meta if meta.err?
 
-          apply_and_trace(root: root, domain: domain_result.value, delta_path: delta_path, dry_run: dry_run)
+          domain = meta.value[:domain]
+          return already_merged(domain) if meta.value[:status].to_s == 'merged'
+
+          apply_and_trace(root: root, domain: domain, delta_path: delta_path, dry_run: dry_run)
         end
 
         # --- internals -----------------------------------------------------
@@ -59,17 +64,59 @@ module Owl
           applied = Owl::Specs::Api.apply(root: root, domain: domain, delta_path: delta_path, dry_run: dry_run)
           return applied if applied.err?
 
-          traced = Owl::Specs::Api.trace(root: root, domain: domain, strict: true)
+          traced = trace_merge(root: root, domain: domain, applied: applied.value, dry_run: dry_run)
           return traced if traced.err?
 
+          unless dry_run
+            flipped = flip_delta_status(delta_path)
+            return flipped if flipped.err?
+          end
+
+          merged_result(domain: domain, applied: applied.value, traced: traced.value, dry_run: dry_run)
+        end
+
+        # Dry-run traces the previewed merged body (the would-be-created spec),
+        # so a brand-new domain previews without a `spec_not_found`. A real
+        # apply traces the now-persisted on-disk spec, which is authoritative.
+        def trace_merge(root:, domain:, applied:, dry_run:)
+          if dry_run
+            Owl::Specs::Api.trace_body(root: root, body: applied[:after])
+          else
+            Owl::Specs::Api.trace(root: root, domain: domain, strict: true)
+          end
+        end
+
+        def merged_result(domain:, applied:, traced:, dry_run:)
           Result.ok(
-            ok: traced.value[:valid],
+            ok: traced[:valid],
             applied: !dry_run,
-            reason: nil,
+            reason: dry_run ? nil : 'merged',
             domain: domain,
-            merge: applied.value,
-            trace: traced.value
+            merge: applied,
+            trace: traced
           )
+        end
+
+        # Best-effort flip of the delta's front-matter `status` to `merged`
+        # after a successful non-dry-run apply, so a re-run is a clean skip.
+        # Splits front matter from body via the shared parser, swaps the status
+        # value, and re-serializes — the markdown body is preserved verbatim.
+        def flip_delta_status(delta_path)
+          body = Owl::Storage::Api.read(path: delta_path)
+          return body if body.err?
+
+          parsed = Owl::Validation::Internal::FrontMatterParser.parse(body.value)
+          front_matter = parsed[:front_matter]
+          return Result.ok(nil) unless front_matter.is_a?(Hash)
+
+          front_matter['status'] = 'merged'
+          contents = serialize_front_matter(front_matter) + parsed[:body]
+          Owl::Storage::Api.write(path: delta_path, contents: contents)
+        end
+
+        def serialize_front_matter(front_matter)
+          yaml = YAML.dump(front_matter).delete_prefix("---\n")
+          "---\n#{yaml}---\n"
         end
 
         # Resolve the task's spec_delta artifact path. Returns
@@ -90,22 +137,27 @@ module Owl
           Result.ok(skip: false, path: path)
         end
 
-        def read_domain(delta_path)
+        def read_delta_meta(delta_path)
           body = Owl::Storage::Api.read(path: delta_path)
           return body if body.err?
 
           front_matter = Owl::Validation::Internal::FrontMatterParser.parse(body.value)[:front_matter]
-          domain = front_matter.is_a?(Hash) ? front_matter['domain'] : nil
+          front_matter = {} unless front_matter.is_a?(Hash)
+          domain = front_matter['domain']
           return missing_domain(delta_path) if domain.nil? || domain.to_s.strip.empty?
 
           valid = SpecLocator.validate_domain(domain)
           return valid if valid.err?
 
-          Result.ok(valid.value)
+          Result.ok(domain: valid.value, status: front_matter['status'])
         end
 
         def skipped
           Result.ok(ok: true, applied: false, reason: 'no_spec_delta', domain: nil, merge: nil, trace: nil)
+        end
+
+        def already_merged(domain)
+          Result.ok(ok: true, applied: false, reason: 'already_merged', domain: domain, merge: nil, trace: nil)
         end
 
         def missing_domain(delta_path)
@@ -116,7 +168,9 @@ module Owl
           )
         end
 
-        private_class_method :apply_and_trace, :locate_delta, :read_domain, :skipped, :missing_domain
+        private_class_method :apply_and_trace, :trace_merge, :merged_result, :flip_delta_status,
+                             :serialize_front_matter, :locate_delta, :read_delta_meta, :skipped,
+                             :already_merged, :missing_domain
       end
     end
   end

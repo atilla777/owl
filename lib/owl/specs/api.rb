@@ -77,6 +77,25 @@ module Owl
         )
       end
 
+      # Compute traceability coverage for an in-memory spec body without reading
+      # the filesystem for the spec itself — parses `body` and runs the same
+      # `TraceChecker` as `trace`, returning the standard report shape. Used to
+      # trace a previewed merge body (`owl spec merge --dry-run`) for a domain
+      # whose spec does not yet exist on disk. `ok` mirrors the coverage verdict.
+      def trace_body(root:, body:)
+        model = Internal::SpecDocument.parse(body)
+        report = Internal::TraceChecker.trace(model, root: root)
+        Result.ok(
+          ok: report[:valid],
+          valid: report[:valid],
+          requirements: report[:requirements],
+          summary: report[:summary],
+          untraced: report[:untraced],
+          dangling: report[:dangling],
+          unverified: report[:unverified]
+        )
+      end
+
       # Merge a task's optional `spec_delta` artifact into its domain's living
       # spec and gate on traceability. Resolves the task's `spec_delta`, applies
       # it via the P4 engine (`apply`), then runs the P5 trace with `strict:

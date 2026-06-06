@@ -172,6 +172,77 @@ RSpec.describe Owl::Specs::Internal::TraceChecker do
       end
     end
 
+    it 'classifies a parent-escaping path-like ref as dangling, never traced' do
+      with_root do |root|
+        body = <<~MD
+          ### Requirement: A
+          The system SHALL do A.
+
+          #### Scenario: Escape
+          - WHEN x
+          - THEN y
+          - TEST: ../outside.rb
+        MD
+        report = described_class.trace(model_for(body), root: root)
+        expect(report[:valid]).to be(false)
+        expect(report[:dangling]).to eq(
+          [{ requirement: 'A', scenario: 'Escape', ref: '../outside.rb' }]
+        )
+        expect(report[:requirements].first[:scenarios].first[:status]).to eq(:dangling)
+      end
+    end
+
+    it 'keeps an in-root existing ref traced even alongside the traversal guard' do
+      with_root do |root|
+        body = <<~MD
+          ### Requirement: A
+          The system SHALL do A.
+
+          #### Scenario: Inside
+          - WHEN x
+          - THEN y
+          - TEST: spec/owl/present_spec.rb
+        MD
+        report = described_class.trace(model_for(body), root: root)
+        expect(report[:valid]).to be(true)
+        expect(report[:requirements].first[:scenarios].first[:status]).to eq(:traced)
+      end
+    end
+
+    it 'resolves an in-root ref that normalizes back inside the root normally' do
+      with_root do |root|
+        body = <<~MD
+          ### Requirement: A
+          The system SHALL do A.
+
+          #### Scenario: Normalized
+          - WHEN x
+          - THEN y
+          - TEST: spec/owl/a/../present_spec.rb
+        MD
+        report = described_class.trace(model_for(body), root: root)
+        expect(report[:valid]).to be(true)
+        expect(report[:requirements].first[:scenarios].first[:status]).to eq(:traced)
+      end
+    end
+
+    it 'leaves a prose ref unverified, unaffected by the traversal guard' do
+      with_root do |root|
+        body = <<~MD
+          ### Requirement: A
+          The system SHALL do A.
+
+          #### Scenario: Prose with dots
+          - WHEN x
+          - THEN y
+          - TEST: see the ../manual checklist
+        MD
+        report = described_class.trace(model_for(body), root: root)
+        expect(report[:valid]).to be(true)
+        expect(report[:requirements].first[:scenarios].first[:status]).to eq(:unverified)
+      end
+    end
+
     it 'emits requirements, scenarios and ref lists in deterministic document order' do
       with_root do |root|
         body = <<~MD
