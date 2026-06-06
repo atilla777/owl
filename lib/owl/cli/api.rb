@@ -2,6 +2,9 @@
 
 require_relative '../version'
 require_relative 'internal/commands/archive'
+require_relative 'internal/commands/archive_list'
+require_relative 'internal/commands/archive_read'
+require_relative 'internal/commands/archive_show'
 require_relative 'internal/commands/artifact_resolve'
 require_relative 'internal/commands/artifact_type_list'
 require_relative 'internal/commands/artifact_type_new'
@@ -89,7 +92,7 @@ module Owl
           artifact resolve        Resolve task-scoped artifact path + template + validation rules.
           artifact validate       Validate a task artifact (existence, sections, patterns, front matter).
           publish                 Publish task artifacts to the docs storage role per workflow `publishes` rules.
-          archive                 Move a completed task into the archive storage role.
+          archive                 Move a completed task into the archive role; or read-only list|show|read of archived tasks.
           instructions            Show the next ready step packaged with its SKILL.md summary (JSON).
           status                  Show workflow progress for a task (steps, progress, blockers, children).
 
@@ -128,11 +131,20 @@ module Owl
         when 'step'          then dispatch_step(args, **kwargs)
         when 'artifact'      then dispatch_artifact(args, **kwargs)
         when 'publish'      then Internal::Commands::Publish.run(argv: args, **kwargs)
-        when 'archive'      then Internal::Commands::Archive.run(argv: args, **kwargs)
+        when 'archive'      then dispatch_archive(args, **kwargs)
         when 'instructions' then Internal::Commands::Instructions.run(argv: args, **kwargs)
         when 'status'       then Internal::Commands::Status.run(argv: args, **kwargs)
         else
           unknown_command(stderr, command)
+        end
+      end
+
+      def dispatch_archive(args, **)
+        case args.first
+        when 'list' then Internal::Commands::ArchiveList.run(argv: args.drop(1), **)
+        when 'show' then Internal::Commands::ArchiveShow.run(argv: args.drop(1), **)
+        when 'read' then Internal::Commands::ArchiveRead.run(argv: args.drop(1), **)
+        else Internal::Commands::Archive.run(argv: args, **)
         end
       end
 

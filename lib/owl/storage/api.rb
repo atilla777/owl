@@ -51,6 +51,10 @@ module Owl
         default_filesystem_backend.read(path: path)
       end
 
+      def children(path:)
+        default_filesystem_backend.children(path: path)
+      end
+
       def exists?(path:)
         default_filesystem_backend.exists?(path: path)
       end

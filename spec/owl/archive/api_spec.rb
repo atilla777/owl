@@ -64,6 +64,125 @@ RSpec.describe Owl::Archive::Api do
     step_ids.each { |id| force_step_status(root, task_id, id, 'done') }
   end
 
+  describe 'read-only archive surface' do
+    let(:now) { Time.utc(2026, 5, 17, 12, 0, 0) }
+
+    def archive_a_task(root, title:)
+      task_id = setup_project(root, title: title)
+      write("#{root}/tasks/#{task_id}/spec.md", "# spec for #{title}\n")
+      mark_all_done(root, task_id, %w[specify verify publish])
+      described_class.archive_task(root: root, task_id: task_id, now: now)
+      task_id
+    end
+
+    describe '.list' do
+      it 'returns an empty list when nothing is archived' do
+        with_tmp_project do |root|
+          setup_project(root, title: 't')
+          result = described_class.list(root: root)
+          expect(result).to be_ok
+          expect(result.value[:archived]).to eq([])
+        end
+      end
+
+      it 'enumerates archived tasks with id, slug, date, title and an existing path' do
+        with_tmp_project do |root|
+          task_id = archive_a_task(root, title: 'Feature Foo')
+          result = described_class.list(root: root)
+
+          aggregate_failures do
+            expect(result).to be_ok
+            entry = result.value[:archived].first
+            expect(entry[:task_id]).to eq(task_id)
+            expect(entry[:slug]).to eq('feature-foo')
+            expect(entry[:archived_date]).to eq('2026-05-17')
+            expect(entry[:title]).to eq('Feature Foo')
+            expect(Pathname.new(entry[:path]).directory?).to be(true)
+          end
+        end
+      end
+
+      it 'propagates the config-load error when the project root is invalid' do
+        with_tmp_project do |root|
+          result = described_class.list(root: "#{root}/does-not-exist")
+          expect(result).to be_err
+        end
+      end
+    end
+
+    describe '.show' do
+      it 'returns the archived payload and artifact inventory' do
+        with_tmp_project do |root|
+          task_id = archive_a_task(root, title: 'Show Me')
+          result = described_class.show(root: root, task_id: task_id)
+
+          aggregate_failures do
+            expect(result).to be_ok
+            expect(result.value[:task_id]).to eq(task_id)
+            expect(result.value[:title]).to eq('Show Me')
+            expect(result.value[:workflow_key]).to eq('feature')
+            expect(result.value[:status]).to eq('archived')
+            expect(result.value[:steps].map { |s| s[:id] }).to eq(%w[specify verify publish])
+            expect(result.value[:artifacts].map { |a| a[:key] }).to include('spec')
+            expect(Pathname.new(result.value[:path]).directory?).to be(true)
+          end
+        end
+      end
+
+      it 'returns archived_task_not_found with available_ids for an unknown id' do
+        with_tmp_project do |root|
+          archive_a_task(root, title: 'Known')
+          result = described_class.show(root: root, task_id: 'TASK-9999')
+
+          aggregate_failures do
+            expect(result).to be_err
+            expect(result.code).to eq(:archived_task_not_found)
+            expect(result.details[:available_ids]).to eq(['TASK-0001'])
+          end
+        end
+      end
+    end
+
+    describe '.read' do
+      it 'returns the artifact body for an existing key' do
+        with_tmp_project do |root|
+          task_id = archive_a_task(root, title: 'Read Me')
+          result = described_class.read(root: root, task_id: task_id, artifact_key: 'spec')
+
+          aggregate_failures do
+            expect(result).to be_ok
+            expect(result.value[:task_id]).to eq(task_id)
+            expect(result.value[:artifact_key]).to eq('spec')
+            expect(Pathname.new(result.value[:path]).file?).to be(true)
+            expect(result.value[:body]).to be_a(String)
+          end
+        end
+      end
+
+      it 'returns archived_artifact_not_found with available_keys for a missing key' do
+        with_tmp_project do |root|
+          task_id = archive_a_task(root, title: 'Read Me')
+          result = described_class.read(root: root, task_id: task_id, artifact_key: 'nope')
+
+          aggregate_failures do
+            expect(result).to be_err
+            expect(result.code).to eq(:archived_artifact_not_found)
+            expect(result.details[:available_keys]).to include('spec')
+          end
+        end
+      end
+
+      it 'returns archived_task_not_found for reading an unknown task id' do
+        with_tmp_project do |root|
+          setup_project(root, title: 't')
+          result = described_class.read(root: root, task_id: 'TASK-9999', artifact_key: 'spec')
+          expect(result).to be_err
+          expect(result.code).to eq(:archived_task_not_found)
+        end
+      end
+    end
+  end
+
   describe '.archive_task' do
     let(:now) { Time.utc(2026, 5, 17, 12, 0, 0) }
 

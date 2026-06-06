@@ -28,6 +28,13 @@ module Owl
         def read(path)
           Pathname.new(path.to_s).read
         end
+
+        def children(path)
+          pathname = Pathname.new(path.to_s)
+          return [] unless pathname.directory?
+
+          pathname.children
+        end
       end
     end
   end

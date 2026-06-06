@@ -24,6 +24,10 @@ module Owl
           Result.err(code: :file_not_found, message: e.message, details: { path: path.to_s })
         end
 
+        def children(path:)
+          Result.ok(Internal::FilesystemBackend.children(path))
+        end
+
         def write(path:, contents:)
           Result.ok(Internal::FilesystemBackend.write(path: path, contents: contents))
         end
