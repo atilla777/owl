@@ -6,6 +6,8 @@ require_relative '../storage/api'
 require_relative '../validation/internal/artifact_runner'
 require_relative 'internal/spec_locator'
 require_relative 'internal/merge_engine'
+require_relative 'internal/spec_document'
+require_relative 'internal/trace_checker'
 
 module Owl
   module Specs
@@ -46,6 +48,31 @@ module Owl
           path: located.value[:path],
           valid: blocking_count(violations).zero?,
           violations: violations
+        )
+      end
+
+      # Compute requirement -> scenario -> test traceability coverage for a
+      # domain spec. Read-only: parses the spec and runs `TraceChecker`, never
+      # writing. Reuses P1 domain slug-validation and the `spec_not_found` /
+      # `invalid_domain` errors. `ok` reflects `strict` — under `--strict` it is
+      # the coverage `valid` verdict (no untraced scenarios, no dangling refs);
+      # without `strict` it is always `true` (a non-blocking report).
+      def trace(root:, domain:, strict: false)
+        located = Internal::SpecLocator.read(root: root, domain: domain)
+        return located if located.err?
+
+        model = Internal::SpecDocument.parse(located.value[:body])
+        report = Internal::TraceChecker.trace(model, root: root)
+        Result.ok(
+          domain: located.value[:domain],
+          path: located.value[:path],
+          ok: strict ? report[:valid] : true,
+          valid: report[:valid],
+          requirements: report[:requirements],
+          summary: report[:summary],
+          untraced: report[:untraced],
+          dangling: report[:dangling],
+          unverified: report[:unverified]
         )
       end
 

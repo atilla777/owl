@@ -1,11 +1,3 @@
 ---
 schema_version: 1
-tasks:
-- id: TASK-0005
-  title: 'P5: Traceability spec→scenario→test enforced at verification step'
-  workflow: feature
-  kind: task
-  parent_id:
-  created_at: '2026-06-06T06:12:28Z'
-  status:
-  archived_at:
+tasks: []

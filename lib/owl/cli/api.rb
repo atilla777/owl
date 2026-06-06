@@ -23,6 +23,7 @@ require_relative 'internal/commands/spec_diff'
 require_relative 'internal/commands/spec_list'
 require_relative 'internal/commands/spec_path'
 require_relative 'internal/commands/spec_show'
+require_relative 'internal/commands/spec_trace'
 require_relative 'internal/commands/spec_validate'
 require_relative 'internal/commands/status'
 require_relative 'internal/commands/step_complete'
@@ -123,6 +124,7 @@ module Owl
         when 'show' then Internal::Commands::SpecShow.run(**kwargs)
         when 'path' then Internal::Commands::SpecPath.run(**kwargs)
         when 'validate' then Internal::Commands::SpecValidate.run(**kwargs)
+        when 'trace' then Internal::Commands::SpecTrace.run(**kwargs)
         when 'diff' then Internal::Commands::SpecDiff.run(**kwargs)
         when 'apply' then Internal::Commands::SpecApply.run(**kwargs)
         else unknown_command(stderr, "spec #{subcommand}".strip)
