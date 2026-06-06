@@ -118,4 +118,37 @@ RSpec.describe Owl::Tasks::Backends::Filesystem do
       end
     end
   end
+
+  describe '#create after every task is archived' do
+    it 'does not reuse archived ids nor overwrite archived task.yaml' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        backend = described_class.new(root: root)
+
+        first = backend.create(workflow: 'feature', title: 'archived one')
+        first_id = first.value[:task_id]
+
+        task_path = Pathname.new("#{root}/tasks/#{first_id}/task.yaml")
+        payload = YAML.safe_load(task_path.read, aliases: false, permitted_classes: [Time])
+        payload['steps'].each { |step| step['status'] = 'done' }
+        Owl::Tasks::Internal::AtomicYamlWriter.write(path: task_path, payload: payload)
+        archived = backend.archive_task(task_id: first_id, now: Time.utc(2026, 5, 18, 12, 0, 0))
+        archived_yaml = Pathname.new(archived.value[:to]).join('task.yaml')
+
+        # The live work zone is now empty; a naive allocator would reset to TASK-0001
+        # and TaskWriter would resolve it onto the archived directory, overwriting it.
+        second = backend.create(workflow: 'feature', title: 'second')
+
+        aggregate_failures do
+          expect(second).to be_ok
+          expect(second.value[:task_id]).not_to eq(first_id)
+          expect(second.value[:task_path]).to include("tasks/#{second.value[:task_id]}/")
+          archived_payload = YAML.safe_load(archived_yaml.read, aliases: false, permitted_classes: [Time])
+          expect(archived_payload['id']).to eq(first_id)
+          expect(archived_payload['title']).to eq('archived one')
+        end
+      end
+    end
+  end
 end

@@ -74,6 +74,9 @@ module Owl
           paths = paths_result.value
           task_id = Internal::IdGenerator.next_id(tasks_root: paths[:tasks], index_path: paths[:index])
 
+          collision = guard_task_id_available(paths[:tasks], task_id)
+          return collision if collision
+
           payload = Internal::TaskWriter.build_payload(
             task_id: task_id,
             title: title.to_s,
@@ -94,14 +97,19 @@ module Owl
           )
           return rebuild_result if rebuild_result.err?
 
+          build_create_result(task_id: task_id, task_path: task_path, payload: payload, rebuild_result: rebuild_result)
+        end
+
+        def build_create_result(task_id:, task_path:, payload:, rebuild_result:)
+          index_path = rebuild_result.value[:index_path]
           Result.ok(
             task_id: task_id,
             task_path: task_path.to_s,
             payload: payload,
-            index_path: rebuild_result.value[:index_path],
+            index_path: index_path,
             local: {
               task_file: Owl::Tasks::Local::TaskFile.new(task_path: task_path.to_s),
-              index: Owl::Tasks::Local::Index.new(index_path: rebuild_result.value[:index_path])
+              index: Owl::Tasks::Local::Index.new(index_path: index_path)
             }
           )
         end
@@ -288,6 +296,20 @@ module Owl
             parent_id: parent_id,
             parent_workflow_key: parent_read.value[:payload].dig('workflow', 'key'),
             child_workflow_key: workflow
+          )
+        end
+
+        # Defence-in-depth: never let `create` write onto an existing task. TaskWriter
+        # resolves an archived id back to its archived directory (so post-archive steps can
+        # update it), so a reused id would otherwise silently overwrite archived work.
+        def guard_task_id_available(tasks_root, task_id)
+          existing = Internal::TaskReader.task_yaml_path(tasks_root: tasks_root, task_id: task_id)
+          return nil unless existing.file?
+
+          Result.err(
+            code: :task_id_collision,
+            message: "Refusing to create '#{task_id}': a task with that id already exists at #{existing}.",
+            details: { task_id: task_id, path: existing.to_s }
           )
         end
 
