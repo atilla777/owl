@@ -150,7 +150,7 @@ After `owl init`, an Owl-managed project has this shape:
 | Location                                  | Purpose                                                                 |
 | ----------------------------------------- | ----------------------------------------------------------------------- |
 | `bin/owl`                                 | CLI entrypoint — the only sanctioned interface to project state.        |
-| `.owl/config.yaml`                        | Control plane — storage role paths, language, enabled workflows.        |
+| `.owl/config.yaml`                        | Control plane — storage role paths, language, enabled workflows, `context_overlays`. |
 | `.owl/workflows.yaml`                     | Workflow registry — `key → source path` for each enabled workflow.      |
 | `.owl/artifacts.yaml`                     | Artifact-type registry — `key → source path` for each artifact type.    |
 | `.owl/workflows/<id>/workflow.yaml`       | Declared workflow (steps, artifacts, publishes, variants).              |
@@ -158,6 +158,7 @@ After `owl init`, an Owl-managed project has this shape:
 | `.owl/artifacts/<type>/artifact.yaml`     | Artifact-type definition (frontmatter schema, required sections).       |
 | `.owl/artifacts/<type>/templates/*.md`    | Markdown templates for each artifact type.                              |
 | `.owl/overlays/<step>.md`                 | Cross-workflow overlay merged into the step prompt (one per step id).   |
+| `.owl/overlays/<step>/<variant>.md`       | Variant-specific overlay merged on top of `.owl/overlays/<step>.md`.    |
 | `.owl/local/current.yaml`                 | "Current task" pointer (per-clone, not committed).                      |
 | `tasks/<TASK-ID>/task.yaml`               | Task state — workflow key, step statuses, variants, parent_id.          |
 | `tasks/<TASK-ID>/{brief,design,plan,…}.md`| Active task artifacts.                                                  |
@@ -236,6 +237,41 @@ additionally write a structured report to
 --body -`; the orchestrator reads it back through `owl step report
 --read`. Tier→model mapping is per-environment (`~/.config/owl/tier_map.yaml`
 or `$OWL_TIER_MAP_PATH`) — see `docs/examples/tier_map.example.yaml`.
+
+### Customizing step instructions (overlays)
+
+A project adds its own instructions to a step *without* editing Owl-shipped
+templates by dropping **overlay** Markdown next to the step. Overlays are
+merged into the bundle the bound skill reads, on top of the workflow's
+built-in `<step>.context.md`. There are three layers, applied in this order:
+
+1. **Convention** (universal) — `.owl/overlays/<step>.md`, then
+   `docs/ai/<step>.md`. Just create the file and write your text.
+2. **Variant** (only when the task picks a variant) —
+   `.owl/overlays/<step>/<variant>.md`, then `docs/ai/<step>/<variant>.md`.
+3. **Config** (explicit paths) — `context_overlays.<step>` in
+   `.owl/config.yaml`. Point a step at any number of existing files; handy for
+   reusing one document across several steps. Relative paths resolve from the
+   project root, absolute paths are used as-is.
+
+```yaml
+# .owl/config.yaml — top-level block, sibling to `settings:` / `storage:`
+context_overlays:
+  implement:
+    - docs/agents/27_Owl_Ruby_code_architecture.md
+    - docs/agents/29_Owl_Ruby_linting_RuboCop.md
+  commit_push:
+    - docs/ai/git-conventions.md
+```
+
+Behavior: empty files and HTML-comment-only stubs (the `owl init` seed) are
+skipped, so a placeholder overlay never pollutes context until you add real
+text; duplicate paths are de-duped; an overlay larger than 8 KB is still
+merged but flagged `warning: too_long` for the step log. Inspect the merged
+result with `owl step show <TASK-ID> <STEP-ID> --json` — the `overlays[]` array
+lists each `source` / `body` / `warning`. Rule of thumb: text unique to one
+step → layer 1; an existing `docs/…` doc you want to reuse across steps →
+layer 3.
 
 ## CLI usage example
 
