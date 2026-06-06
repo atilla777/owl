@@ -23,6 +23,13 @@ module Owl
             end
           end
 
+          # Pure path-math: expand a user-supplied relative path against the
+          # CLI's `cwd` (not the process pwd). No I/O — kept here because this
+          # file is on the constitution's path-utility allowlist.
+          def expand_path(path, cwd)
+            Pathname.new(path).expand_path(cwd).to_s
+          end
+
           def error_payload(err_result)
             payload = { code: err_result.code, message: err_result.message, details: err_result.details }
             if err_result.respond_to?(:error_class) && err_result.error_class

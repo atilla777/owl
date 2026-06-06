@@ -40,7 +40,13 @@ module Owl
           read_result = Owl::Storage::Api.read(path: path)
           return [missing_artifact_violation(path)] if read_result.err?
 
-          body = read_result.value
+          validate_body(read_result.value, descriptor)
+        end
+
+        # Validate an in-memory body against a descriptor's rules and front
+        # matter schema, without touching the filesystem. Used by the spec
+        # delta-merge engine to re-validate a merged spec before it is written.
+        def validate_body(body, descriptor)
           fm_result = FrontMatterParser.parse(body)
           violations = []
           violations.concat(front_matter_violations(descriptor, fm_result))

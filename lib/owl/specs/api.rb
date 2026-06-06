@@ -2,8 +2,10 @@
 
 require_relative '../result'
 require_relative '../artifacts/api'
+require_relative '../storage/api'
 require_relative '../validation/internal/artifact_runner'
 require_relative 'internal/spec_locator'
+require_relative 'internal/merge_engine'
 
 module Owl
   module Specs
@@ -47,6 +49,76 @@ module Owl
         )
       end
 
+      # Preview a delta merge without writing: returns the before/after spec
+      # bodies, an in-process unified diff, and the merged-body validation
+      # verdict. Hard structural errors (`invalid_delta`, `delta_conflict`,
+      # `delta_target_missing`, `spec_not_found`, `delta_not_found`,
+      # `invalid_domain`) are returned as `Result.err`; a merge that would only
+      # invalidate the spec is still previewed with `valid: false`.
+      def diff(root:, domain:, delta_path:)
+        prepared = Internal::MergeEngine.prepare(root: root, domain: domain, delta_path: delta_path)
+        return prepared if prepared.err?
+
+        data = prepared.value
+        Result.ok(
+          domain: data[:domain],
+          path: data[:path],
+          before: data[:before],
+          after: data[:after],
+          unified_diff: data[:unified_diff],
+          valid: data[:valid],
+          violations: data[:violations],
+          applied: data[:applied],
+          created: data[:created]
+        )
+      end
+
+      # Apply a delta to the domain spec. Merges and re-validates fully in
+      # memory; on success writes the spec atomically (unless `dry_run`). A
+      # merge that would invalidate the spec returns `merge_would_invalidate`
+      # with the violations and writes nothing.
+      def apply(root:, domain:, delta_path:, dry_run: false)
+        prepared = Internal::MergeEngine.prepare(root: root, domain: domain, delta_path: delta_path)
+        return prepared if prepared.err?
+
+        data = prepared.value
+        return merge_would_invalidate(data) unless data[:valid]
+
+        written = dry_run ? Result.ok(nil) : write_spec(data)
+        return written if written.err?
+
+        applied_result(data, dry_run)
+      end
+
+      def applied_result(data, dry_run)
+        Result.ok(
+          domain: data[:domain],
+          path: data[:path],
+          applied: data[:applied],
+          created: data[:created],
+          dry_run: dry_run,
+          before: data[:before],
+          after: data[:after],
+          unified_diff: data[:unified_diff]
+        )
+      end
+
+      def write_spec(data)
+        parent = data[:path].rpartition('/').first
+        made = Owl::Storage::Api.mkdir_p(path: parent)
+        return made if made.err?
+
+        Owl::Storage::Api.write(path: data[:path], contents: data[:after])
+      end
+
+      def merge_would_invalidate(data)
+        Result.err(
+          code: :merge_would_invalidate,
+          message: 'Applying the delta would make the spec invalid; nothing was written.',
+          details: { domain: data[:domain], path: data[:path], violations: data[:violations] }
+        )
+      end
+
       def descriptor(located, type)
         {
           key: 'spec',
@@ -61,7 +133,8 @@ module Owl
         violations.count { |violation| (violation[:level] || violation['level']).to_s == 'error' }
       end
 
-      private_class_method :descriptor, :blocking_count
+      private_class_method :descriptor, :blocking_count, :applied_result, :write_spec,
+                           :merge_would_invalidate
     end
   end
 end

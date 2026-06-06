@@ -18,6 +18,8 @@ require_relative 'internal/commands/config_validate'
 require_relative 'internal/commands/init'
 require_relative 'internal/commands/instructions'
 require_relative 'internal/commands/publish'
+require_relative 'internal/commands/spec_apply'
+require_relative 'internal/commands/spec_diff'
 require_relative 'internal/commands/spec_list'
 require_relative 'internal/commands/spec_path'
 require_relative 'internal/commands/spec_show'
@@ -121,6 +123,8 @@ module Owl
         when 'show' then Internal::Commands::SpecShow.run(**kwargs)
         when 'path' then Internal::Commands::SpecPath.run(**kwargs)
         when 'validate' then Internal::Commands::SpecValidate.run(**kwargs)
+        when 'diff' then Internal::Commands::SpecDiff.run(**kwargs)
+        when 'apply' then Internal::Commands::SpecApply.run(**kwargs)
         else unknown_command(stderr, "spec #{subcommand}".strip)
         end
       end
