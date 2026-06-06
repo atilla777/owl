@@ -13,6 +13,11 @@ concrete Scenarios that future changes are made against.
 
 ## Requirements
 
+Use the formal Requirement/Scenario grammar — see
+`docs/agents/31_Owl_Requirement_Scenario_grammar.md`. Each `### Requirement:`
+states one RFC 2119 normative sentence and carries at least one
+`#### Scenario:` with `- WHEN` / `- THEN` (and optional `- AND`) clauses.
+
 ### Requirement: Example capability
 
 The system SHALL provide the example capability, described by the scenarios

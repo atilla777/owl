@@ -1,15 +1,6 @@
 ---
 schema_version: 1
 tasks:
-- id: TASK-0003
-  title: 'P2: Requirement/Scenario formal grammar (RFC 2119 SHALL + WHEN/THEN) in
-    brief and spec'
-  workflow: feature
-  kind: task
-  parent_id:
-  created_at: '2026-06-06T06:12:28Z'
-  status:
-  archived_at:
 - id: TASK-0004
   title: 'P4: Structural delta-merge into spec (ADDED/MODIFIED/REMOVED Requirements)
     replacing free-form merge_docs'

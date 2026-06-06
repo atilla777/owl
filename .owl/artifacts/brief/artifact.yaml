@@ -21,3 +21,13 @@ validation:
     - Scenarios
     - Edge cases
     - Acceptance criteria
+  required_patterns:
+    - pattern: '(?m)^###\s+Requirement:'
+      type: regex
+      level: error
+      description: >-
+        Brief must define at least one formal "### Requirement:" heading
+        (see the Requirement/Scenario grammar in
+        docs/agents/31_Owl_Requirement_Scenario_grammar.md).
+  require_scenarios: true
+  require_when_then: true

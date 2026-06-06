@@ -56,4 +56,32 @@ RSpec.describe Owl::Artifacts::Internal::ArtifactTypeValidator do
       expect(result).to be_ok
     end
   end
+
+  describe '.validate required_patterns' do
+    it 'accepts an array of non-empty pattern strings' do
+      result = described_class.validate(body: body_with_validation('required_patterns' => ['^# Title']))
+      expect(result).to be_ok
+    end
+
+    it 'accepts mapping entries with pattern plus optional type/level/description' do
+      result = described_class.validate(body: body_with_validation(
+        'required_patterns' => [
+          { 'pattern' => '(?m)^###\\s+Requirement:', 'type' => 'regex', 'level' => 'error',
+            'description' => 'Must define a Requirement.' }
+        ]
+      ))
+      expect(result).to be_ok
+    end
+
+    it 'rejects a mapping entry without a non-empty pattern' do
+      result = described_class.validate(body: body_with_validation('required_patterns' => [{ 'type' => 'regex' }]))
+      expect(result).to be_err
+      expect(error_paths(result)).to include('/validation/required_patterns')
+    end
+
+    it 'rejects a blank string entry' do
+      result = described_class.validate(body: body_with_validation('required_patterns' => ['  ']))
+      expect(error_paths(result)).to include('/validation/required_patterns')
+    end
+  end
 end

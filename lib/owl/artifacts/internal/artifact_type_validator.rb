@@ -110,8 +110,7 @@ module Owl
           errors = []
           errors.concat(validate_required_string_array(validation['required_sections'], '/validation/required_sections',
                                                        'required_sections'))
-          errors.concat(validate_required_string_array(validation['required_patterns'], '/validation/required_patterns',
-                                                       'required_patterns'))
+          errors.concat(validate_required_patterns(validation['required_patterns']))
           errors.concat(validate_semantic_keys(validation))
           errors
         end
@@ -145,6 +144,26 @@ module Owl
           return [] if value.is_a?(Array) && value.all? { |s| s.is_a?(String) && !s.strip.empty? }
 
           [error_at(path, "`validation.#{label}` must be an array of non-empty strings when present.")]
+        end
+
+        # `required_patterns` entries may be a non-empty regex string or a
+        # `{ pattern:, type?, level?, description? }` mapping (the shape the
+        # runtime `PatternsChecker` already consumes).
+        def validate_required_patterns(value)
+          return [] if value.nil?
+          return [] if value.is_a?(Array) && value.all? { |entry| valid_pattern_entry?(entry) }
+
+          [error_at('/validation/required_patterns',
+                    '`validation.required_patterns` must be an array of non-empty pattern strings or ' \
+                    '`{ pattern: <non-empty string>, type?, level?, description? }` mappings when present.')]
+        end
+
+        def valid_pattern_entry?(entry)
+          return !entry.strip.empty? if entry.is_a?(String)
+          return false unless entry.is_a?(Hash)
+
+          pattern = entry['pattern'] || entry[:pattern]
+          pattern.is_a?(String) && !pattern.strip.empty?
         end
 
         def error_at(path, message)

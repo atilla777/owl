@@ -38,8 +38,19 @@
         },
         "required_patterns": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
-          "description": "Regular expressions that must match somewhere in the artifact body."
+          "items": {
+            "type": ["string", "object"],
+            "minLength": 1,
+            "required": ["pattern"],
+            "properties": {
+              "pattern": { "type": "string", "minLength": 1 },
+              "type": { "type": "string", "enum": ["regex", "substring"] },
+              "level": { "type": "string", "enum": ["error", "warning"] },
+              "description": { "type": "string" }
+            },
+            "additionalProperties": true
+          },
+          "description": "Patterns that must match somewhere in the artifact body. Each entry is either a non-empty regex string, or a mapping `{ pattern, type?, level?, description? }` consumed by the runtime PatternsChecker — `type` is `regex` (default) or `substring`, `level` is `error` (default) or `warning`, and `description` is the violation message surfaced when the pattern is absent."
         },
         "forbid_empty_sections": {
           "type": "boolean",

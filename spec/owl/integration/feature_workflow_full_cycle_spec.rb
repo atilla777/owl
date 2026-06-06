@@ -56,7 +56,13 @@ module FeatureWorkflowFullCycleFixtures
 
       ## Scenarios
 
-      - happy path
+      ### Requirement: CLI lifecycle completes
+
+      The system SHALL drive a feature task through every step via the CLI.
+
+      #### Scenario: Happy path
+      - WHEN each step is started and completed in order
+      - THEN the task reaches commit_push without error
 
       ## Edge cases
 
