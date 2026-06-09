@@ -136,14 +136,21 @@ RSpec.describe Owl::Steps::Api do
       end
     end
 
-    it 'refuses to complete a done step' do
+    it 'is an idempotent no-op when the step is already done' do
       with_tmp_project do |root|
         task_id = setup_project(root)
         described_class.start(root: root, task_id: task_id, step_id: 'a')
         described_class.complete(root: root, task_id: task_id, step_id: 'a')
+
+        path = "#{root}/tasks/#{task_id}/task.yaml"
+        before = File.binread(path)
         result = described_class.complete(root: root, task_id: task_id, step_id: 'a')
-        expect(result).to be_err
-        expect(result.code).to eq(:step_not_running)
+
+        expect(result).to be_ok
+        expect(result.value[:already_done]).to be(true)
+        expect(result.value[:step]['status']).to eq('done')
+        # No rewrite of task.yaml: re-completing must not re-dirty the tree.
+        expect(File.binread(path)).to eq(before)
       end
     end
 

@@ -78,6 +78,11 @@ module Owl
         end
 
         unless current == 'running'
+          # Re-completing a `done` step is an idempotent no-op (no task.yaml
+          # rewrite), so `commit_push` can self-complete before it commits and
+          # the orchestrator's safety-net re-complete stays harmless.
+          return idempotent_complete(paths.value, task_id, step_id) if current == 'done'
+
           return Result.err(
             code: :step_not_running,
             message: "Step '#{step_id}' is not running (current status: #{current}).",
@@ -252,9 +257,16 @@ module Owl
 
         steps = read.value[:payload]['steps'] || read.value[:payload][:steps] || []
         step = steps.find { |s| s.is_a?(Hash) && (s['id'] || s[:id]).to_s == step_id.to_s }
-        return nil unless step
+        step && (step['status'] || step[:status] || Internal::Statuses::DEFAULT).to_s
+      end
 
-        (step['status'] || step[:status] || Internal::Statuses::DEFAULT).to_s
+      # Release the archive pointer if the workflow is terminal, then report
+      # success without touching task.yaml.
+      def idempotent_complete(paths, task_id, step_id)
+        Internal::ArchiveFinalizer.call(
+          tasks_root: paths[:tasks], local_state_root: paths[:local_state], task_id: task_id
+        )
+        Result.ok(step: { 'id' => step_id.to_s, 'status' => 'done' }, already_done: true)
       end
 
       private_class_method :strip_local
