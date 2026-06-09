@@ -66,6 +66,7 @@ module Owl
             'workflow' => workflow_key,
             'kind' => raw['kind'],
             'parent_id' => raw['parent_id'],
+            'priority' => raw['priority'],
             'created_at' => raw['created_at'],
             'status' => raw['status'],
             'archived_at' => raw['archived_at']

@@ -9,6 +9,7 @@ require_relative '../../../workflows/api'
 require_relative '../paths'
 require_relative '../task_reader'
 require_relative 'archived_task_writer'
+require_relative 'claim_resetter'
 require_relative 'completion_gate'
 require_relative 'destination_planner'
 require_relative 'mover'
@@ -130,6 +131,10 @@ module Owl
               task_id: context[:task_id]
             )
             return move if move.err?
+
+            ClaimResetter.delete_if_present(
+              local_state_root: context[:paths][:local_state], task_id: context[:task_id]
+            )
 
             Result.ok(
               task_id: context[:task_id],

@@ -44,9 +44,16 @@ module Owl
             task parent             Show parent task (or null) for a TASK-ID.
             task aggregate-status   Aggregate state for a composite task (JSON).
             task child create       Create a child task under a composite parent.
+            task claim              Atomically claim a task lease ([TASK-ID] or --next); --ttl, --label, --steal.
+            task release            Release a held claim lease: release TASK-ID --token T.
+            task claims             List active claim leases across the repo (JSON).
+            task available          List runnable, unclaimed tasks ranked best-first (JSON).
+            task set-priority       Set a task's integer priority: set-priority TASK-ID N.
+            task adopt              Steal a task's claim and reset its running steps to pending: adopt TASK-ID [--token T].
             step start              Mark a ready step as running.
             step complete           Mark a running step as done.
             step reopen             Move a completed step back to pending; --cascade also pendifies downstream steps.
+            step reset              Move a running step back to pending (claim takeover/abandon recovery).
             step skip               Mark a step as skipped (--reason required).
             step invocation         Print full StepInvocation for a ready step (JSON).
             step report             Write or read a subagent step report (env-agnostic, RFC #1 §5).

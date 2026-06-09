@@ -35,13 +35,18 @@ require_relative 'internal/commands/step_complete'
 require_relative 'internal/commands/step_invocation'
 require_relative 'internal/commands/step_reopen'
 require_relative 'internal/commands/step_report'
+require_relative 'internal/commands/step_reset'
 require_relative 'internal/commands/step_show'
 require_relative 'internal/commands/step_skip'
 require_relative 'internal/commands/step_start'
 require_relative 'internal/commands/task_abandon'
+require_relative 'internal/commands/task_adopt'
 require_relative 'internal/commands/task_aggregate_status'
+require_relative 'internal/commands/task_available'
 require_relative 'internal/commands/task_child_create'
 require_relative 'internal/commands/task_children'
+require_relative 'internal/commands/task_claim'
+require_relative 'internal/commands/task_claims'
 require_relative 'internal/commands/task_create'
 require_relative 'internal/commands/task_current'
 require_relative 'internal/commands/task_delete'
@@ -50,6 +55,8 @@ require_relative 'internal/commands/task_inspect'
 require_relative 'internal/commands/task_list'
 require_relative 'internal/commands/task_parent'
 require_relative 'internal/commands/task_ready_steps'
+require_relative 'internal/commands/task_release'
+require_relative 'internal/commands/task_set_priority'
 require_relative 'internal/commands/task_tree'
 require_relative 'internal/commands/task_use'
 require_relative 'internal/commands/upgrade'
@@ -213,7 +220,13 @@ module Owl
         'parent' => Internal::Commands::TaskParent,
         'aggregate-status' => Internal::Commands::TaskAggregateStatus,
         'abandon' => Internal::Commands::TaskAbandon,
-        'delete' => Internal::Commands::TaskDelete
+        'delete' => Internal::Commands::TaskDelete,
+        'claim' => Internal::Commands::TaskClaim,
+        'release' => Internal::Commands::TaskRelease,
+        'claims' => Internal::Commands::TaskClaims,
+        'available' => Internal::Commands::TaskAvailable,
+        'set-priority' => Internal::Commands::TaskSetPriority,
+        'adopt' => Internal::Commands::TaskAdopt
       }.freeze
 
       def dispatch_task(args, stdout:, stderr:, cwd:, env:)
@@ -247,6 +260,7 @@ module Owl
         when 'start'      then Internal::Commands::StepStart.run(**kwargs)
         when 'complete'   then Internal::Commands::StepComplete.run(**kwargs)
         when 'reopen'     then Internal::Commands::StepReopen.run(**kwargs)
+        when 'reset'      then Internal::Commands::StepReset.run(**kwargs)
         when 'skip'       then Internal::Commands::StepSkip.run(**kwargs)
         when 'invocation' then Internal::Commands::StepInvocation.run(**kwargs)
         when 'show'       then Internal::Commands::StepShow.run(**kwargs)

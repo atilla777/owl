@@ -4,6 +4,7 @@ require 'json'
 require 'yaml'
 
 require 'owl/tasks/api'
+require 'owl/steps/api'
 require 'owl/cli/internal/commands/init'
 
 RSpec.describe Owl::Tasks::Api do
@@ -507,6 +508,291 @@ RSpec.describe Owl::Tasks::Api do
         result = described_class.local_paths(root: root)
         expect(result).to be_err
         expect(result.code).to eq(:config_missing)
+      end
+    end
+  end
+
+  describe 'priority' do
+    it 'defaults to 0 on create' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'p')
+        task_yaml = YAML.safe_load(Pathname.new("#{root}/tasks/TASK-0001/task.yaml").read)
+        expect(task_yaml['priority']).to eq(0)
+      end
+    end
+
+    it 'records an explicit priority on create' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'p', priority: 7)
+        task_yaml = YAML.safe_load(Pathname.new("#{root}/tasks/TASK-0001/task.yaml").read)
+        expect(task_yaml['priority']).to eq(7)
+      end
+    end
+
+    it 'surfaces priority in the index after create' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'p', priority: 3)
+        index = YAML.safe_load(Pathname.new("#{root}/tasks/index.yaml").read)
+        expect(index['tasks'].first['priority']).to eq(3)
+      end
+    end
+  end
+
+  describe '.set_priority' do
+    it 'updates the task priority and reindexes' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'p')
+        result = described_class.set_priority(root: root, task_id: 'TASK-0001', priority: 9)
+        expect(result).to be_ok
+        expect(result.value[:priority]).to eq(9)
+        index = YAML.safe_load(Pathname.new("#{root}/tasks/index.yaml").read)
+        expect(index['tasks'].first['priority']).to eq(9)
+      end
+    end
+
+    it 'accepts a numeric string priority' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'p')
+        result = described_class.set_priority(root: root, task_id: 'TASK-0001', priority: '4')
+        expect(result).to be_ok
+        expect(result.value[:priority]).to eq(4)
+      end
+    end
+
+    it 'returns invalid_priority for a non-integer' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'p')
+        result = described_class.set_priority(root: root, task_id: 'TASK-0001', priority: 'abc')
+        expect(result).to be_err
+        expect(result.code).to eq(:invalid_priority)
+      end
+    end
+
+    it 'propagates task_not_found for an unknown task' do
+      with_tmp_project do |root|
+        init_project(root)
+        result = described_class.set_priority(root: root, task_id: 'TASK-9999', priority: 1)
+        expect(result).to be_err
+        expect(result.code).to eq(:task_not_found)
+      end
+    end
+  end
+
+  describe '.claim / .release / .claims' do
+    def seed_one(root)
+      init_project(root)
+      seed_feature_workflow(root)
+      described_class.create(root: root, workflow: 'feature', title: 'c')
+    end
+
+    it 'claims an explicit task and writes the current pointer' do
+      with_tmp_project do |root|
+        seed_one(root)
+        result = described_class.claim(root: root, task_id: 'TASK-0001')
+        expect(result).to be_ok
+        expect(result.value[:task_id]).to eq('TASK-0001')
+        expect(result.value[:token]).to be_a(String)
+        expect(result.value[:ready_step_ids]).to eq(['noop'])
+        expect(Pathname.new("#{root}/.owl/local/claims/TASK-0001.yaml").exist?).to be(true)
+        expect(Pathname.new("#{root}/.owl/local/current.yaml").exist?).to be(true)
+      end
+    end
+
+    it 'auto-selects the highest-priority task with --next' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'low')
+        described_class.create(root: root, workflow: 'feature', title: 'high', priority: 5)
+        result = described_class.claim(root: root, next_: true)
+        expect(result).to be_ok
+        expect(result.value[:task_id]).to eq('TASK-0002')
+      end
+    end
+
+    it 'returns no_available_task when --next finds nothing runnable' do
+      with_tmp_project do |root|
+        init_project(root)
+        result = described_class.claim(root: root, next_: true)
+        expect(result).to be_err
+        expect(result.code).to eq(:no_available_task)
+      end
+    end
+
+    it 'returns invalid_arguments when neither task_id nor --next is given' do
+      with_tmp_project do |root|
+        seed_one(root)
+        result = described_class.claim(root: root)
+        expect(result).to be_err
+        expect(result.code).to eq(:invalid_arguments)
+      end
+    end
+
+    it 'returns lease_held when claiming an already-claimed task' do
+      with_tmp_project do |root|
+        seed_one(root)
+        described_class.claim(root: root, task_id: 'TASK-0001')
+        result = described_class.claim(root: root, task_id: 'TASK-0001')
+        expect(result).to be_err
+        expect(result.code).to eq(:lease_held)
+      end
+    end
+
+    it 'skips a live claim and picks the next candidate with --next' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'one')
+        described_class.create(root: root, workflow: 'feature', title: 'two')
+        described_class.claim(root: root, task_id: 'TASK-0001')
+        result = described_class.claim(root: root, next_: true)
+        expect(result).to be_ok
+        expect(result.value[:task_id]).to eq('TASK-0002')
+      end
+    end
+
+    it 'steals a live claim with steal: true' do
+      with_tmp_project do |root|
+        seed_one(root)
+        first = described_class.claim(root: root, task_id: 'TASK-0001')
+        result = described_class.claim(root: root, task_id: 'TASK-0001', steal: true)
+        expect(result).to be_ok
+        expect(result.value[:token]).not_to eq(first.value[:token])
+      end
+    end
+
+    it 'releases a held claim with the right token' do
+      with_tmp_project do |root|
+        seed_one(root)
+        claim = described_class.claim(root: root, task_id: 'TASK-0001')
+        result = described_class.release(root: root, task_id: 'TASK-0001', token: claim.value[:token])
+        expect(result).to be_ok
+        expect(result.value[:released]).to be(true)
+        expect(Pathname.new("#{root}/.owl/local/claims/TASK-0001.yaml").exist?).to be(false)
+      end
+    end
+
+    it 'returns lease_not_owned when releasing with the wrong token' do
+      with_tmp_project do |root|
+        seed_one(root)
+        described_class.claim(root: root, task_id: 'TASK-0001')
+        result = described_class.release(root: root, task_id: 'TASK-0001', token: 'nope')
+        expect(result).to be_err
+        expect(result.code).to eq(:lease_not_owned)
+      end
+    end
+
+    it 'returns lease_not_found when releasing an unclaimed task' do
+      with_tmp_project do |root|
+        seed_one(root)
+        result = described_class.release(root: root, task_id: 'TASK-0001', token: 'x')
+        expect(result).to be_err
+        expect(result.code).to eq(:lease_not_found)
+      end
+    end
+
+    it 'lists active claims' do
+      with_tmp_project do |root|
+        seed_one(root)
+        described_class.claim(root: root, task_id: 'TASK-0001')
+        result = described_class.claims(root: root)
+        expect(result).to be_ok
+        expect(result.value[:claims].map { |c| c[:task_id] }).to eq(['TASK-0001'])
+        expect(result.value[:claims].first[:expired]).to be(false)
+      end
+    end
+  end
+
+  describe '.available' do
+    it 'ranks runnable, unclaimed tasks by priority then age' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'low')
+        described_class.create(root: root, workflow: 'feature', title: 'high', priority: 5)
+        result = described_class.available(root: root)
+        expect(result).to be_ok
+        expect(result.value[:available].map { |c| c[:task_id] }).to eq(%w[TASK-0002 TASK-0001])
+      end
+    end
+
+    it 'excludes claimed tasks' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'one')
+        described_class.create(root: root, workflow: 'feature', title: 'two')
+        described_class.claim(root: root, task_id: 'TASK-0001')
+        result = described_class.available(root: root)
+        expect(result.value[:available].map { |c| c[:task_id] }).to eq(['TASK-0002'])
+      end
+    end
+
+    it 'excludes abandoned tasks and tasks without ready work' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'gone')
+        described_class.abandon(root: root, task_id: 'TASK-0001')
+        result = described_class.available(root: root)
+        expect(result.value[:available]).to eq([])
+      end
+    end
+  end
+
+  describe '.adopt' do
+    it 'steals the claim and resets running steps to pending' do
+      with_tmp_project do |root|
+        init_project(root)
+        write("#{root}/.owl/workflows.yaml", <<~YAML)
+          schema_version: 1
+          workflows:
+            feature:
+              enabled: true
+              source: "workflows/feature/workflow.yaml"
+        YAML
+        write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+          id: feature
+          kind: feature
+          steps:
+            - id: a
+            - id: b
+              requires: ["a"]
+          artifacts: []
+        YAML
+        described_class.create(root: root, workflow: 'feature', title: 't')
+        Owl::Steps::Api.start(root: root, task_id: 'TASK-0001', step_id: 'a')
+
+        result = described_class.adopt(root: root, task_id: 'TASK-0001')
+        expect(result).to be_ok
+        expect(result.value[:reopened]).to eq(['a'])
+        expect(result.value[:token]).to be_a(String)
+
+        step = YAML.safe_load(Pathname.new("#{root}/tasks/TASK-0001/task.yaml").read)['steps']
+                   .find { |s| s['id'] == 'a' }
+        expect(step['status']).to eq('pending')
+        expect(Pathname.new("#{root}/.owl/local/claims/TASK-0001.yaml").exist?).to be(true)
+      end
+    end
+
+    it 'propagates task_not_found for an unknown task' do
+      with_tmp_project do |root|
+        init_project(root)
+        result = described_class.adopt(root: root, task_id: 'TASK-9999')
+        expect(result).to be_err
+        expect(result.code).to eq(:task_not_found)
       end
     end
   end

@@ -241,6 +241,56 @@ RSpec.describe Owl::Steps::Api do
     end
   end
 
+  describe '.reset' do
+    it 'moves a running step back to pending' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        described_class.start(root: root, task_id: task_id, step_id: 'a')
+        result = described_class.reset(root: root, task_id: task_id, step_id: 'a')
+        expect(result).to be_ok
+        expect(result.value[:step]['status']).to eq('pending')
+
+        step = task_yaml(root)['steps'].find { |s| s['id'] == 'a' }
+        expect(step['status']).to eq('pending')
+      end
+    end
+
+    it 'refuses to reset a pending step' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        result = described_class.reset(root: root, task_id: task_id, step_id: 'a')
+        expect(result).to be_err
+        expect(result.code).to eq(:step_not_running)
+      end
+    end
+
+    it 'reports unknown_step_id for an undefined step' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        result = described_class.reset(root: root, task_id: task_id, step_id: 'ghost')
+        expect(result).to be_err
+        expect(result.code).to eq(:unknown_step_id)
+      end
+    end
+
+    it 'propagates Paths.resolve errors when the project root is missing' do
+      with_tmp_project do |root|
+        result = described_class.reset(root: root, task_id: 'TASK-0001', step_id: 'a')
+        expect(result).to be_err
+        expect(result.code).to eq(:config_missing)
+      end
+    end
+
+    it 'omits :path / :local from the Ok payload' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        described_class.start(root: root, task_id: task_id, step_id: 'a')
+        result = described_class.reset(root: root, task_id: task_id, step_id: 'a')
+        expect(result.value.keys).not_to include(:path, :local)
+      end
+    end
+  end
+
   describe 'public DTO is free of filesystem path keys' do
     it '.start omits :path / :local from the Ok payload' do
       with_tmp_project do |root|

@@ -16,7 +16,7 @@ require_relative 'internal/status_writer'
 
 module Owl
   module Steps
-    module Api
+    module Api # rubocop:disable Metrics/ModuleLength
       # Keys that filesystem-backend payloads expose as transitional path
       # carriers. They are stripped from the public DTO so backends without a
       # local filesystem view can satisfy the same contract.
@@ -237,6 +237,35 @@ module Owl
                       task_id: task_id,
                       step_id: step_id,
                       attributes: { 'status' => 'skipped', 'skip_reason' => reason_text }
+                    ))
+      end
+
+      def reset(root:, task_id:, step_id:)
+        paths = Owl::Tasks::Internal::Paths.resolve(root: root)
+        return paths if paths.err?
+
+        current = current_status(paths.value[:tasks], task_id, step_id)
+        if current.nil?
+          return Result.err(
+            code: :unknown_step_id,
+            message: "Step '#{step_id}' is not defined for task '#{task_id}'.",
+            details: { task_id: task_id, step_id: step_id }
+          )
+        end
+
+        unless current == 'running'
+          return Result.err(
+            code: :step_not_running,
+            message: "Step '#{step_id}' is not running (current status: #{current}).",
+            details: { task_id: task_id, step_id: step_id, current_status: current }
+          )
+        end
+
+        strip_local(Internal::StatusWriter.update(
+                      tasks_root: paths.value[:tasks],
+                      task_id: task_id,
+                      step_id: step_id,
+                      attributes: { 'status' => Internal::Statuses::DEFAULT }
                     ))
       end
 

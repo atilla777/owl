@@ -4,10 +4,13 @@ require_relative '../../result'
 require_relative '../backend'
 require_relative '../local'
 require_relative '../internal/abandon_writer'
+require_relative '../internal/adopt_service'
 require_relative '../internal/aggregate_status'
 require_relative '../internal/allowed_children_guard'
 require_relative '../internal/archive/orchestrator'
+require_relative '../internal/availability_scanner'
 require_relative '../internal/child_creator'
+require_relative '../internal/claim_service'
 require_relative '../internal/children_lister'
 require_relative '../internal/current_pointer'
 require_relative '../internal/deleter'
@@ -58,7 +61,7 @@ module Owl
                     ))
         end
 
-        def create(workflow:, title:, parent_id: nil, kind: nil, step_variants: nil)
+        def create(workflow:, title:, parent_id: nil, kind: nil, step_variants: nil, priority: 0)
           paths_result = Internal::Paths.resolve(root: @root)
           return paths_result if paths_result.err?
 
@@ -83,6 +86,7 @@ module Owl
             parent_id: parent_id,
             kind: kind,
             step_variants: step_variants,
+            priority: normalize_priority(priority),
             snapshot: snapshot_result.value
           )
           task_path = Internal::TaskWriter.write(
@@ -157,6 +161,38 @@ module Owl
 
         def delete_task(task_id:)
           Internal::Deleter.call(root: @root, task_id: task_id)
+        end
+
+        def claim(task_id: nil, next_: false, ttl: nil, label: nil, steal: false)
+          Internal::ClaimService.claim(
+            root: @root, task_id: task_id, next_: next_, ttl: ttl, label: label, steal: steal
+          )
+        end
+
+        def release(task_id:, token:)
+          Internal::ClaimService.release(root: @root, task_id: task_id, token: token)
+        end
+
+        def claims
+          Internal::ClaimService.claims(root: @root)
+        end
+
+        def available
+          Internal::AvailabilityScanner.scan(root: @root)
+        end
+
+        def adopt(task_id:, token: nil)
+          Internal::AdoptService.adopt(root: @root, task_id: task_id, token: token)
+        end
+
+        def set_priority(task_id:, priority:)
+          integer = coerce_priority(priority)
+          return invalid_priority(priority) if integer.nil?
+
+          paths_result = Internal::Paths.resolve(root: @root)
+          return paths_result if paths_result.err?
+
+          write_priority(paths: paths_result.value, task_id: task_id, priority: integer)
         end
 
         def children(parent_id:)
@@ -310,6 +346,39 @@ module Owl
             code: :task_id_collision,
             message: "Refusing to create '#{task_id}': a task with that id already exists at #{existing}.",
             details: { task_id: task_id, path: existing.to_s }
+          )
+        end
+
+        def write_priority(paths:, task_id:, priority:)
+          read = Internal::TaskReader.read(tasks_root: paths[:tasks], task_id: task_id)
+          return read if read.err?
+
+          payload = read.value[:payload]
+          payload['priority'] = priority
+          Internal::TaskWriter.write(tasks_root: paths[:tasks], task_id: task_id, payload: payload)
+
+          rebuild = Internal::IndexRebuilder.rebuild(tasks_root: paths[:tasks], index_path: paths[:index])
+          return rebuild if rebuild.err?
+
+          Result.ok(task_id: task_id.to_s, priority: priority)
+        end
+
+        def normalize_priority(priority)
+          coerce_priority(priority) || 0
+        end
+
+        def coerce_priority(priority)
+          return priority if priority.is_a?(Integer)
+          return Integer(priority, 10) if priority.is_a?(String) && priority.match?(/\A[+-]?\d+\z/)
+
+          nil
+        end
+
+        def invalid_priority(priority)
+          Result.err(
+            code: :invalid_priority,
+            message: "Priority must be an integer, got #{priority.inspect}.",
+            details: { priority: priority }
           )
         end
 

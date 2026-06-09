@@ -17,16 +17,43 @@ module Owl
 
       module_function
 
-      def create(root:, workflow:, title:, parent_id: nil, kind: nil, step_variants: nil)
+      def create(root:, workflow:, title:, parent_id: nil, kind: nil, step_variants: nil, priority: 0)
         strip_local(with_backend(root) do |backend|
           backend.create(
             workflow: workflow,
             title: title,
             parent_id: parent_id,
             kind: kind,
-            step_variants: step_variants
+            step_variants: step_variants,
+            priority: priority
           )
         end)
+      end
+
+      def set_priority(root:, task_id:, priority:)
+        strip_local(with_backend(root) { |backend| backend.set_priority(task_id: task_id, priority: priority) })
+      end
+
+      def claim(root:, task_id: nil, next_: false, ttl: nil, label: nil, steal: false)
+        strip_local(with_backend(root) do |backend|
+          backend.claim(task_id: task_id, next_: next_, ttl: ttl, label: label, steal: steal)
+        end)
+      end
+
+      def release(root:, task_id:, token:)
+        strip_local(with_backend(root) { |backend| backend.release(task_id: task_id, token: token) })
+      end
+
+      def claims(root:)
+        with_backend(root, &:claims)
+      end
+
+      def available(root:)
+        with_backend(root, &:available)
+      end
+
+      def adopt(root:, task_id:, token: nil)
+        strip_local(with_backend(root) { |backend| backend.adopt(task_id: task_id, token: token) })
       end
 
       def set_step_variant(root:, task_id:, step_id:, variant:)

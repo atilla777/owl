@@ -19,13 +19,14 @@ module Owl
         end
 
         def build_payload(task_id:, title:, snapshot:, parent_id: nil, kind: nil, step_variants: nil,
-                          now: Time.now.utc)
+                          priority: 0, now: Time.now.utc)
           payload = {
             'id' => task_id,
             'title' => title,
             'workflow' => snapshot[:workflow],
             'kind' => kind || snapshot[:kind],
             'parent_id' => parent_id,
+            'priority' => priority,
             'created_at' => now.iso8601,
             'steps' => snapshot[:steps],
             'artifacts' => snapshot[:artifacts]

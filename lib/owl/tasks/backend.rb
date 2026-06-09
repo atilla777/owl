@@ -19,11 +19,35 @@ module Owl
         raise NotImplementedError
       end
 
-      def create(workflow:, title:, parent_id: nil, kind: nil, step_variants: nil)
+      def create(workflow:, title:, parent_id: nil, kind: nil, step_variants: nil, priority: 0)
         raise NotImplementedError
       end
 
       def set_step_variant(task_id:, step_id:, variant:)
+        raise NotImplementedError
+      end
+
+      def set_priority(task_id:, priority:)
+        raise NotImplementedError
+      end
+
+      def claim(task_id: nil, next_: false, ttl: nil, label: nil, steal: false)
+        raise NotImplementedError
+      end
+
+      def release(task_id:, token:)
+        raise NotImplementedError
+      end
+
+      def claims
+        raise NotImplementedError
+      end
+
+      def available
+        raise NotImplementedError
+      end
+
+      def adopt(task_id:, token: nil)
         raise NotImplementedError
       end
 

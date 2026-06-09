@@ -52,8 +52,10 @@ module OwlConstitutionFixtures
     tasks/internal/archive/path_rename.rb
     tasks/internal/atomic_yaml_writer.rb
     tasks/internal/child_creator.rb
+    tasks/internal/claim_paths.rb
     tasks/internal/current_pointer.rb
     tasks/internal/deleter.rb
+    tasks/internal/exclusive_lease.rb
     tasks/internal/id_generator.rb
     tasks/internal/index_reader.rb
     tasks/internal/index_rebuilder.rb

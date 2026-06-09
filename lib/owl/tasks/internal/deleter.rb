@@ -4,6 +4,7 @@ require 'fileutils'
 require 'pathname'
 
 require_relative '../../result'
+require_relative 'archive/claim_resetter'
 require_relative 'index_rebuilder'
 require_relative 'paths'
 
@@ -33,6 +34,10 @@ module Owl
             index_path: paths_result.value[:index]
           )
           return rebuild if rebuild.err?
+
+          Archive::ClaimResetter.delete_if_present(
+            local_state_root: paths_result.value[:local_state], task_id: task_id
+          )
 
           Result.ok(
             task_id: task_id.to_s,
