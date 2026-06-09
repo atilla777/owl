@@ -39,7 +39,7 @@ module Owl
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            Owl::Steps::Internal::ActiveStepLock.clear(root: root)
+            Owl::Steps::Internal::ActiveStepLock.clear(root: root, task_id: options[:task_id])
             emit_success(stdout: stdout, result: result, root: root, options: options)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
@@ -77,7 +77,7 @@ module Owl
           end
 
           def lock_mismatch_response(root:, options:, stderr:)
-            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root)
+            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root, task_id: options[:task_id])
             return nil unless lock.ok? && lock.value
             return nil if Owl::Steps::Internal::ActiveStepLock.matches?(
               lock.value, task_id: options[:task_id], step_id: options[:step_id]

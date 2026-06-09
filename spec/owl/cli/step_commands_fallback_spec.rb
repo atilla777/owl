@@ -79,7 +79,7 @@ RSpec.describe 'owl step ... CLI fallback (KOS-159: lock + current.yaml)' do
         task_id = setup_project(root)
         run(['step', 'start', task_id, 'a', '--root', root.to_s], cwd: root)
 
-        File.delete("#{root}/.owl/local/active_step.yaml")
+        File.delete("#{root}/.owl/local/active_steps/#{task_id}.yaml")
         run(['task', 'use', task_id, '--root', root.to_s], cwd: root)
 
         exit_code, stdout, = run(['step', 'complete', '--root', root.to_s, '--json'], cwd: root)
@@ -142,7 +142,7 @@ RSpec.describe 'owl step ... CLI fallback (KOS-159: lock + current.yaml)' do
       with_tmp_project do |root|
         task_id = setup_project(root)
         run(['task', 'use', task_id, '--root', root.to_s], cwd: root)
-        write("#{root}/.owl/local/active_step.yaml", 'not: [a yaml: mapping}')
+        write("#{root}/.owl/local/active_steps/#{task_id}.yaml", 'not: [a yaml: mapping}')
 
         exit_code, _stdout, stderr = run(['step', 'complete', '--root', root.to_s, '--json'], cwd: root)
         expect(exit_code).to eq(1)

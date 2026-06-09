@@ -49,7 +49,7 @@ module Owl
           end
 
           def check_existing_lock(root:, options:, stderr:)
-            existing = Owl::Steps::Internal::ActiveStepLock.load(root: root)
+            existing = Owl::Steps::Internal::ActiveStepLock.load(root: root, task_id: options[:task_id])
             return nil unless existing.ok? && existing.value
             return nil if Owl::Steps::Internal::ActiveStepLock.matches?(
               existing.value, task_id: options[:task_id], step_id: options[:step_id]

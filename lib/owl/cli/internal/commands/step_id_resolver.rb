@@ -12,28 +12,44 @@ module Owl
       module Commands
         # Resolves --task-id and --step-id for step CLI commands when the
         # caller (typically an orchestrator that already invoked `step start`
-        # or `task use`) wants to omit them. Priority:
+        # or `task claim`) wants to omit them. Priority for the task id:
         #
         #   1. explicit CLI flag
-        #   2. `.owl/local/active_step.yaml` (lock written by `step start`)
-        #   3. `.owl/local/current.yaml` (pointer written by `task use`,
-        #      task_id only)
-        #   4. exactly-one `running` step under the resolved task (step_id only)
+        #   2. the sole `.owl/local/active_steps/<TASK-ID>.yaml` lock, when
+        #      exactly one task is mid-step (ambiguous if several → skip)
+        #   3. the session's sole live task claim, when exactly one is held
+        #   4. `.owl/local/current.yaml` (demoted single-session fallback)
+        #
+        # Step id then resolves from the explicit flag, that task's per-task
+        # active-step lock, or a sole `running` step under the task.
         #
         # Each resolve_* returns a Result whose ok-value carries the resolved
         # id and a `source` discriminator (`explicit` | `active_step_lock` |
-        # `current_pointer` | `running_step_inference`) the caller forwards
-        # to the success payload as observability.
+        # `live_claim` | `current_pointer` | `running_step_inference`) the
+        # caller forwards to the success payload as observability.
         module StepIdResolver
           module_function
 
           def resolve_task_id(root:, explicit:)
             return Result.ok(task_id: explicit, source: 'explicit') if present?(explicit)
 
-            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root)
+            lock = Owl::Steps::Internal::ActiveStepLock.load_sole(root: root)
             return lock if lock.err?
             if lock.value.is_a?(Hash) && present?(lock.value['task_id'])
               return Result.ok(task_id: lock.value['task_id'], source: 'active_step_lock')
+            end
+
+            resolve_task_id_from_claim_or_pointer(root: root)
+          end
+
+          # Falls back, in order, to the session's sole live claim and then
+          # the demoted current pointer. Split out of resolve_task_id to keep
+          # both methods under the AbcSize ceiling.
+          def resolve_task_id_from_claim_or_pointer(root:)
+            claim = sole_live_claim(root: root)
+            return claim if claim&.err?
+            if claim&.ok? && present?(claim.value[:task_id])
+              return Result.ok(task_id: claim.value[:task_id], source: 'live_claim')
             end
 
             current = Owl::Tasks::Api.current(root: root)
@@ -42,10 +58,23 @@ module Owl
             Result.ok(task_id: current.value[:task_id], source: 'current_pointer')
           end
 
+          # Returns Result.ok(task_id:) only when exactly one non-expired
+          # claim exists; nil when zero or several (ambiguous → fall
+          # through); the errored Result when the claims query itself fails.
+          def sole_live_claim(root:)
+            result = Owl::Tasks::Api.claims(root: root)
+            return result if result.err?
+
+            live = Array(result.value[:claims]).reject { |claim| claim[:expired] }
+            return nil unless live.size == 1
+
+            Result.ok(task_id: live.first[:task_id])
+          end
+
           def resolve_step_id(root:, task_id:, explicit:, allow_running_inference:)
             return Result.ok(step_id: explicit, source: 'explicit') if present?(explicit)
 
-            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root)
+            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root, task_id: task_id)
             return lock if lock.err?
             if lock.value.is_a?(Hash) && lock.value['task_id'].to_s == task_id.to_s &&
                present?(lock.value['step_id'])

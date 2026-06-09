@@ -200,6 +200,37 @@ RSpec.describe 'owl step ... and owl task ready-steps CLI subcommands' do
     end
   end
 
+  describe 'per-task active-step locking (Phase 2)' do
+    it 'lets two different tasks each hold a running step at the same time' do
+      with_tmp_project do |root|
+        setup_project(root) # TASK-0001
+        run(['task', 'create', '--workflow', 'feature', '--title', 't2', '--root', root.to_s], cwd: root)
+
+        e1, = run(['step', 'start', 'TASK-0001', 'a', '--root', root.to_s, '--json'], cwd: root)
+        e2, out2, = run(['step', 'start', 'TASK-0002', 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(e1).to eq(0)
+        expect(e2).to eq(0)
+        expect(JSON.parse(out2).dig('step', 'status')).to eq('running')
+
+        # Both per-task locks coexist.
+        expect(Pathname.new("#{root}/.owl/local/active_steps/TASK-0001.yaml")).to exist
+        expect(Pathname.new("#{root}/.owl/local/active_steps/TASK-0002.yaml")).to exist
+      end
+    end
+
+    it 'blocks a second running step on the same task with active_step_locked' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        exit_code, _stdout, stderr = run(['step', 'start', task_id, 'b', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(2)
+        error = JSON.parse(stderr)['error']
+        expect(error['code']).to eq('active_step_locked')
+        expect(error['details']['locked_step_id']).to eq('a')
+      end
+    end
+  end
+
   describe 'unknown step subcommand' do
     it 'reports unknown_command' do
       with_tmp_project do |root|

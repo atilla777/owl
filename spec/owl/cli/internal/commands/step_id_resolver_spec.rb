@@ -43,13 +43,13 @@ RSpec.describe Owl::Cli::Internal::Commands::StepIdResolver do
   end
 
   def write_lock(root, task_id:, step_id:, session_type: 'execution')
-    write("#{root}/.owl/local/active_step.yaml", YAML.dump(
-                                                   'schema_version' => 1,
-                                                   'task_id' => task_id,
-                                                   'step_id' => step_id,
-                                                   'session_type' => session_type,
-                                                   'declared_at' => Time.now.utc.iso8601
-                                                 ))
+    write("#{root}/.owl/local/active_steps/#{task_id}.yaml", YAML.dump(
+                                                               'schema_version' => 1,
+                                                               'task_id' => task_id,
+                                                               'step_id' => step_id,
+                                                               'session_type' => session_type,
+                                                               'declared_at' => Time.now.utc.iso8601
+                                                             ))
   end
 
   def set_step_status(root, task_id, statuses)
@@ -101,11 +101,35 @@ RSpec.describe Owl::Cli::Internal::Commands::StepIdResolver do
     it 'propagates active_step_lock_invalid without falling back to current_pointer' do
       with_tmp_project do |root|
         task_id = setup_project(root)
-        write("#{root}/.owl/local/active_step.yaml", 'not: [a yaml: mapping}')
+        write("#{root}/.owl/local/active_steps/#{task_id}.yaml", 'not: [a yaml: mapping}')
         write_current_yaml(root, task_id)
         result = described_class.resolve_task_id(root: root, explicit: nil)
         expect(result.err?).to be(true)
         expect(result.code).to eq(:active_step_lock_invalid)
+      end
+    end
+
+    it 'skips lock inference and uses current_pointer when several tasks are mid-step' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        write_lock(root, task_id: task_id, step_id: 'a')
+        write_lock(root, task_id: 'TASK-OTHER', step_id: 'a')
+        write_current_yaml(root, task_id)
+        result = described_class.resolve_task_id(root: root, explicit: nil)
+        expect(result.ok?).to be(true)
+        expect(result.value).to eq(task_id: task_id, source: 'current_pointer')
+      end
+    end
+
+    it 'returns live_claim when no lock exists but exactly one task is claimed' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        cli(['task', 'claim', task_id, '--root', root.to_s, '--json'], cwd: root)
+        # The live claim is consulted before the (demoted) current pointer,
+        # so the source is live_claim even though `claim` also set current.
+        result = described_class.resolve_task_id(root: root, explicit: nil)
+        expect(result.ok?).to be(true)
+        expect(result.value).to eq(task_id: task_id, source: 'live_claim')
       end
     end
   end

@@ -94,22 +94,11 @@ module Owl
             body = options[:body] == '-' ? stdin.read : safe_read_file(options[:body])
             return JsonPrinter.failure(stderr, code: :body_unreadable, message: body[:error]) if body.is_a?(Hash)
 
-            if options[:validate]
-              validation = Owl::Subagents::Internal::OutputSpec.validate(body)
-              if validation.err?
-                stderr.puts(JSON.generate({
-                                            ok: false,
-                                            error: {
-                                              code: validation.code.to_s,
-                                              message: validation.message,
-                                              details: validation.details
-                                            }
-                                          }))
-                return 2
-              end
-            end
+            return 2 if options[:validate] && report_validation_failed?(body: body, stderr: stderr)
 
-            mismatch_result = check_session_type_against_lock(body: body, root: root, stderr: stderr)
+            mismatch_result = check_session_type_against_lock(
+              body: body, root: root, task_id: options[:task_id], stderr: stderr
+            )
             return mismatch_result if mismatch_result
 
             path = Owl::Subagents::Internal::ReportPaths.report_path(
@@ -127,6 +116,24 @@ module Owl
                                   resolved_task_id_source: options[:resolved_task_id_source],
                                   resolved_step_id_source: options[:resolved_step_id_source]
                                 })
+          end
+
+          # Runs the OutputSpec validator. Returns false when the body is
+          # valid; writes a structured error to stderr and returns true
+          # (caller maps to exit 2) when it is not.
+          def report_validation_failed?(body:, stderr:)
+            validation = Owl::Subagents::Internal::OutputSpec.validate(body)
+            return false unless validation.err?
+
+            stderr.puts(JSON.generate({
+                                        ok: false,
+                                        error: {
+                                          code: validation.code.to_s,
+                                          message: validation.message,
+                                          details: validation.details
+                                        }
+                                      }))
+            true
           end
 
           def read_mode(stdout:, stderr:, root:, options:)
@@ -169,8 +176,8 @@ module Owl
           # session_type must match the locked session_type (RFC #1 §2).
           # Returns nil when no enforcement is needed, or exit code 2 +
           # writes a session_type_mismatch payload to stderr when it is.
-          def check_session_type_against_lock(body:, root:, stderr:)
-            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root)
+          def check_session_type_against_lock(body:, root:, task_id:, stderr:)
+            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root, task_id: task_id)
             return nil if lock.err? || lock.value.nil?
 
             locked = lock.value['session_type']
