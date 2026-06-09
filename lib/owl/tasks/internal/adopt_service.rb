@@ -31,7 +31,7 @@ module Owl
 
           resolved_token = resolve_token(token)
           payload = ClaimService.build_lease(
-            task_id: task_id, token: resolved_token, opts: { ttl: nil, label: nil, now: now }
+            root: root, task_id: task_id, token: resolved_token, opts: { ttl: nil, label: nil, now: now }
           )
           take_over(root: root, paths: paths, task_id: task_id, token: resolved_token,
                     payload: payload, task_payload: read.value[:payload])

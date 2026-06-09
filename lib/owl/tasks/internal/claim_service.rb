@@ -3,6 +3,7 @@
 require 'securerandom'
 require 'time'
 
+require_relative '../../config/api'
 require_relative '../../result'
 require_relative '../../workflows/api'
 require_relative 'availability_scanner'
@@ -19,6 +20,11 @@ module Owl
       # owned by one session for `ttl` seconds; `--next` picks the best runnable
       # task via AvailabilityScanner and retries on contention.
       module ClaimService
+        # Config key for the default lease TTL. Explicit `--ttl` always wins;
+        # this is consulted only when no TTL is passed, falling back in turn to
+        # `ClaimPaths::DEFAULT_TTL_SECONDS` when the key is absent.
+        CLAIM_TTL_KEY = 'settings.concurrency.claim_ttl_seconds'
+
         module_function
 
         def claim(root:, task_id: nil, next_: false, ttl: nil, label: nil, steal: false, now: Time.now.utc)
@@ -43,6 +49,20 @@ module Owl
             path: ClaimPaths.claim_path(local_state_root: paths_result.value[:local_state], task_id: task_id),
             token: token
           )
+        end
+
+        def heartbeat(root:, task_id:, token:, ttl: nil, now: Time.now.utc)
+          paths_result = Paths.resolve(root: root)
+          return paths_result if paths_result.err?
+
+          path = ClaimPaths.claim_path(local_state_root: paths_result.value[:local_state], task_id: task_id)
+          read = ExclusiveLease.read(path: path)
+          return read if read.err?
+
+          existing = read.value
+          return lease_lost(task_id) unless owned?(existing, token)
+
+          extend_lease(root: root, path: path, existing: existing, token: token, ttl: ttl, now: now)
         end
 
         def claims(root:, now: Time.now.utc)
@@ -81,8 +101,9 @@ module Owl
 
         def attempt_claim(root:, paths:, task_id:, opts:)
           token = SecureRandom.uuid
-          payload = build_lease(task_id: task_id, token: token, opts: opts)
+          payload = build_lease(root: root, task_id: task_id, token: token, opts: opts)
           path = ClaimPaths.claim_path(local_state_root: paths[:local_state], task_id: task_id)
+          prior = opts[:steal] ? previous_holder(path: path, now: opts[:now]) : nil
           lease = if opts[:steal]
                     ExclusiveLease.replace(path: path, payload: payload)
                   else
@@ -90,22 +111,37 @@ module Owl
                   end
           return lease if lease.err?
 
-          finalize_claim(root: root, paths: paths, task_id: task_id, token: token, payload: payload)
+          finalize_claim(root: root, paths: paths, task_id: task_id, token: token, payload: payload, stole_from: prior)
         end
 
-        def finalize_claim(root:, paths:, task_id:, token:, payload:)
+        def finalize_claim(root:, paths:, task_id:, token:, payload:, stole_from: nil)
           CurrentPointer.write(local_state_root: paths[:local_state], task_id: task_id)
           Result.ok(
             task_id: task_id.to_s,
             token: token,
             claimed_by: token,
             expires_at: payload['expires_at'],
+            stole_from: stole_from,
             ready_step_ids: ready_step_ids(root: root, task_id: task_id)
           )
         end
 
-        def build_lease(task_id:, token:, opts:)
-          ttl_seconds = ttl_value(opts[:ttl])
+        # Snapshot of the lease being stolen, surfaced in the claim result so the
+        # caller can see whose hold it displaced. Returns nil when there was none.
+        def previous_holder(path:, now:)
+          read = ExclusiveLease.read(path: path)
+          return nil if read.err? || !read.value.is_a?(Hash)
+
+          existing = read.value
+          {
+            claimed_by: existing['claimed_by'],
+            label: existing['label'],
+            expired: ExclusiveLease.expired?(existing, now)
+          }
+        end
+
+        def build_lease(root:, task_id:, token:, opts:)
+          ttl_seconds = resolve_ttl(root: root, ttl: opts[:ttl])
           stamp = opts[:now].utc.iso8601
           {
             'schema_version' => ClaimPaths::SCHEMA_VERSION,
@@ -119,9 +155,63 @@ module Owl
           }
         end
 
-        def ttl_value(ttl)
-          value = ttl.nil? ? ClaimPaths::DEFAULT_TTL_SECONDS : ttl.to_i
-          value.positive? ? value : ClaimPaths::DEFAULT_TTL_SECONDS
+        # Verify the token still owns the lease before a heartbeat extends it.
+        def owned?(existing, token)
+          existing.is_a?(Hash) && existing['claimed_by'].to_s == token.to_s
+        end
+
+        # Rewrite heartbeat_at/expires_at so a long-running step does not let the
+        # lease expire mid-work. The window defaults to the lease's original TTL.
+        def extend_lease(root:, path:, existing:, token:, ttl:, now:)
+          ttl_seconds = resolve_ttl(root: root, ttl: ttl, fallback: existing['ttl_seconds'])
+          payload = existing.merge(
+            'heartbeat_at' => now.utc.iso8601,
+            'expires_at' => (now + ttl_seconds).utc.iso8601,
+            'ttl_seconds' => ttl_seconds
+          )
+          written = ExclusiveLease.replace(path: path, payload: payload)
+          return written if written.err?
+
+          Result.ok(
+            task_id: existing['task_id'].to_s,
+            token: token,
+            expires_at: payload['expires_at'],
+            heartbeat_at: payload['heartbeat_at'],
+            ttl_seconds: ttl_seconds
+          )
+        end
+
+        # Resolve the effective TTL: explicit `ttl` wins, then `fallback` (e.g. a
+        # lease's own prior TTL), then the configured default, then the constant.
+        def resolve_ttl(root:, ttl:, fallback: nil)
+          return ttl.to_i if positive_int?(ttl)
+          return fallback.to_i if positive_int?(fallback)
+
+          configured = configured_ttl(root: root)
+          configured.positive? ? configured : ClaimPaths::DEFAULT_TTL_SECONDS
+        end
+
+        def positive_int?(value)
+          !value.nil? && value.to_i.positive?
+        end
+
+        def configured_ttl(root:)
+          result = Owl::Config::Api.read_key(root: root, key: CLAIM_TTL_KEY)
+          return 0 if result.err?
+
+          value = result.value[:value]
+          value.is_a?(Integer) ? value : value.to_i
+        rescue StandardError
+          0
+        end
+
+        def lease_lost(task_id)
+          Result.err(
+            code: :lease_lost,
+            message: "Lease for #{task_id} is gone or held by another session; re-claim or adopt.",
+            details: { task_id: task_id.to_s },
+            error_class: :recoverable
+          )
         end
 
         def ready_step_ids(root:, task_id:)

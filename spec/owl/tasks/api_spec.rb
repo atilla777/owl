@@ -5,6 +5,7 @@ require 'yaml'
 
 require 'owl/tasks/api'
 require 'owl/steps/api'
+require 'owl/config/api'
 require 'owl/cli/internal/commands/init'
 
 RSpec.describe Owl::Tasks::Api do
@@ -663,13 +664,23 @@ RSpec.describe Owl::Tasks::Api do
       end
     end
 
-    it 'steals a live claim with steal: true' do
+    it 'steals a live claim with steal: true and reports the displaced holder' do
       with_tmp_project do |root|
         seed_one(root)
-        first = described_class.claim(root: root, task_id: 'TASK-0001')
+        first = described_class.claim(root: root, task_id: 'TASK-0001', label: 'session-A')
         result = described_class.claim(root: root, task_id: 'TASK-0001', steal: true)
         expect(result).to be_ok
         expect(result.value[:token]).not_to eq(first.value[:token])
+        expect(result.value[:stole_from])
+          .to include(claimed_by: first.value[:token], label: 'session-A', expired: false)
+      end
+    end
+
+    it 'leaves stole_from nil for a plain (non-steal) claim' do
+      with_tmp_project do |root|
+        seed_one(root)
+        result = described_class.claim(root: root, task_id: 'TASK-0001')
+        expect(result.value[:stole_from]).to be_nil
       end
     end
 
@@ -711,6 +722,84 @@ RSpec.describe Owl::Tasks::Api do
         expect(result).to be_ok
         expect(result.value[:claims].map { |c| c[:task_id] }).to eq(['TASK-0001'])
         expect(result.value[:claims].first[:expired]).to be(false)
+      end
+    end
+  end
+
+  describe '.heartbeat' do
+    def seed_one(root)
+      init_project(root)
+      seed_feature_workflow(root)
+      described_class.create(root: root, workflow: 'feature', title: 'c')
+    end
+
+    it 'extends a held lease and rewrites heartbeat_at/expires_at' do
+      with_tmp_project do |root|
+        seed_one(root)
+        claim = described_class.claim(root: root, task_id: 'TASK-0001')
+        lease_path = Pathname.new("#{root}/.owl/local/claims/TASK-0001.yaml")
+        before = YAML.safe_load(lease_path.read, permitted_classes: [Time])
+        result = described_class.heartbeat(root: root, task_id: 'TASK-0001', token: claim.value[:token], ttl: 999)
+        expect(result).to be_ok
+        expect(result.value[:ttl_seconds]).to eq(999)
+        after = YAML.safe_load(lease_path.read, permitted_classes: [Time])
+        expect(after['claimed_by']).to eq(before['claimed_by'])
+        expect(after['expires_at']).to eq(result.value[:expires_at])
+      end
+    end
+
+    it 'defaults to the lease\'s own TTL when no --ttl is given' do
+      with_tmp_project do |root|
+        seed_one(root)
+        claim = described_class.claim(root: root, task_id: 'TASK-0001', ttl: 123)
+        result = described_class.heartbeat(root: root, task_id: 'TASK-0001', token: claim.value[:token])
+        expect(result.value[:ttl_seconds]).to eq(123)
+      end
+    end
+
+    it 'returns lease_lost (recoverable) when the token does not own the lease' do
+      with_tmp_project do |root|
+        seed_one(root)
+        described_class.claim(root: root, task_id: 'TASK-0001')
+        result = described_class.heartbeat(root: root, task_id: 'TASK-0001', token: 'someone-else')
+        expect(result).to be_err
+        expect(result.code).to eq(:lease_lost)
+        expect(result.error_class).to eq(:recoverable)
+      end
+    end
+
+    it 'returns lease_lost when no lease exists at all' do
+      with_tmp_project do |root|
+        seed_one(root)
+        result = described_class.heartbeat(root: root, task_id: 'TASK-0001', token: 'x')
+        expect(result).to be_err
+        expect(result.code).to eq(:lease_lost)
+      end
+    end
+  end
+
+  describe '.claim with configurable TTL' do
+    it 'honours settings.concurrency.claim_ttl_seconds when no --ttl is passed' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'c')
+        Owl::Config::Api.write_key(root: root, key: 'settings.concurrency.claim_ttl_seconds', value: '42')
+        described_class.claim(root: root, task_id: 'TASK-0001')
+        lease = YAML.safe_load(Pathname.new("#{root}/.owl/local/claims/TASK-0001.yaml").read, permitted_classes: [Time])
+        expect(lease['ttl_seconds']).to eq(42)
+      end
+    end
+
+    it 'lets an explicit ttl override the configured default' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'c')
+        Owl::Config::Api.write_key(root: root, key: 'settings.concurrency.claim_ttl_seconds', value: '42')
+        described_class.claim(root: root, task_id: 'TASK-0001', ttl: 7)
+        lease = YAML.safe_load(Pathname.new("#{root}/.owl/local/claims/TASK-0001.yaml").read, permitted_classes: [Time])
+        expect(lease['ttl_seconds']).to eq(7)
       end
     end
   end

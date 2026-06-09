@@ -39,6 +39,10 @@ module Owl
         raise NotImplementedError
       end
 
+      def heartbeat(task_id:, token:, ttl: nil)
+        raise NotImplementedError
+      end
+
       def claims
         raise NotImplementedError
       end

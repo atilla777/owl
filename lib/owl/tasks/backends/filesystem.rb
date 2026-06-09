@@ -173,6 +173,10 @@ module Owl
           Internal::ClaimService.release(root: @root, task_id: task_id, token: token)
         end
 
+        def heartbeat(task_id:, token:, ttl: nil)
+          Internal::ClaimService.heartbeat(root: @root, task_id: task_id, token: token, ttl: ttl)
+        end
+
         def claims
           Internal::ClaimService.claims(root: @root)
         end

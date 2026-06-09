@@ -10,46 +10,43 @@ module Owl
   module Cli
     module Internal
       module Commands
-        module TaskClaim
+        module TaskHeartbeat
           module_function
 
           def run(argv:, stdout:, stderr:, cwd:, env: ENV.to_h) # rubocop:disable Lint/UnusedMethodArgument
             options, positional = parse_options(argv)
+            task_id = positional.first
+            unless task_id && options[:token]
+              return JsonPrinter.failure(
+                stderr,
+                code: :invalid_arguments,
+                message: 'TASK-ID positional and --token are required.'
+              )
+            end
 
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
 
-            result = Owl::Tasks::Api.claim(
-              root: root,
-              task_id: positional.first,
-              next_: options[:next],
-              ttl: options[:ttl],
-              label: options[:label],
-              steal: options[:steal]
-            )
+            result = Owl::Tasks::Api.heartbeat(root: root, task_id: task_id, token: options[:token], ttl: options[:ttl])
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
             JsonPrinter.success(stdout, {
                                   ok: true,
                                   task_id: result.value[:task_id],
-                                  token: result.value[:token],
                                   expires_at: result.value[:expires_at],
-                                  stole_from: result.value[:stole_from],
-                                  ready_step_ids: result.value[:ready_step_ids]
+                                  heartbeat_at: result.value[:heartbeat_at],
+                                  ttl_seconds: result.value[:ttl_seconds]
                                 })
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end
 
           def parse_options(argv)
-            options = { root: nil, next: false, ttl: nil, label: nil, steal: false }
+            options = { root: nil, token: nil, ttl: nil }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl task claim [TASK-ID] [--next] [--ttl N] [--label S] ' \
-                            '[--steal] [--root PATH] [--json]'
-              opts.on('--next', 'Auto-select the best runnable unclaimed task') { options[:next] = true }
+              opts.banner = 'Usage: owl task heartbeat TASK-ID --token T [--ttl N] [--root PATH] [--json]'
+              opts.on('--token T', String) { |v| options[:token] = v }
               opts.on('--ttl N', Integer) { |v| options[:ttl] = v }
-              opts.on('--label S', String) { |v| options[:label] = v }
-              opts.on('--steal', 'Forcibly take over an existing claim') { options[:steal] = true }
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

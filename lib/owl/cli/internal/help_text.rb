@@ -46,6 +46,7 @@ module Owl
             task child create       Create a child task under a composite parent.
             task claim              Atomically claim a task lease ([TASK-ID] or --next); --ttl, --label, --steal.
             task release            Release a held claim lease: release TASK-ID --token T.
+            task heartbeat          Extend a held lease before it expires: heartbeat TASK-ID --token T [--ttl N].
             task claims             List active claim leases across the repo (JSON).
             task available          List runnable, unclaimed tasks ranked best-first (JSON).
             task set-priority       Set a task's integer priority: set-priority TASK-ID N.

@@ -74,6 +74,61 @@ RSpec.describe 'owl task/step lease CLI subcommands' do
         expect(JSON.parse(err)['error']['code']).to eq('lease_held')
       end
     end
+
+    it 'reports the displaced holder when --steal takes a live claim' do
+      with_tmp_project do |root|
+        setup_project(root)
+        create(root, 't')
+        cli(['task', 'claim', 'TASK-0001', '--label', 'session-A', '--root', root.to_s, '--json'], root)
+        code, out, = cli(['task', 'claim', 'TASK-0001', '--steal', '--root', root.to_s, '--json'], root)
+        expect(code).to eq(0)
+        body = JSON.parse(out)
+        expect(body['stole_from']['label']).to eq('session-A')
+        expect(body['stole_from']['expired']).to be(false)
+      end
+    end
+  end
+
+  describe 'task heartbeat' do
+    it 'extends a held lease and echoes the new expiry' do
+      with_tmp_project do |root|
+        setup_project(root)
+        create(root, 't')
+        _c, claim_out, = cli(['task', 'claim', 'TASK-0001', '--root', root.to_s, '--json'], root)
+        token = JSON.parse(claim_out)['token']
+        code, out, = cli(
+          ['task', 'heartbeat', 'TASK-0001', '--token', token, '--ttl', '999', '--root', root.to_s, '--json'], root
+        )
+        expect(code).to eq(0)
+        body = JSON.parse(out)
+        expect(body['ok']).to be(true)
+        expect(body['ttl_seconds']).to eq(999)
+        expect(body['expires_at']).to be_a(String)
+        expect(body['heartbeat_at']).to be_a(String)
+      end
+    end
+
+    it 'returns lease_lost (exit 2) for a wrong token' do
+      with_tmp_project do |root|
+        setup_project(root)
+        create(root, 't')
+        cli(['task', 'claim', 'TASK-0001', '--root', root.to_s, '--json'], root)
+        argv = ['task', 'heartbeat', 'TASK-0001', '--token', 'nope', '--root', root.to_s, '--json']
+        code, _out, err = cli(argv, root)
+        expect(code).to eq(2)
+        expect(JSON.parse(err)['error']['code']).to eq('lease_lost')
+      end
+    end
+
+    it 'rejects a heartbeat without --token' do
+      with_tmp_project do |root|
+        setup_project(root)
+        create(root, 't')
+        code, _out, err = cli(['task', 'heartbeat', 'TASK-0001', '--root', root.to_s, '--json'], root)
+        expect(code).to eq(1)
+        expect(JSON.parse(err)['error']['code']).to eq('invalid_arguments')
+      end
+    end
   end
 
   describe 'task release' do

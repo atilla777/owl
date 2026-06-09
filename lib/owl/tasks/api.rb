@@ -44,6 +44,12 @@ module Owl
         strip_local(with_backend(root) { |backend| backend.release(task_id: task_id, token: token) })
       end
 
+      def heartbeat(root:, task_id:, token:, ttl: nil)
+        strip_local(with_backend(root) do |backend|
+          backend.heartbeat(task_id: task_id, token: token, ttl: ttl)
+        end)
+      end
+
       def claims(root:)
         with_backend(root, &:claims)
       end

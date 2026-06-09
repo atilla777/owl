@@ -48,6 +48,7 @@ require_relative 'internal/commands/task_children'
 require_relative 'internal/commands/task_claim'
 require_relative 'internal/commands/task_claims'
 require_relative 'internal/commands/task_create'
+require_relative 'internal/commands/task_heartbeat'
 require_relative 'internal/commands/task_current'
 require_relative 'internal/commands/task_delete'
 require_relative 'internal/commands/task_index_rebuild'
@@ -223,6 +224,7 @@ module Owl
         'delete' => Internal::Commands::TaskDelete,
         'claim' => Internal::Commands::TaskClaim,
         'release' => Internal::Commands::TaskRelease,
+        'heartbeat' => Internal::Commands::TaskHeartbeat,
         'claims' => Internal::Commands::TaskClaims,
         'available' => Internal::Commands::TaskAvailable,
         'set-priority' => Internal::Commands::TaskSetPriority,
