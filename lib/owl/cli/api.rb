@@ -17,6 +17,8 @@ require_relative 'internal/commands/config_get'
 require_relative 'internal/commands/config_set'
 require_relative 'internal/commands/config_show'
 require_relative 'internal/commands/config_validate'
+require_relative 'internal/commands/git_lock'
+require_relative 'internal/commands/git_unlock'
 require_relative 'internal/commands/init'
 require_relative 'internal/commands/instructions'
 require_relative 'internal/commands/overlay'
@@ -75,7 +77,7 @@ require_relative 'internal/json_printer'
 
 module Owl
   module Cli
-    module Api
+    module Api # rubocop:disable Metrics/ModuleLength
       HELP_TEXT = Internal::HelpText::CONTENT
 
       # Top-level commands that delegate straight to a single command module.
@@ -117,6 +119,7 @@ module Owl
         when 'artifact-type' then dispatch_artifact_type(args, **kwargs)
         when 'overlay'       then Internal::Commands::Overlay.run(argv: args, **kwargs)
         when 'config'        then dispatch_config(args, **kwargs)
+        when 'git'           then dispatch_git(args, **kwargs)
         when 'task'          then dispatch_task(args, **kwargs)
         when 'step'          then dispatch_step(args, **kwargs)
         when 'artifact'      then dispatch_artifact(args, **kwargs)
@@ -193,6 +196,16 @@ module Owl
         when 'unregister' then Internal::Commands::ArtifactTypeRegister.unregister(**kwargs)
         else
           unknown_command(stderr, "artifact-type #{subcommand}".strip)
+        end
+      end
+
+      def dispatch_git(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
+        case subcommand
+        when 'lock'   then Internal::Commands::GitLock.run(**kwargs)
+        when 'unlock' then Internal::Commands::GitUnlock.run(**kwargs)
+        else unknown_command(stderr, "git #{subcommand}".strip)
         end
       end
 

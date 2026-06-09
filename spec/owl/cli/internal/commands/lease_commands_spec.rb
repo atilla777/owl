@@ -226,6 +226,59 @@ RSpec.describe 'owl task/step lease CLI subcommands' do
     end
   end
 
+  describe 'git lock / git unlock' do
+    it 'acquires the push lock and returns a token' do
+      with_tmp_project do |root|
+        setup_project(root)
+        code, out, = cli(['git', 'lock', '--root', root.to_s, '--json'], root)
+        expect(code).to eq(0)
+        body = JSON.parse(out)
+        expect(body['ok']).to be(true)
+        expect(body['name']).to eq('git')
+        expect(body['token']).to be_a(String)
+      end
+    end
+
+    it 'returns lock_held (exit 2) on a second lock' do
+      with_tmp_project do |root|
+        setup_project(root)
+        cli(['git', 'lock', '--root', root.to_s, '--json'], root)
+        code, _out, err = cli(['git', 'lock', '--root', root.to_s, '--json'], root)
+        expect(code).to eq(2)
+        expect(JSON.parse(err)['error']['code']).to eq('lock_held')
+      end
+    end
+
+    it 'unlocks with the matching token' do
+      with_tmp_project do |root|
+        setup_project(root)
+        _c, lock_out, = cli(['git', 'lock', '--root', root.to_s, '--json'], root)
+        token = JSON.parse(lock_out)['token']
+        code, out, = cli(['git', 'unlock', '--token', token, '--root', root.to_s, '--json'], root)
+        expect(code).to eq(0)
+        expect(JSON.parse(out)['released']).to be(true)
+      end
+    end
+
+    it 'rejects unlock without --token' do
+      with_tmp_project do |root|
+        setup_project(root)
+        code, _out, err = cli(['git', 'unlock', '--root', root.to_s, '--json'], root)
+        expect(code).to eq(1)
+        expect(JSON.parse(err)['error']['code']).to eq('invalid_arguments')
+      end
+    end
+
+    it 'reports an unknown git subcommand' do
+      with_tmp_project do |root|
+        setup_project(root)
+        code, _out, err = cli(['git', 'bogus', '--root', root.to_s, '--json'], root)
+        expect(code).to eq(1)
+        expect(JSON.parse(err)['error']['code']).to eq('unknown_command')
+      end
+    end
+  end
+
   describe 'step reset' do
     it 'resets a running step to pending' do
       with_tmp_project do |root|

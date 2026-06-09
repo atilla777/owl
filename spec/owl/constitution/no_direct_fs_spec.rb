@@ -37,6 +37,7 @@ module OwlConstitutionFixtures
     config/backends/filesystem.rb
     config/internal/loader.rb
     config/internal/serializer.rb
+    locks/internal/file_lock.rb
     publish/internal/path_resolver.rb
     publish/internal/publisher.rb
     steps/internal/active_step_lock.rb

@@ -59,6 +59,8 @@ module Owl
             step invocation         Print full StepInvocation for a ready step (JSON).
             step report             Write or read a subagent step report (env-agnostic, RFC #1 §5).
             step show               Show merged step + context + artifact_template + task bundle (JSON).
+            git lock                Acquire the repo-scoped push lock (serializes commit_push); returns a token. --name, --ttl, --steal.
+            git unlock              Release the repo-scoped push lock: git unlock --token T [--name N].
             artifact resolve        Resolve task-scoped artifact path + template + validation rules.
             artifact validate       Validate a task artifact (existence, sections, patterns, front matter).
             publish                 Publish task artifacts to the docs storage role per workflow `publishes` rules.

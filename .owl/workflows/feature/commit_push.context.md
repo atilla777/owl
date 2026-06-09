@@ -43,8 +43,18 @@ the working tree. Run the actions in exactly this order:
    `complete` from the orchestrator is harmless.)
 3. `git add -A` — re-stage so the `commit_push: done` flip from step 2 is
    part of the commit.
-4. `git commit` + `git push` — the single publishing commit now captures
-   `commit_push: done`; the working tree is left clean.
+4. Serialize and publish the push:
+   a. `owl git lock --json` — take the repo-scoped push lock so two
+      sessions never push to `main` at once; keep the returned `token`.
+      On `lock_held` (exit 2) another session is mid-push: wait briefly
+      and retry, or stop and report — do not `--steal` unless the holder
+      is known dead.
+   b. `git commit`, then `git pull --rebase` and `git push` — the single
+      publishing commit captures `commit_push: done`; rebasing first folds
+      in any peer commits that landed while earlier steps ran.
+   c. `owl git unlock --token <token>` — release the lock (always, even if
+      the push failed; it also self-heals after its TTL). The working tree
+      is left clean.
 5. Write the report (`owl step report ... --body -`). Reports live under
    `.owl/local/` (gitignored), so this does not dirty the tree.
 
