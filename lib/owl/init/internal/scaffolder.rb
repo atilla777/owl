@@ -28,7 +28,10 @@ module Owl
           skipped = []
           files.each do |file|
             path = file[:path].to_s
-            if Owl::Storage::Internal::FilesystemBackend.exists?(path) && !force
+            # Files flagged `preserve_if_exists` (project overlays) are never
+            # overwritten once present, even under `--force`, so customizations
+            # survive skill refreshes.
+            if Owl::Storage::Internal::FilesystemBackend.exists?(path) && (!force || file[:preserve_if_exists])
               skipped << path
               next
             end

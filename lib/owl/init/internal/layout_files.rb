@@ -30,9 +30,15 @@ module Owl
               contents: '' }
           ]
 
+          # `preserve_if_exists` keeps project-authored overlay content across a
+          # forced re-run (`owl init --force`): overlays are scaffolded with a
+          # default template on first init, but a re-run must NOT clobber any
+          # customizations the project added. Other layout files are still
+          # overwritten by `--force`.
           overlays = OVERLAY_STEPS.map do |step|
             { path: "#{root}/.owl/overlays/#{step}.md",
-              contents: OverlayTemplate.for_step(step_id: step) }
+              contents: OverlayTemplate.for_step(step_id: step),
+              preserve_if_exists: true }
           end
 
           base + overlays \

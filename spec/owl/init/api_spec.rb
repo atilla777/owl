@@ -54,9 +54,40 @@ RSpec.describe Owl::Init::Api do
 
         expect(result).to be_ok
         value = result.value
-        expect(value[:skipped]).to eq([])
+        # only the preserve-on-force overlays are skipped; everything else is overwritten
+        expect(value[:skipped]).to all(include('/.owl/overlays/'))
         expect(value[:created]).to include("#{root}/.owl/config.yaml")
         expect(Pathname.new("#{root}/.owl/config.yaml").read).not_to eq('# tampered')
+      end
+    end
+
+    it 'preserves customized overlay files on a forced re-run instead of clobbering them' do
+      with_tmp_project do |root|
+        described_class.scaffold(root: root)
+        overlay = Pathname.new("#{root}/.owl/overlays/commit_push.md")
+        overlay.write('# project-authored overlay content')
+
+        result = described_class.scaffold(root: root, force: true)
+
+        expect(result).to be_ok
+        value = result.value
+        expect(value[:skipped]).to include(overlay.to_s)
+        expect(value[:created]).not_to include(overlay.to_s)
+        expect(overlay.read).to eq('# project-authored overlay content')
+        # non-overlay files are still overwritten by --force
+        expect(value[:created]).to include("#{root}/.owl/config.yaml")
+      end
+    end
+
+    it 'still seeds overlay files on a forced re-run when they are missing' do
+      with_tmp_project do |root|
+        described_class.scaffold(root: root)
+        Pathname.new("#{root}/.owl/overlays/commit_push.md").delete
+
+        result = described_class.scaffold(root: root, force: true)
+
+        expect(result).to be_ok
+        expect(result.value[:created]).to include("#{root}/.owl/overlays/commit_push.md")
       end
     end
 

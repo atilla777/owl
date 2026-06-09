@@ -173,7 +173,8 @@ RSpec.describe 'owl init — Owl::Skills integration' do
 
       body = JSON.parse(stdout)
       expect(body['created']).to include(target.to_s)
-      expect(body['skipped']).to eq([])
+      # project overlays are preserved on --force; nothing else is skipped
+      expect(body['skipped']).to all(include('/.owl/overlays/'))
       expect(target.read).not_to eq("# mutated by the test\n")
     end
   end

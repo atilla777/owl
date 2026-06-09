@@ -29,7 +29,7 @@ Do not use this skill to invent workflow stages, edit `.owl/` config, or run pro
 
 - Each step's artifact (when the step declares one) written through the executor skill at the path returned by `owl artifact resolve` and validated `ok: true` by `owl artifact validate`.
 - Step status advanced through `owl step start` / `owl step complete` / `owl step skip` — owl re-runs the validate gate at `complete` time. After `step start` writes a per-task `.owl/local/active_steps/<TASK-ID>.yaml` lock, subsequent `step complete` / `skip` / `reopen` / `report` accept omitted `TASK-ID` / `STEP-ID` and resolve them; the success payload reports `resolved_task_id_source` and `resolved_step_id_source` (`"explicit"` | `"active_step_lock"` | `"live_claim"` | `"current_pointer"` | `"running_step_inference"`) so the orchestrator can verify what it acted on. Task-id resolution prefers, in order: the explicit flag, the sole active-step lock (when exactly one task is mid-step), the session's sole live claim, then the demoted current pointer. Always pass an explicit `TASK-ID` when running several sessions at once — inference is a single-session convenience.
-- Workflow-terminal effects when the workflow declares them (typically `owl publish` and `owl archive`).
+- Workflow-terminal effects when the workflow declares them — `owl publish`, `owl archive`, and (for delivery workflows) the `commit_push` step's `git commit` + `git push`. The run is not finished at `archive`; it finishes when the terminal step (`commit_push` for `feature`/`composite_feature`) is done.
 - A short human-facing summary at end of run, or a stop report when human input is required.
 
 ## Workflow
@@ -53,7 +53,8 @@ Do not use this skill to invent workflow stages, edit `.owl/` config, or run pro
 7. After delegation returns:
    - Re-validate the artifact: `owl artifact validate TASK-ID ARTIFACT-KEY --json` returns `{ok, errors}`. Inspect `ok` before assuming success.
    - Mark the step complete: `owl step complete TASK-ID STEP-ID`. Owl re-runs the validate gate at complete time as a safety net.
-8. Loop from step 2 until `owl task ready-steps` returns empty AND the workflow's terminal step (typically `archive`) is done. Stop and report when no more progress is possible.
+8. Loop from step 2 until `owl task ready-steps` returns empty AND the workflow's **terminal step** is done. The terminal step is the last step in the workflow graph (nothing `requires` it) — for the seeded `feature` and `composite_feature` workflows that is **`commit_push`**, which runs *after* `archive`. Do **not** treat `archive` as the end of the run: when `archive` completes and `commit_push` becomes ready, dispatch it like any other ready step. Stop and report only when no more progress is possible (`ready-steps` empty with the terminal step done) or a real stop condition below fires.
+   - **A ready `commit_push` step is explicit authorization to commit and push.** The user requested end-to-end Owl execution and the workflow itself contains `commit_push`; that satisfies the "explicit user approval" precondition for committing/pushing. Do not stop to ask the human for a separate commit/push confirmation — dispatch the step. The only gates are the `commit_push` overlay's own preconditions and the Stop Conditions below (e.g. suspicious/unrelated files in the tree, a failed push lock, or a CLI error you cannot resolve with one retry). This deliberately overrides the generic "commit/push needs its own prompt" caution, which does not apply once a `commit_push` step is ready in a user-requested run.
 
 ## Stop Conditions
 

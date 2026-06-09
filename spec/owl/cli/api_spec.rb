@@ -131,7 +131,8 @@ RSpec.describe Owl::Cli::Api do
         exit_code, stdout, _stderr = run(['init', '--root', root.to_s, '--force'], cwd: root)
         expect(exit_code).to eq(0)
         body = JSON.parse(stdout)
-        expect(body['skipped']).to eq([])
+        # project overlays are preserved on --force; everything else is overwritten
+        expect(body['skipped']).to all(include('/.owl/overlays/'))
         expect(config_path.read).to include('schema_version: 1')
       end
     end
