@@ -19,8 +19,11 @@ After `review_code` in the `feature` workflow. Both halves of this step
 are no-ops when their input is absent, so a task that touches no docs and
 no spec passes through cleanly:
 
-- If `design` was skipped, `owl publish` returns `no_publishable_artifacts`
-  (a.k.a. `no_publishable_step`) and writes nothing.
+- If `design` was skipped, the workflow's `publishes` rule for `design.md`
+  is marked `optional`, so `owl publish` reports
+  `action: skipped_missing_source` for it and writes nothing — the step
+  still succeeds. (This is NOT the same as `no_publishable_step`, which
+  means the workflow has no publishing step at all — a misconfiguration.)
 - If the task declares no `spec_delta`, `owl spec merge` returns
   `{ok: true, applied: false, reason: "no_spec_delta"}` and writes nothing.
 
@@ -43,7 +46,9 @@ no spec passes through cleanly:
 Autonomous. Run BOTH commands:
 
 1. `owl publish TASK-ID --json` — honors the workflow `publishes` rules.
-   `no_publishable_artifacts` / `no_publishable_step` is a normal no-op.
+   A rule whose source is absent and marked `optional` yields
+   `action: skipped_missing_source` (a normal no-op); a missing source on a
+   non-optional rule fails with `source_missing`.
 2. `owl spec merge TASK-ID --json` — applies the task's `spec_delta` (if
    any) via the deterministic P4 engine, then runs the P5 trace gate
    (`owl spec trace <domain> --strict`). `reason: no_spec_delta` is a

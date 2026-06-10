@@ -102,7 +102,7 @@ module Owl
 
           Result.err(
             code: :no_publishable_step,
-            message: "Workflow '#{workflow_key}' has a 'publish' step but no 'publishes' rules.",
+            message: "Workflow '#{workflow_key}' has a publishing step but no 'publishes' rules.",
             details: { task_id: task_id.to_s, workflow_key: workflow_key.to_s }
           )
         end

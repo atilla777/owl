@@ -1,0 +1,46 @@
+---
+id: quick
+kind: task
+title: Quick
+description: >-
+  Minimal autonomous workflow for a small, well-understood change in a single
+  prompt: brief -> implement -> commit_push, no design/plan/review/archive.
+  execution_mode is `autonomous`, so even the brief step proceeds without
+  prompting (it synthesises the brief from the task request). Use `feature`
+  for anything that needs design, planning, or human checkpoints.
+execution_mode: autonomous
+artifacts:
+  brief:
+    type: brief
+    storage:
+      role: tasks
+      path: "{{task.id}}/brief.md"
+  verification:
+    type: verification
+    storage:
+      role: tasks
+      path: "{{task.id}}/verification.md"
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: brief.context.md
+  creates:
+  - brief
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - brief
+  creates:
+  - verification
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - implement

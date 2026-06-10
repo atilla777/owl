@@ -104,12 +104,22 @@ RSpec.describe Owl::Init::Api do
       end
     end
 
-    it 'seeds the .owl/overlays/<step>.md template with the step id in the comment header' do
+    it 'seeds a generic overlay template with the step id in the comment header' do
+      with_tmp_project do |root|
+        described_class.scaffold(root: root)
+
+        overlay_body = Pathname.new("#{root}/.owl/overlays/design.md").read
+        expect(overlay_body).to include('Optional project overlay for the `design` step')
+      end
+    end
+
+    it 'seeds an active completeness checklist for the brief overlay (not a commented-out stub)' do
       with_tmp_project do |root|
         described_class.scaffold(root: root)
 
         overlay_body = Pathname.new("#{root}/.owl/overlays/brief.md").read
-        expect(overlay_body).to include('Optional project overlay for the `brief` step')
+        expect(overlay_body).to include('Brief completeness checklist')
+        expect(overlay_body).not_to include('Optional project overlay for the `brief` step')
       end
     end
 

@@ -40,7 +40,7 @@ module FeatureWorkflowFullCycleFixtures
   def brief_artifact(task_id)
     <<~MD
       ---
-      status: draft
+      status: approved
       summary: integration full-cycle #{task_id}
       ---
 

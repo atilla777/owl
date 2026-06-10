@@ -72,4 +72,18 @@ RSpec.describe Owl::Workflows::Internal::WorkflowValidator, '.validate session_t
     messages = result.details[:errors].map { |e| e[:message] }
     expect(messages.join("\n")).to match(/tier.*must be one of/)
   end
+
+  it 'accepts each valid execution_mode value' do
+    %w[autonomous autonomous_after_brief interactive].each do |mode|
+      result = call(base_body.merge('execution_mode' => mode))
+      expect(result).to be_ok, "expected execution_mode=#{mode} to be valid"
+    end
+  end
+
+  it 'rejects a typo in execution_mode (would otherwise silently fall back to interactive)' do
+    result = call(base_body.merge('execution_mode' => 'autonamous'))
+    expect(result).to be_err
+    paths = result.details[:errors].map { |e| e[:path] }
+    expect(paths).to include(a_string_matching(/execution_mode/))
+  end
 end

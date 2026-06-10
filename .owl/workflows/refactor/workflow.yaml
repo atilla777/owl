@@ -40,6 +40,7 @@ artifacts:
 publishes:
 - from: "{{task.id}}/design.md"
   to: "{{task.id}}/design.md"
+  optional: true
 steps:
 - id: brief
   skill: owl-step-discussion
@@ -98,6 +99,7 @@ steps:
   skill: owl-step-execution
   session_type: execution
   tier: standard
+  publishes: true
   context_file: merge_docs.context.md
   requires:
   - review_code

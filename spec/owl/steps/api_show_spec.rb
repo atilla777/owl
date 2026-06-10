@@ -93,6 +93,9 @@ RSpec.describe Owl::Steps::Api, '.show' do
     it 'returns a full bundle with inline context and resolved artifact_template' do
       with_tmp_project do |root|
         task_id = setup_happy_path(root)
+        # init seeds a non-empty `brief` overlay (completeness checklist); empty it
+        # so this bundle-shape test exercises the no-overlay path it asserts below.
+        File.write("#{root}/.owl/overlays/brief.md", '')
         result = described_class.show(root: root, task_id: task_id, step_id: 'brief')
 
         expect(result).to be_ok

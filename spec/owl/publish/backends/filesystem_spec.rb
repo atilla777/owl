@@ -233,5 +233,72 @@ RSpec.describe Owl::Publish::Backends::Filesystem do
         expect(result.code).to eq(:no_publishable_step)
       end
     end
+
+    it 'resolves the publishing step by the `publishes: true` marker (not named publish)' do
+      with_tmp_project do |root|
+        workflow_yaml = <<~YAML
+          id: feature
+          kind: task
+          artifacts:
+            spec:
+              type: spec
+              storage:
+                role: tasks
+                path: "{{task.id}}/spec.md"
+          publishes:
+            - from: "{{task.id}}/spec.md"
+              to: "{{task.id}}/spec.md"
+          steps:
+            - id: specify
+              creates: [spec]
+            - id: verify
+              requires: [specify]
+            - id: merge_docs
+              publishes: true
+              requires: [verify]
+        YAML
+        task_id = setup_project(root, workflow_yaml: workflow_yaml)
+        write("#{root}/tasks/#{task_id}/spec.md", "# spec\n")
+        mark_ready_chain(root, task_id)
+
+        result = described_class.new(root: root).run(task_id: task_id, dry_run: false)
+        expect(result).to be_ok
+        expect(result.value[:results].first['action']).to eq('created')
+        expect(Pathname.new("#{root}/docs/#{task_id}/spec.md").read).to eq("# spec\n")
+      end
+    end
+
+    it 'treats a missing source for an optional rule as a no-op (skipped_missing_source)' do
+      with_tmp_project do |root|
+        workflow_yaml = <<~YAML
+          id: feature
+          kind: task
+          artifacts:
+            spec:
+              type: spec
+              storage:
+                role: tasks
+                path: "{{task.id}}/spec.md"
+          publishes:
+            - from: "{{task.id}}/spec.md"
+              to: "{{task.id}}/spec.md"
+              optional: true
+          steps:
+            - id: specify
+              creates: [spec]
+            - id: verify
+              requires: [specify]
+            - id: publish
+              requires: [verify]
+        YAML
+        task_id = setup_project(root, workflow_yaml: workflow_yaml)
+        mark_ready_chain(root, task_id) # source spec.md deliberately absent
+
+        result = described_class.new(root: root).run(task_id: task_id, dry_run: false)
+        expect(result).to be_ok
+        expect(result.value[:results].first['action']).to eq('skipped_missing_source')
+        expect(Pathname.new("#{root}/docs/#{task_id}/spec.md").exist?).to be(false)
+      end
+    end
   end
 end

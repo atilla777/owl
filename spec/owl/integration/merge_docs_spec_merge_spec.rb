@@ -41,7 +41,7 @@ RSpec.describe 'merge_docs spec merge backward compatibility' do
     end
   end
 
-  it 'keeps the existing publish no-op path (no_publishable_step) alongside the spec merge no-op' do
+  it 'keeps publish benign (publishing step not yet reached) alongside the spec merge no-op' do
     with_tmp_project do |root|
       init_project(root)
       task_id = create_task(root)
@@ -49,8 +49,10 @@ RSpec.describe 'merge_docs spec merge backward compatibility' do
       _publish_exit, _pub_out, pub_err = run(['publish', task_id, '--root', root.to_s, '--json'], cwd: root)
       merge_exit, merge_out, = run(['spec', 'merge', task_id, '--root', root.to_s, '--json'], cwd: root)
 
-      # publish is a benign no-op (no `publish` step / nothing to publish) ...
-      expect(JSON.parse(pub_err).dig('error', 'code')).to eq('no_publishable_step')
+      # On a freshly created task the publishing step (merge_docs, `publishes: true`)
+      # exists but is not yet ready, so publish writes nothing and reports
+      # publish_step_not_ready — a benign no-op, not the old no_publishable_step bug.
+      expect(JSON.parse(pub_err).dig('error', 'code')).to eq('publish_step_not_ready')
       # ... and spec merge is a benign no-op (no spec_delta declared/written).
       expect(merge_exit).to eq(0)
       expect(JSON.parse(merge_out)).to include('ok' => true, 'reason' => 'no_spec_delta')

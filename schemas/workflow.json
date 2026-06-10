@@ -10,6 +10,10 @@
     "kind": { "type": "string", "enum": ["task", "composite_task"] },
     "title": { "type": "string" },
     "description": { "type": "string" },
+    "execution_mode": {
+      "enum": ["autonomous", "autonomous_after_brief", "interactive"],
+      "description": "Workflow-level autonomy policy honored by discussion-step skills. `autonomous_after_brief` prompts the user only on the `brief` step; `autonomous` never prompts except on real blockers; `interactive` confirms each discussion step. Absent => treated as `interactive`."
+    },
     "artifacts": { "type": "object" },
     "steps": {
       "type": "array",
@@ -43,6 +47,10 @@
           "type": "string",
           "enum": ["discussion", "execution"],
           "description": "Logical session kind for this step. `discussion` runs in the main agent session and may interact with the user; `execution` runs in an isolated subagent session and never interacts directly. See RFC #1 (knowledge entry 46) §2."
+        },
+        "publishes": {
+          "type": "boolean",
+          "description": "Marks this step as the one that performs `owl publish` (the publish step gate resolves the publishing step by this flag, falling back to a step literally named `publish`). At most one step per workflow should set it."
         },
         "tier": {
           "type": "string",
@@ -125,6 +133,10 @@
           "type": "string",
           "minLength": 1,
           "description": "Destination path template, relative to the `docs` storage role. Supports {{task.id}} and {{task.slug}}."
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "When true, a missing source artifact is a clean no-op (action: skipped_missing_source) instead of a source_missing error. Use for rules whose artifact is optional (e.g. the feature workflow's design.md)."
         }
       }
     }

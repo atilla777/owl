@@ -6,7 +6,8 @@ module Owl
   module Publish
     module Internal
       module RulesLoader
-        ALLOWED_KEYS = %w[from to].freeze
+        REQUIRED_KEYS = %w[from to].freeze
+        ALLOWED_KEYS = %w[from to optional].freeze
 
         module_function
 
@@ -60,7 +61,7 @@ module Owl
             )
           end
 
-          ALLOWED_KEYS.each do |key|
+          REQUIRED_KEYS.each do |key|
             value = normalized[key]
             unless value.is_a?(String) && !value.strip.empty?
               return Result.err(
@@ -71,7 +72,19 @@ module Owl
             end
           end
 
-          { 'from' => normalized.fetch('from'), 'to' => normalized.fetch('to') }
+          if normalized.key?('optional') && ![true, false].include?(normalized['optional'])
+            return Result.err(
+              code: :publishes_invalid,
+              message: "publishes[#{index}].optional must be a boolean.",
+              details: { index: index, key: 'optional' }
+            )
+          end
+
+          {
+            'from' => normalized.fetch('from'),
+            'to' => normalized.fetch('to'),
+            'optional' => normalized['optional'] == true
+          }
         end
       end
     end

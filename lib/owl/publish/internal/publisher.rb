@@ -31,6 +31,14 @@ module Owl
           target = Pathname.new(rule['target_path'])
 
           unless Owl::Storage::Api.exists?(path: source)
+            # An optional rule (e.g. the `feature` workflow's design.md, which
+            # may be skipped) is a clean no-op when its source is absent — not
+            # an error. A required rule still fails loudly.
+            if rule['optional'] == true
+              return build_result(rule: rule, action: 'skipped_missing_source',
+                                   backup_path: nil, dry_run: dry_run)
+            end
+
             return Result.err(
               code: :source_missing,
               message: "Source artifact does not exist: #{source}",

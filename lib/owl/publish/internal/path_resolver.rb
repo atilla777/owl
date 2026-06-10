@@ -36,6 +36,7 @@ module Owl
             resolved << {
               'from' => rule['from'],
               'to' => rule['to'],
+              'optional' => rule['optional'] == true,
               'source_path' => source.to_s,
               'target_path' => target.to_s
             }
