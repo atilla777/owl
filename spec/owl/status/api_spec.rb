@@ -69,6 +69,39 @@ RSpec.describe Owl::Status::Api do
     YAML
   end
 
+  def seed_composite_with_gate(root)
+    write("#{root}/.owl/workflows.yaml", <<~YAML)
+      schema_version: 1
+      workflows:
+        composite_feature:
+          enabled: true
+          source: "workflows/composite_feature/workflow.yaml"
+        feature:
+          enabled: true
+          source: "workflows/feature/workflow.yaml"
+    YAML
+    write("#{root}/.owl/workflows/composite_feature/workflow.yaml", <<~YAML)
+      id: composite_feature
+      kind: composite_task
+      steps:
+        - id: decompose
+          skill: owl-step-run
+        - id: archive
+          skill: owl-step-run
+          requires: ["decompose"]
+          gate: children_complete
+      artifacts: []
+    YAML
+    write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+      id: feature
+      kind: task
+      steps:
+        - id: do
+          skill: owl-step-run
+      artifacts: []
+    YAML
+  end
+
   describe '.show' do
     it 'returns task header, steps with ready flag, progress and empty blockers for a single task' do
       with_tmp_project do |root|
@@ -165,6 +198,28 @@ RSpec.describe Owl::Status::Api do
           %w[a blocked],
           %w[b failed]
         )
+      end
+    end
+
+    it 'marks a composite parent gated step as blocked_by_children while a child is in progress' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_composite_with_gate(root)
+        cli(['task', 'create', '--workflow', 'composite_feature', '--title', 'parent', '--root', root.to_s], root)
+        cli(['task', 'child', 'create', 'TASK-0001', '--workflow', 'feature', '--title', 'child',
+             '--root', root.to_s], root)
+        task_path = "#{root}/tasks/TASK-0001/task.yaml"
+        task_yaml = YAML.safe_load_file(task_path)
+        task_yaml['steps'].find { |s| s['id'] == 'decompose' }['status'] = 'done'
+        File.write(task_path, task_yaml.to_yaml)
+
+        result = described_class.show(root: root, task_id: 'TASK-0001')
+
+        expect(result).to be_ok
+        archive = result.value[:steps].find { |s| s[:id] == 'archive' }
+        expect(archive[:status]).to eq('blocked_by_children')
+        expect(archive[:ready]).to be(false)
+        expect(result.value[:blockers]).to include(id: 'archive', status: 'blocked_by_children')
       end
     end
 

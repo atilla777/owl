@@ -20,10 +20,12 @@ module Owl
           return inspect_result if inspect_result.err?
 
           payload = inspect_result.value[:payload]
-          ready_ids = ready_step_ids(root: root, task_id: resolved_task_id)
+          readiness = readiness_for(root: root, task_id: resolved_task_id)
 
           Owl::Result.ok(build_payload(
-                           root: root, task_id: resolved_task_id, payload: payload, ready_ids: ready_ids
+                           root: root, task_id: resolved_task_id, payload: payload,
+                           ready_ids: readiness[:ready_ids],
+                           blocked_by_children: readiness[:blocked_by_children]
                          ))
         end
 
@@ -34,19 +36,24 @@ module Owl
           current.value[:task_id]
         end
 
-        def ready_step_ids(root:, task_id:)
+        def readiness_for(root:, task_id:)
           ready = Owl::Workflows::Api.ready_steps(root: root, task_id: task_id)
-          return [] if ready.err?
+          return { ready_ids: [], blocked_by_children: [] } if ready.err?
 
-          ready.value[:ready].map { |entry| entry[:id].to_s }
+          {
+            ready_ids: ready.value[:ready].map { |entry| entry[:id].to_s },
+            blocked_by_children: Array(ready.value[:blocked_by_children]).map(&:to_s)
+          }
         end
 
-        def build_payload(root:, task_id:, payload:, ready_ids:)
+        def build_payload(root:, task_id:, payload:, ready_ids:, blocked_by_children: [])
           steps = Array(payload['steps'])
-          steps_view = steps.map { |step| Views.step_view(step, ready_ids: ready_ids) }
+          steps_view = steps.map do |step|
+            Views.step_view(step, ready_ids: ready_ids, blocked_by_children: blocked_by_children)
+          end
           progress = Views.progress_view(steps)
           blockers = steps_view
-                     .select { |s| Constants::BLOCKER_STATUSES.include?(s[:status]) }
+                     .select { |s| blocker_status?(s[:status]) }
                      .map { |s| { id: s[:id], status: s[:status] } }
 
           body = {
@@ -62,6 +69,10 @@ module Owl
           end
 
           body
+        end
+
+        def blocker_status?(status)
+          Constants::BLOCKER_STATUSES.include?(status) || status == Constants::BLOCKED_BY_CHILDREN
         end
       end
     end

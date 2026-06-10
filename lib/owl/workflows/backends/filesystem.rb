@@ -24,6 +24,9 @@ module Owl
         include Owl::Workflows::Backend
 
         ID_PATTERN = /\A[a-z][a-z0-9_]*\z/
+        COMPOSITE_KIND = 'composite_task'
+        GATE_CHILDREN_COMPLETE = 'children_complete'
+        CHILDREN_READY_AGGREGATES = %w[ready done].freeze
 
         def initialize(root:)
           @root = root
@@ -315,11 +318,47 @@ module Owl
             definition_steps: definition_steps
           )
 
+          blocked_by_children = []
+          if payload['kind'].to_s == COMPOSITE_KIND
+            ready, blocked_by_children = apply_children_gate(
+              task_id: task_id, ready: ready, definition_steps: definition_steps
+            )
+          end
+
           Result.ok(
             task_id: task_id.to_s,
             workflow_key: workflow_key,
-            ready: ready
+            ready: ready,
+            blocked_by_children: blocked_by_children
           )
+        end
+
+        # For a composite parent, steps flagged `gate: children_complete` in the
+        # workflow definition must not surface as ready until every child task is
+        # ready/archived. The "wait for children" invariant lives here in the
+        # readiness engine rather than only in orchestrator prose + the late
+        # `owl archive` guard. Returns [remaining_ready, blocked_by_children_ids].
+        def apply_children_gate(task_id:, ready:, definition_steps:)
+          gated_ids = ready.map { |entry| entry[:id].to_s }.select do |id|
+            definition = definition_steps[id]
+            definition.is_a?(Hash) && definition['gate'].to_s == GATE_CHILDREN_COMPLETE
+          end
+          return [ready, []] if gated_ids.empty?
+          return [ready, []] if children_ready?(task_id: task_id)
+
+          remaining = ready.reject { |entry| gated_ids.include?(entry[:id].to_s) }
+          [remaining, gated_ids]
+        end
+
+        # Fails open (treats children as ready) when aggregate-status cannot be
+        # computed — the `owl archive` runtime guard remains the backstop, so a
+        # transient read error must not strand every other ready step.
+        def children_ready?(task_id:)
+          require_relative '../../tasks/api'
+          aggregate = Owl::Tasks::Api.aggregate_status(root: @root, task_id: task_id)
+          return true if aggregate.err?
+
+          CHILDREN_READY_AGGREGATES.include?(aggregate.value[:aggregate].to_s)
         end
 
         def definition_steps_for(workflow_key:)

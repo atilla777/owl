@@ -34,7 +34,8 @@ module Owl
                                   ok: true,
                                   task_id: result.value[:task_id],
                                   workflow_key: result.value[:workflow_key],
-                                  ready: result.value[:ready]
+                                  ready: result.value[:ready],
+                                  blocked_by_children: Array(result.value[:blocked_by_children])
                                 })
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)

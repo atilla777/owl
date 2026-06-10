@@ -20,10 +20,11 @@ module Owl
           }
         end
 
-        def step_view(step, ready_ids:)
+        def step_view(step, ready_ids:, blocked_by_children: [])
           step ||= {}
           id = (step['id'] || step[:id]).to_s
-          status = (step['status'] || step[:status] || Constants::DEFAULT_STEP_STATUS).to_s
+          stored_status = (step['status'] || step[:status] || Constants::DEFAULT_STEP_STATUS).to_s
+          status = blocked_by_children.include?(id) ? Constants::BLOCKED_BY_CHILDREN : stored_status
           {
             id: id,
             status: status,
