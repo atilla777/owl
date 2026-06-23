@@ -84,6 +84,28 @@ prompts on its behalf.
 8. Complete the step: `owl step complete TASK-ID STEP-ID`. Owl re-runs the validate gate as a safety net.
 9. Return control to the orchestrator. Do not chain to the next step unless explicitly asked.
 
+## Brief-step cross-task memory (`owl recall`)
+
+When (and only when) the current step id is `brief`, surface similar
+**archived** tasks to the author before drafting requirements, so prior
+closed experience is reused instead of rediscovered. This is a thin call
+into the `owl recall` command — do **not** reimplement any scoring,
+tokenization, or archive reading in the skill.
+
+1. After loading the bundle (step 4 above) and before producing the
+   `brief` body, run `owl recall "<task.title>" --json` using `task.title`
+   from the bundle as the query.
+2. If the call returns `{ ok: true, matches: [...] }` with a non-empty
+   `matches`, show the author a **«Похожие архивные задачи»** block listing
+   the top entries — each as `task_id` · `title` · `snippet`. Keep it to a
+   handful (top-N, e.g. 3–5).
+3. If `matches` is empty, the command errors, or it is otherwise
+   unavailable, print exactly one line —
+   «похожих архивных задач не найдено» — and continue.
+4. `owl recall` is advisory only: a non-empty, empty, or failed result
+   MUST NOT block, gate, or alter the `brief` step. Never treat a recall
+   failure as a step error; proceed to author the brief regardless.
+
 ## Env overlay note
 
 This skill describes an env-agnostic discussion-session contract. The

@@ -26,6 +26,7 @@ require_relative 'internal/commands/overlay'
 require_relative 'internal/commands/plan_approve'
 require_relative 'internal/commands/plan_status'
 require_relative 'internal/commands/publish'
+require_relative 'internal/commands/recall'
 require_relative 'internal/commands/self_update'
 require_relative 'internal/commands/spec_apply'
 require_relative 'internal/commands/spec_diff'
@@ -127,6 +128,7 @@ module Owl
         'step' => :dispatch_step,
         'artifact' => :dispatch_artifact,
         'archive' => :dispatch_archive,
+        'recall' => :dispatch_recall,
         'spec' => :dispatch_spec
       }.freeze
 
@@ -149,6 +151,10 @@ module Owl
         when 'read' then Internal::Commands::ArchiveRead.run(argv: args.drop(1), **)
         else Internal::Commands::Archive.run(argv: args, **)
         end
+      end
+
+      def dispatch_recall(args, **)
+        Internal::Commands::Recall.run(argv: args, **)
       end
 
       def dispatch_spec(args, stdout:, stderr:, cwd:, env:)

@@ -1,15 +1,6 @@
 ---
 schema_version: 1
 tasks:
-- id: TASK-0015
-  title: 'Кросс-задачная память: surface похожих архивных задач/решений в бриф'
-  workflow: composite_feature
-  kind: composite_task
-  parent_id:
-  priority: 20
-  created_at: '2026-06-23T09:51:03Z'
-  status:
-  archived_at:
 - id: TASK-0016
   title: 'Транзакционность commit_push: убрать ordering-hack complete-before-commit'
   workflow: refactor

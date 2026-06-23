@@ -4,6 +4,24 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.6.0] - 2026-06-23
+
+### Added
+- **`owl recall <query>` — cross-task memory over the archive.** New
+  read-only CLI command that lexically (tf-idf, length-normalized,
+  pure Ruby, no network or new gems) ranks similar ARCHIVED tasks by
+  their `title` + brief `Problem`/`Goal` sections and emits
+  `{ ok: true, matches: [{ task_id, title, score, snippet }] }` sorted by
+  score descending then `task_id` ascending. `--limit N` truncates
+  (default 10); a trivial query (empty / stopword-only), an empty archive,
+  or no matches all yield `{ ok: true, matches: [] }` at exit 0 — it never
+  crashes. The corpus is built only through `Owl::Archive::Api`
+  (`list`/`read`), never a direct `File.read`. New `Owl::Recall::Api`
+  facade with internal `Tokenizer` (Unicode/Cyrillic-aware), `CorpusBuilder`,
+  and `Scorer`. The `owl-step-discussion` skill surfaces the result on the
+  `brief` step as a «Похожие архивные задачи» block; an empty/failed recall
+  prints one line and never blocks the step.
+
 ## [0.5.0] - 2026-06-23
 
 ### Added

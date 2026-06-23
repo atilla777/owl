@@ -27,7 +27,8 @@ steps:
     problem_inventory:
       context_file: brief.problem_inventory.context.md
       title: Inventory refactor problems
-  status: pending
+  status: done
+  content_sha: 3f7fc667623292ab644a7a13a5ea2c4545edb514d39fe975e9e63755d90ecbce
 - id: design
   skill: owl-step-discussion
   session_type: discussion
@@ -37,7 +38,8 @@ steps:
   - brief
   creates:
   - design
-  status: pending
+  status: done
+  content_sha: a8a8065f9a060ffbbe47eac9bee7a5d3ac0565af1b2407e67211fd5343987d80
 - id: decompose
   skill: owl-step-discussion
   session_type: discussion
@@ -47,7 +49,8 @@ steps:
   - brief
   creates:
   - decomposition
-  status: pending
+  status: done
+  content_sha: 417bd43ab1a42593ffb37dc4a646471308ddc48ec1dc603733c98010cb8b197b
 - id: review
   skill: owl-step-execution
   session_type: execution
@@ -57,7 +60,8 @@ steps:
   - decompose
   creates:
   - review
-  status: pending
+  status: done
+  content_sha: 616ee64a1c0f639e76764964b527c26ec27ea8585fffdd849ff6f9e7b3b8983f
 - id: archive
   skill: owl-step-execution
   session_type: execution
@@ -77,3 +81,5 @@ steps:
   gate: children_complete
   status: pending
 artifacts: []
+status: archived
+archived_at: '2026-06-23T15:32:32Z'
