@@ -20,3 +20,13 @@ tasks:
   created_at: '2026-06-23T12:06:07Z'
   status:
   archived_at:
+- id: TASK-0019
+  title: 'Composite gate bug: child self-archive (owl archive CHILD) wedges parent
+    children_complete gate (aggregate empty→open)'
+  workflow: refactor
+  kind: task
+  parent_id:
+  priority: 0
+  created_at: '2026-06-23T15:36:46Z'
+  status:
+  archived_at:
