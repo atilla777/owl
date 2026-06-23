@@ -14,6 +14,12 @@ module Owl
           brief design plan implement review_code merge_docs archive commit_push
         ].freeze
 
+        # Session-level overlay keys are NOT workflow steps: they shape
+        # cross-step, human-facing output. `orchestrator` is applied to the
+        # orchestrator's end-of-run completion report (see `_owl_conventions.md`
+        # §8 and `owl overlay show orchestrator`).
+        SESSION_OVERLAYS = %w[orchestrator].freeze
+
         module_function
 
         def call(root:, project_id:, agent_targets: Owl::Skills::Internal::SeededSources::DEFAULT_TARGETS)
@@ -35,7 +41,7 @@ module Owl
           # default template on first init, but a re-run must NOT clobber any
           # customizations the project added. Other layout files are still
           # overwritten by `--force`.
-          overlays = OVERLAY_STEPS.map do |step|
+          overlays = (OVERLAY_STEPS + SESSION_OVERLAYS).map do |step|
             { path: "#{root}/.owl/overlays/#{step}.md",
               contents: OverlayTemplate.for_step(step_id: step),
               preserve_if_exists: true }

@@ -230,6 +230,14 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
     it 'loads the skill from the slash-command body' do
       expect(slash_entry[:contents]).to include('Load skill `owl-step-discussion`')
     end
+
+    it 'includes a Language Clause referencing constitution 5.16/5.17' do
+      contents = skill_entry[:contents]
+      expect(contents).to include('Language Clause')
+      expect(contents).to include('settings.language.communication')
+      expect(contents).to include('5.16')
+      expect(contents).to include('5.17')
+    end
   end
 
   describe 'owl-step-execution skill' do
@@ -281,6 +289,14 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
     it 'loads the skill from the slash-command body' do
       expect(slash_entry[:contents]).to include('Load skill `owl-step-execution`')
     end
+
+    it 'includes a Language Clause referencing constitution 5.16/5.17' do
+      contents = skill_entry[:contents]
+      expect(contents).to include('Language Clause')
+      expect(contents).to include('settings.language.communication')
+      expect(contents).to include('5.16')
+      expect(contents).to include('5.17')
+    end
   end
 
   describe 'owl-orchestrator skill' do
@@ -330,6 +346,24 @@ RSpec.describe Owl::Skills::Internal::SeededSources do
     it 'documents owl instructions as the skill-binding source' do
       message = 'owl-orchestrator SKILL.md should describe owl instructions as binding source'
       expect(skill_entry[:contents]).to include('owl instructions'), message
+    end
+
+    it 'requires the final report in the configured communication language (Language Clause)' do
+      contents = skill_entry[:contents]
+      expect(contents).to include('settings.language.communication'),
+                          -> { 'owl-orchestrator SKILL.md should read settings.language.communication' }
+    end
+
+    it 'applies the session-level orchestrator overlay to the final report' do
+      contents = skill_entry[:contents]
+      expect(contents).to include('owl overlay show orchestrator'),
+                          -> { 'owl-orchestrator SKILL.md should compose the orchestrator overlay' }
+    end
+
+    it 'requires an explicit user-facing-effect line in the final report' do
+      contents = skill_entry[:contents]
+      expect(contents).to include('What changed for the user'),
+                          -> { 'owl-orchestrator SKILL.md final report should require a user-facing-effect section' }
     end
   end
 

@@ -136,5 +136,6 @@ report --read` and decides next action.
 ## Notes
 
 - The full `bin/owl` command surface lives in the `owl-cli` skill.
-- Never read `.owl/`, `tasks/`, or `docs/` directly — always go through `owl ...` CLI.
+- **Language Clause (Owl Constitution 5.16/5.17, `_owl_conventions.md` §7).** Although this session never talks to the user directly, its report prose that the orchestrator surfaces to the human — `summary` and any `## Open follow-ups` questions — must be written in `settings.language.communication` (from the `owl step show` bundle or `owl config show --json`). Write the artifact *body* in `settings.language.artifacts` (default = `communication`); keep `required_sections` headings, frontmatter keys, and the report's `status` field English (schema identity).
+- **Never read or mutate Owl state files directly** (`.owl/`, `tasks/`, `docs/`) — always go through `owl ...`. The one sanctioned write into `tasks/<TASK-ID>/` is the artifact body, and **only** at the exact path returned by `owl artifact resolve`, followed by `owl artifact validate`. Do not hand-edit `task.yaml`, step state, or any other file under those trees.
 - See RFC #1 (knowledge entry 46) §§2, 4 for the canonical session_type and spawn_subagent contract definitions.

@@ -31,6 +31,21 @@ RSpec.describe Owl::Context::Api do
       end
     end
 
+    it 'resolves session-level (non-step) overlay keys such as `orchestrator`' do
+      # The `orchestrator` key is not a workflow step, but session-level overlays
+      # (_owl_conventions.md §8) reuse the same convention paths so the
+      # orchestrator can compose `docs/ai/orchestrator.md` into its final report.
+      with_tmp_project do |root|
+        write("#{root}/docs/ai/orchestrator.md", "Report must state the player-facing change.\n")
+        write("#{root}/.owl/overlays/orchestrator.md", "Always finish in Russian.\n")
+        result = described_class.overlays_for(root: root, step_id: 'orchestrator')
+        sources = result.value.map { |o| o[:source] }
+        expect(sources).to include(end_with('.owl/overlays/orchestrator.md'))
+        expect(sources).to include(end_with('docs/ai/orchestrator.md'))
+        expect(result.value.map { |o| o[:body] }.join).to include('player-facing change')
+      end
+    end
+
     it 'reads explicit paths from .owl/config.yaml context_overlays' do
       with_tmp_project do |root|
         write("#{root}/.owl/config.yaml", <<~YAML)

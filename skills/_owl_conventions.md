@@ -139,3 +139,44 @@ reserved for genuinely open inputs.
 
 When none of the four forms fits, treat the question as a real blocker
 (§2) and surface it explicitly rather than inventing an ad-hoc form.
+
+## 7. Communication language (Language Clause)
+
+Owl Constitution 5.16/5.17 makes this non-negotiable for **every**
+Owl-shipped skill: read `settings.language.*` from the CLI and emit all
+user-facing prose in the configured language. This section is the shared
+source of truth; skills reference it rather than restating the policy.
+
+- **Read it once per run.** `owl config get settings.language.communication --json`
+  (or capture it from the `owl config show --json` / `owl step show --json`
+  payload). The value is a free-form tag such as `ru`, `en`, `uk`.
+- **Every user-facing string goes in `settings.language.communication`** —
+  status updates (§4), numbered prompts (§1), structured-question text (§6),
+  stop reports, the orchestrator's end-of-run summary, and any
+  `## Open follow-ups` question an execution report surfaces to the user.
+- **Artifact bodies follow `settings.language.artifacts`** (default =
+  `communication`); published `docs/` content follows
+  `settings.language.docs` (default = `communication`). Canonical contract
+  surfaces stay English regardless: `SKILL.md` text, artifact
+  `required_sections` headings, code, identifiers, file paths, and literal
+  `owl` command lines (5.16).
+- **Fallback.** If `settings.language.communication` is missing or
+  unreadable, fall back to English and note the fallback in one line so the
+  user can fix the config — never fail the run over it.
+
+## 8. Session-level overlays
+
+Project overlays are **not** limited to workflow steps. `owl overlay show
+<key> --json` resolves `.owl/overlays/<key>.md` and `docs/ai/<key>.md` for
+*any* key, reusing the same convention-path machinery as §3 — the key need
+not name a real step.
+
+The reserved key **`orchestrator`** is the session-level overlay applied to
+the orchestrator's end-of-run summary (and any other cross-step, human-facing
+report). It lets a project state how completion reports must read — required
+sections, audience, language emphasis — without binding that text to a single
+step. `owl-orchestrator` MUST read `owl overlay show orchestrator --json`
+before emitting its final summary and fold each non-empty overlay body into
+the report, exactly as step skills fold step overlays per §3. A missing or
+empty overlay is the normal case: skip silently and use the skill's default
+report structure.

@@ -97,7 +97,8 @@ RSpec.describe Owl::Cli::Api do
           docs/.keep
         ]
         overlay_steps = %w[brief design plan implement review_code merge_docs archive commit_push]
-        overlays = overlay_steps.map { |s| ".owl/overlays/#{s}.md" }
+        session_overlays = %w[orchestrator]
+        overlays = (overlay_steps + session_overlays).map { |s| ".owl/overlays/#{s}.md" }
         workflow_sources = Owl::Workflows::Api.seeded_sources.map { |f| f[:relative_path] }
         artifact_sources = Owl::Artifacts::Api.seeded_sources.map { |f| f[:relative_path] }
         skill_sources = Owl::Skills::Api.seeded_sources.map { |f| f[:relative_path] }

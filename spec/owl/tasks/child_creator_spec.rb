@@ -127,6 +127,25 @@ RSpec.describe 'Owl::Tasks::Api.child_create' do
     end
   end
 
+  it 'records content_sha on the seeded brief step so drift detection works' do
+    with_tmp_project do |root|
+      init_with_workflows(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+      body = "# Child brief\n\nAuthored by parent decompose.\n"
+      result = Owl::Tasks::Api.child_create(
+        root: root, parent_id: 'TASK-0001', workflow: 'feature', title: 'C', brief_body: body
+      )
+      expect(result.ok?).to be(true)
+
+      child_id = result.value[:task_id]
+      payload = YAML.safe_load((root + "tasks/#{child_id}/task.yaml").read, aliases: false, permitted_classes: [Time])
+      brief_step = payload['steps'].find { |s| s['id'] == 'brief' }
+      expect(brief_step['content_sha']).to be_a(String)
+      expect(brief_step['content_sha']).not_to be_empty
+    end
+  end
+
   it 'leaves brief step pending when no brief_body provided' do
     with_tmp_project do |root|
       init_with_workflows(root)

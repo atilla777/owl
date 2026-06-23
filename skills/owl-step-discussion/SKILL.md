@@ -133,5 +133,6 @@ Stop and report when:
 ## Notes
 
 - The full `bin/owl` command surface lives in the `owl-cli` skill.
-- Never read `.owl/`, `tasks/`, or `docs/` directly — always go through `owl ...` CLI.
+- **Language Clause (Owl Constitution 5.16/5.17, `_owl_conventions.md` §7).** Read `settings.language.communication` from the `owl step show` bundle or `owl config show --json`, and write every user-facing string — prompts, status updates, and any summary you hand back to the orchestrator — in it. Write the artifact *body* in `settings.language.artifacts` (default = `communication`); keep `required_sections` headings and frontmatter keys English (schema identity).
+- **Never read or mutate Owl state files directly** (`.owl/`, `tasks/`, `docs/`) — always go through `owl ...`. The one sanctioned write into `tasks/<TASK-ID>/` is the artifact body, and **only** at the exact path returned by `owl artifact resolve`, followed by `owl artifact validate`. Do not hand-edit `task.yaml`, step state, or any other file under those trees.
 - See [RFC #1 (knowledge entry 46)](../../docs/examples/tier_map.example.yaml) §2 for the canonical session_type definition.

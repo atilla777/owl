@@ -25,7 +25,8 @@ RSpec.describe Owl::Init::Api do
           "#{root}/.owl/artifacts.yaml",
           "#{root}/tasks/index.yaml",
           "#{root}/docs/.keep",
-          "#{root}/.owl/overlays/brief.md"
+          "#{root}/.owl/overlays/brief.md",
+          "#{root}/.owl/overlays/orchestrator.md"
         )
         %w[config.yaml workflows.yaml artifacts.yaml].each do |name|
           expect(Pathname.new("#{root}/.owl/#{name}").exist?).to be(true)

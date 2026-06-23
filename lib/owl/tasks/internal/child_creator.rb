@@ -4,6 +4,7 @@ require 'pathname'
 
 require_relative '../../result'
 require_relative '../../artifacts/api'
+require_relative '../../steps/internal/artifact_sha_collector'
 require_relative '../../steps/internal/status_writer'
 require_relative '../../storage/api'
 require_relative 'allowed_children_guard'
@@ -72,11 +73,19 @@ module Owl
           write_result = Owl::Storage::Api.write(path: path, contents: brief_body.to_s)
           return write_result if write_result.err?
 
+          # Record content_sha so drift detection works for pre-authored briefs,
+          # matching what `owl step complete` does for normally-completed steps.
+          attributes = { 'status' => 'done' }
+          sha_result = Owl::Steps::Internal::ArtifactShaCollector.call(
+            root: root, task_id: task_id, step_id: BRIEF_STEP_ID
+          )
+          attributes['content_sha'] = sha_result.value if sha_result.ok? && !sha_result.value.nil?
+
           Owl::Steps::Internal::StatusWriter.update(
             tasks_root: tasks_root,
             task_id: task_id,
             step_id: BRIEF_STEP_ID,
-            attributes: { 'status' => 'done' }
+            attributes: attributes
           )
         end
 
