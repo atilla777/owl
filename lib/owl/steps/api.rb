@@ -3,6 +3,7 @@
 require_relative '../result'
 require_relative '../tasks/api'
 require_relative '../tasks/internal/paths'
+require_relative '../tasks/internal/plan_approval'
 require_relative '../tasks/internal/task_reader'
 require_relative '../verification/api'
 require_relative '../workflows/api'
@@ -170,6 +171,12 @@ module Owl
           return write_result if write_result.err?
 
           reopened << target_id
+        end
+
+        # Reopening the `plan` step (directly or via cascade) invalidates any
+        # recorded plan approval so a stale plan cannot pass the plan_approved gate.
+        if reopened.include?(Owl::Tasks::Internal::PlanApproval::PLAN_STEP_ID)
+          Owl::Tasks::Internal::PlanApproval.clear(tasks_root: paths.value[:tasks], task_id: task_id)
         end
 
         Result.ok(task_id: task_id.to_s, reopened: reopened)

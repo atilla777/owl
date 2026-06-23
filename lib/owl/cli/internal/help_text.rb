@@ -51,6 +51,8 @@ module Owl
             task available          List runnable, unclaimed tasks ranked best-first (JSON).
             task set-priority       Set a task's integer priority: set-priority TASK-ID N.
             task adopt              Steal a task's claim and reset its running steps to pending: adopt TASK-ID [--token T].
+            plan approve            Approve a task's plan, opening the plan_approved gate: approve TASK-ID [--token T].
+            plan status             Show plan-approval status for a TASK-ID (approved, plan_sha, gate_open).
             step start              Mark a ready step as running.
             step complete           Mark a running step as done.
             step reopen             Move a completed step back to pending; --cascade also pendifies downstream steps.

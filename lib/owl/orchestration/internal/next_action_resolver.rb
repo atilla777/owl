@@ -57,12 +57,15 @@ module Owl
           task_id = resolution[:task_id]
           ready = Array(ready_value[:ready])
           blocked = Array(ready_value[:blocked_by_children])
+          awaiting_plan = Array(ready_value[:awaiting_plan_approval])
 
           if ready.any?
             dispatch_action(root: root, task_id: task_id, step: ready.first,
                             workflow_key: ready_value[:workflow_key], task_payload: task_payload)
           elsif blocked.any?
             handoff_action(root: root, task_id: task_id)
+          elsif awaiting_plan.any?
+            await_plan_approval_action(task_id: task_id, step_id: awaiting_plan.first)
           elsif all_steps_done?(task_payload)
             action('done', task_id: task_id)
           else
@@ -86,6 +89,20 @@ module Owl
         def handoff_action(root:, task_id:)
           aggregate = Owl::Tasks::Api.aggregate_status(root: root, task_id: task_id)
           action('handoff_composite', task_id: task_id, children: aggregate.ok? ? aggregate.value : nil)
+        end
+
+        # A `gate: plan_approved` step is ready except that the plan is not yet
+        # approved. In a live session the orchestrator shows the plan and offers
+        # a real choice (approve / request changes); headless this is a
+        # stop-point awaiting an external `owl plan approve`.
+        def await_plan_approval_action(task_id:, step_id:)
+          action(
+            'await_plan_approval',
+            task_id: task_id,
+            step_id: step_id,
+            blocker: "step '#{step_id}' is held by the plan-approval gate; approve with " \
+                     "'owl plan approve #{task_id}' or request changes via 'owl step reopen #{task_id} plan'"
+          )
         end
 
         def no_available_task_action

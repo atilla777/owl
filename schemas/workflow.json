@@ -56,6 +56,10 @@
           "type": "boolean",
           "description": "Opts this step into the objective verification gate: at `owl step complete` Owl runs `settings.verification.command` itself, authors the `verification` artifact from the exit code, and refuses completion unless the objective status is `passed` (fail-open with a warning when no command is configured). Mirrors the `publishes` step-marker precedent; the command is never stored in the workflow."
         },
+        "gate": {
+          "enum": ["children_complete", "plan_approved"],
+          "description": "Optional readiness gate that holds this step out of the ready set until a condition is met. `children_complete` (composite_task only) waits until every child task is ready/archived. `plan_approved` waits until the task's `plan` artifact has been approved via `owl plan approve` (surfaces in `ready-steps` under `awaiting_plan_approval`; reset by `owl step reopen plan`). Absent => no gate."
+        },
         "tier": {
           "type": "string",
           "enum": ["standard", "advanced"],

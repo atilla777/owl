@@ -4,6 +4,7 @@ require_relative '../result'
 require_relative '../internal/backend_resolver'
 require_relative 'backend'
 require_relative 'backends/filesystem'
+require_relative 'internal/plan_approval'
 require_relative 'local'
 
 module Owl
@@ -60,6 +61,19 @@ module Owl
 
       def adopt(root:, task_id:, token: nil)
         strip_local(with_backend(root) { |backend| backend.adopt(task_id: task_id, token: token) })
+      end
+
+      # Record plan approval for a task, opening the optional `gate: plan_approved`
+      # readiness gate. Lease-aware (rejected with :lease_held when a different
+      # live session holds the claim) and idempotent for an already-approved
+      # plan with the same content_sha.
+      def approve_plan(root:, task_id:, token: nil)
+        Internal::PlanApproval.approve(root: root, task_id: task_id, token: token)
+      end
+
+      # Read-only plan-approval status: { approved, plan_sha, gate_open }.
+      def plan_status(root:, task_id:)
+        Internal::PlanApproval.status(root: root, task_id: task_id)
       end
 
       def set_step_variant(root:, task_id:, step_id:, variant:)

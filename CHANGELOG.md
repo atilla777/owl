@@ -4,6 +4,40 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.4.0] - 2026-06-23
+
+### Added
+- **Optional per-workflow plan-approval gate (`gate: plan_approved`).** A
+  workflow step (typically `implement`) can now declare `gate: plan_approved`
+  to require explicit approval of the task's plan before it becomes ready.
+  While unapproved, the step is held out of `owl task ready-steps` and surfaced
+  under a new `awaiting_plan_approval` array; `owl next` returns the new
+  `action.kind: await_plan_approval`. The gate works for any task kind and is
+  independent of the composite `children_complete` gate. **Off in every seeded
+  workflow** (`feature`/`composite_feature`/`hotfix`/`refactor`) — default
+  autonomy is unchanged and `owl upgrade` never enables it.
+- **`owl plan approve TASK-ID [--token TOKEN]`** — records persistent,
+  task-level plan approval (top-level `plan_approval { approved, plan_sha,
+  approved_at }` in `task.yaml`). Lease-aware (rejected with `lease_held` when a
+  different live session holds the claim), idempotent for an already-approved
+  plan, and refused with `plan_not_completed` until the `plan` step is done.
+  Approval is bound to the plan artifact's `content_sha`.
+- **`owl plan status TASK-ID`** — read-only `{approved, plan_sha, gate_open}`.
+- `Owl::Tasks::Api.approve_plan` / `.plan_status` and
+  `Owl::Tasks::Internal::PlanApproval` (with a `gate_open?` helper).
+- `owl step reopen TASK-ID plan` now clears any recorded plan approval (directly
+  or via `--cascade`), so a stale plan cannot pass the gate.
+- `WorkflowValidator` rejects `gate: plan_approved` on a workflow with no `plan`
+  step (`gate_requires_plan`); the `gate` step property is now enumerated in
+  `schemas/workflow.json` (`children_complete` | `plan_approved`).
+- Documented default autonomy as a deliberate trade-off and the opt-in gate in
+  `skills/_owl_conventions.md` (§9) and `skills/owl-orchestrator/SKILL.md`.
+
+### Changed
+- `owl task ready-steps --json` / `Owl::Workflows::Api.ready_steps` now include
+  an additive `awaiting_plan_approval: [step_id, …]` key alongside `ready` and
+  `blocked_by_children`.
+
 ## [0.3.0] - 2026-06-23
 
 ### Added

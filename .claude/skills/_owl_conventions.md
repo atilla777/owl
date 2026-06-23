@@ -180,3 +180,61 @@ before emitting its final summary and fold each non-empty overlay body into
 the report, exactly as step skills fold step overlays per §3. A missing or
 empty overlay is the normal case: skip silently and use the skill's default
 report structure.
+
+## 9. Autonomy-by-default trade-off and the opt-in plan-approval gate
+
+Owl's seeded workflows are **autonomous by default**: with
+`execution_mode: autonomous_after_brief`, once `brief` is captured the
+orchestrator drives `design → plan → implement → … → commit_push` without
+pausing, stopping only on a real blocker (§2). This is a deliberate design
+choice, not an oversight — it is recorded here so the trade-off is explicit and
+so anyone who wants tighter control knows the supported lever.
+
+**Why autonomy is the default (pros).**
+
+- Fewer interruptions: one decision at `brief`, then the agent runs the
+  pipeline end-to-end — ideal for routine, well-scoped, or headless/parallel
+  work where a human is not babysitting the session.
+- Throughput: no idle waiting on a human between every stage; parallel sessions
+  stay productive.
+- Consistency: the workflow graph (not ad-hoc prompting) decides what runs,
+  which keeps multi-session behavior predictable.
+
+**What you give up (cons).**
+
+- The human does not see the `plan` before code is written, so a wrong
+  direction is caught later (at `review_code`) instead of before `implement`.
+- For high-risk or ambiguous work, "stop only on a real blocker" can be too
+  loose — the agent may confidently build the wrong thing.
+
+**The lever: opt-in plan-approval gate.** When a workflow needs a human to
+sign off on the plan before implementation, declare the gate on the
+`implement` step in the workflow YAML:
+
+```yaml
+steps:
+  - id: plan
+    creates: [plan]
+    # ...
+  - id: implement
+    requires: [plan]
+    gate: plan_approved      # ← holds `implement` until the plan is approved
+```
+
+With the gate set, `implement` does **not** become `ready` until the plan is
+approved: `owl task ready-steps` lists it under `awaiting_plan_approval` and
+`owl next` returns `action.kind: await_plan_approval`. Approval is persistent
+task state (works headless and across parallel sessions):
+
+- `owl plan approve TASK-ID [--token TOKEN]` — records approval; lease-aware
+  (rejected with `lease_held` when another live session owns the task) and
+  idempotent.
+- `owl plan status TASK-ID --json` — `{approved, plan_sha, gate_open}`.
+- `owl step reopen TASK-ID plan` — reopening the plan resets approval, so a
+  stale plan can never pass the gate.
+
+The approval is bound to the plan artifact's `content_sha`, so editing the plan
+also invalidates a prior approval. The gate is **off in every seeded
+workflow** and `owl upgrade` never adds it — enabling it is an explicit,
+per-workflow opt-in. `children_complete` (composite-parent wait) is a separate,
+unrelated gate and is unaffected.

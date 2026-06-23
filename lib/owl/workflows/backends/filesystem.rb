@@ -26,6 +26,7 @@ module Owl
         ID_PATTERN = /\A[a-z][a-z0-9_]*\z/
         COMPOSITE_KIND = 'composite_task'
         GATE_CHILDREN_COMPLETE = 'children_complete'
+        GATE_PLAN_APPROVED = 'plan_approved'
         CHILDREN_READY_AGGREGATES = %w[ready done].freeze
 
         def initialize(root:)
@@ -325,12 +326,37 @@ module Owl
             )
           end
 
+          ready, awaiting_plan_approval = apply_plan_approval_gate(
+            task_id: task_id, payload: payload, ready: ready, definition_steps: definition_steps
+          )
+
           Result.ok(
             task_id: task_id.to_s,
             workflow_key: workflow_key,
             ready: ready,
-            blocked_by_children: blocked_by_children
+            blocked_by_children: blocked_by_children,
+            awaiting_plan_approval: awaiting_plan_approval
           )
+        end
+
+        # Steps flagged `gate: plan_approved` (typically `implement`) are held
+        # out of the ready set — and surfaced under `awaiting_plan_approval` —
+        # until the task's plan approval is recorded and still matches the plan
+        # artifact's current content_sha. Unlike children_complete this applies
+        # to any task kind. Returns [remaining_ready, awaiting_ids].
+        def apply_plan_approval_gate(task_id:, payload:, ready:, definition_steps:)
+          gated_ids = ready.map { |entry| entry[:id].to_s }.select do |id|
+            definition = definition_steps[id]
+            definition.is_a?(Hash) && definition['gate'].to_s == GATE_PLAN_APPROVED
+          end
+          return [ready, []] if gated_ids.empty?
+
+          require_relative '../../tasks/internal/plan_approval'
+          plan_sha = Owl::Tasks::Internal::PlanApproval.current_plan_sha(root: @root, task_id: task_id)
+          return [ready, []] if Owl::Tasks::Internal::PlanApproval.gate_open?(payload, plan_sha)
+
+          remaining = ready.reject { |entry| gated_ids.include?(entry[:id].to_s) }
+          [remaining, gated_ids]
         end
 
         # For a composite parent, steps flagged `gate: children_complete` in the

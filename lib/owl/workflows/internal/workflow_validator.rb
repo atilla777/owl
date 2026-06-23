@@ -105,8 +105,31 @@ module Owl
 
           errors.concat(validate_step_creates(steps, declared_artifacts))
           errors.concat(validate_artifact_refs(body, root))
+          errors.concat(validate_plan_gate(steps))
 
           errors
+        end
+
+        # A step declaring `gate: plan_approved` is meaningless without a `plan`
+        # step to approve; reject the misconfiguration with a structured error.
+        # `children_complete` is intentionally left alone (handled at runtime).
+        def validate_plan_gate(steps)
+          gated = steps.each_index.select do |idx|
+            step = steps[idx]
+            step.is_a?(Hash) && step['gate'].to_s == 'plan_approved'
+          end
+          return [] if gated.empty?
+
+          has_plan = steps.any? { |step| step.is_a?(Hash) && step['id'].to_s == 'plan' }
+          return [] if has_plan
+
+          gated.map do |idx|
+            error_at(
+              "/steps/#{idx}/gate",
+              "Step '#{steps[idx]['id']}' declares `gate: plan_approved` but the workflow has no `plan` step.",
+              code: :gate_requires_plan
+            )
+          end
         end
 
         def validate_step_shape(step, idx)

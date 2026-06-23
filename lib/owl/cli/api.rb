@@ -23,6 +23,8 @@ require_relative 'internal/commands/init'
 require_relative 'internal/commands/instructions'
 require_relative 'internal/commands/next'
 require_relative 'internal/commands/overlay'
+require_relative 'internal/commands/plan_approve'
+require_relative 'internal/commands/plan_status'
 require_relative 'internal/commands/publish'
 require_relative 'internal/commands/self_update'
 require_relative 'internal/commands/spec_apply'
@@ -113,25 +115,31 @@ module Owl
         dispatch_command(command, args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
       end
 
+      # Command groups whose subcommands are routed by a `dispatch_<group>`
+      # method. Kept as a table so `dispatch_command` stays flat.
+      GROUP_DISPATCHERS = {
+        'workflow' => :dispatch_workflow,
+        'artifact-type' => :dispatch_artifact_type,
+        'config' => :dispatch_config,
+        'git' => :dispatch_git,
+        'task' => :dispatch_task,
+        'plan' => :dispatch_plan,
+        'step' => :dispatch_step,
+        'artifact' => :dispatch_artifact,
+        'archive' => :dispatch_archive,
+        'spec' => :dispatch_spec
+      }.freeze
+
       def dispatch_command(command, args, stdout:, stderr:, cwd:, env:)
         kwargs = { stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         simple = SIMPLE_COMMANDS[command]
         return simple.run(argv: args, **kwargs) if simple
+        return Internal::Commands::Overlay.run(argv: args, **kwargs) if command == 'overlay'
 
-        case command
-        when 'workflow'      then dispatch_workflow(args, **kwargs)
-        when 'artifact-type' then dispatch_artifact_type(args, **kwargs)
-        when 'overlay'       then Internal::Commands::Overlay.run(argv: args, **kwargs)
-        when 'config'        then dispatch_config(args, **kwargs)
-        when 'git'           then dispatch_git(args, **kwargs)
-        when 'task'          then dispatch_task(args, **kwargs)
-        when 'step'          then dispatch_step(args, **kwargs)
-        when 'artifact'      then dispatch_artifact(args, **kwargs)
-        when 'archive'       then dispatch_archive(args, **kwargs)
-        when 'spec'          then dispatch_spec(args, **kwargs)
-        else
-          unknown_command(stderr, command)
-        end
+        group = GROUP_DISPATCHERS[command]
+        return send(group, args, **kwargs) if group
+
+        unknown_command(stderr, command)
       end
 
       def dispatch_archive(args, **)
@@ -269,6 +277,17 @@ module Owl
           Internal::Commands::TaskChildCreate.run(argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env)
         else
           unknown_command(stderr, "task child #{subcommand}".strip)
+        end
+      end
+
+      def dispatch_plan(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
+        case subcommand
+        when 'approve' then Internal::Commands::PlanApprove.run(**kwargs)
+        when 'status'  then Internal::Commands::PlanStatus.run(**kwargs)
+        else
+          unknown_command(stderr, "plan #{subcommand}".strip)
         end
       end
 

@@ -1,16 +1,6 @@
 ---
 schema_version: 1
 tasks:
-- id: TASK-0013
-  title: Опциональный plan-approval гейт + документировать дефолтную автономию как
-    trade-off
-  workflow: feature
-  kind: task
-  parent_id:
-  priority: 40
-  created_at: '2026-06-23T09:50:54Z'
-  status:
-  archived_at:
 - id: TASK-0014
   title: 'merge_docs/publish: усилить до реальной базы знаний либо честно переименовать'
   workflow: feature
