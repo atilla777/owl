@@ -1,15 +1,6 @@
 ---
 schema_version: 1
 tasks:
-- id: TASK-0016
-  title: 'Транзакционность commit_push: убрать ordering-hack complete-before-commit'
-  workflow: refactor
-  kind: task
-  parent_id:
-  priority: 10
-  created_at: '2026-06-23T09:51:04Z'
-  status:
-  archived_at:
 - id: TASK-0017
   title: 'Harden verification-гейт: тесты subprocess-слоя + CLI owl verify, чистка
     dead-code'

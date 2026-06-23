@@ -17,6 +17,7 @@ require_relative 'internal/commands/config_get'
 require_relative 'internal/commands/config_set'
 require_relative 'internal/commands/config_show'
 require_relative 'internal/commands/config_validate'
+require_relative 'internal/commands/commit_push'
 require_relative 'internal/commands/git_lock'
 require_relative 'internal/commands/git_unlock'
 require_relative 'internal/commands/init'
@@ -128,6 +129,7 @@ module Owl
         'step' => :dispatch_step,
         'artifact' => :dispatch_artifact,
         'archive' => :dispatch_archive,
+        'commit-push' => :dispatch_commit_push,
         'recall' => :dispatch_recall,
         'spec' => :dispatch_spec
       }.freeze
@@ -155,6 +157,10 @@ module Owl
 
       def dispatch_recall(args, **)
         Internal::Commands::Recall.run(argv: args, **)
+      end
+
+      def dispatch_commit_push(args, **)
+        Internal::Commands::CommitPush.run(argv: args, **)
       end
 
       def dispatch_spec(args, stdout:, stderr:, cwd:, env:)

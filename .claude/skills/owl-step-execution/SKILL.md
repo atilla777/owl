@@ -81,7 +81,7 @@ Those belong to `owl-step-discussion`.
    - Generate Markdown body covering every `artifact_template.required_sections` entry and frontmatter matching `artifact_template.frontmatter_schema`.
    - Write the file. Do not invent paths.
    - Validate: `owl artifact validate TASK-ID ARTIFACT-KEY --json`. Loop fix-validate until `ok: true`.
-6. If the step has no artifact (e.g., `archive`, `commit_push`, `publish`, `merge_docs`): execute the side effect described in `context` (typically a `bin/owl ...` subcommand).
+6. If the step has no artifact (e.g., `archive`, `commit_push`, `publish`, `merge_docs`): execute the side effect described in `context` (typically a `bin/owl ...` subcommand). For `commit_push`, that side effect is a single transactional command — `owl commit-push TASK-ID --message "Owl: <subject>"` — which stages, flips `commit_push: done`, commits, pulls --rebase and pushes under the `git` lock in one operation; it self-completes the step, so step 7's `owl step complete` is a harmless idempotent no-op for it. Run the overlay's preconditions (`git status` review, push target) before the command; on `push_retryable` re-run the same command to retry the push without a second commit.
 7. Complete the step: `owl step complete TASK-ID STEP-ID`.
 8. Compose the report body (markdown-with-frontmatter as above) and write it through `owl step report --task-id TASK-ID --step-id STEP-ID --body - --validate`. Validation must pass before the session ends.
 9. Return.

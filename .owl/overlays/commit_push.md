@@ -39,8 +39,22 @@ below; if any of them is not satisfied, stop and report instead of pushing.
 
 ## Sequence
 
-Follow the ordered sequence in the built-in step context
-(`commit_push.context.md`): stage → `owl step complete` → re-stage →
-`owl git lock` → `git commit` → `git pull --rebase` → `git push` →
-`owl git unlock`. The completion is recorded **before** the commit so the
-archived `task.yaml` lands clean in the same commit.
+Run the whole step as one atomic command:
+
+```
+owl commit-push TASK-ID --message "Owl: <concise description>"
+```
+
+`owl commit-push` stages every change, flips `commit_push: done` in the
+archived `task.yaml`, re-stages so the flip rides the same commit, takes the
+repo-scoped `git` push lock, commits, `pull --rebase`es, pushes, and releases
+the lock — so no separate `owl step complete`, double `git add`, or
+"sync … step state to done" commit is needed.
+
+Perform the **Preconditions** above (review `git status` for stray/suspicious
+files; confirm the push target) **before** calling it. Failure handling is
+built in: any failure before the commit leaves `commit_push` `running` with no
+commit; a successful commit whose push fails keeps the local commit and returns
+`push_retryable` — re-run the same command to retry the push idempotently (no
+second commit). A `rebase_conflict` or `lock_held` is returned structurally for
+a human decision — do not `--steal` the lock.

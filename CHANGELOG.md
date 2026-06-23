@@ -4,6 +4,40 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.7.0] - 2026-06-23
+
+### Added
+- **`owl commit-push TASK-ID --message M` — transactional `commit_push`.** New
+  CLI command + `Owl::CommitPush::Api.commit_push` facade that runs the whole
+  terminal step as one operation: `git add -A` → flip `commit_push: done` in
+  `task.yaml` → re-`git add -A` (so the flip rides the same commit) → acquire
+  the repo-scoped `git` push lock → `git commit` → `git pull --rebase` →
+  `git push` → release the lock. This removes the old "complete-before-commit"
+  ordering hack and its separate "sync … step state to done" commit. Failure
+  semantics: any failure **before** `git commit` rolls the step back to
+  `running` and creates no commit; a successful commit whose `pull --rebase`/
+  `push` fails keeps the local commit and reports `push_retryable`
+  (`rebase_conflict` on a rebase conflict) so a re-run is idempotent — it takes
+  the retry branch (clean tree + step `done` + unpushed commit) and only
+  re-attempts pull + push, never a second commit. `nothing_to_commit` is
+  returned (step left `running`) when staging produces no changes. Git runs
+  through an injectable `Owl::CommitPush::Internal::GitRunner` (Open3, like the
+  upgrade `ShellRunner`) so the flow is unit-tested without real git or the
+  network; the push lock reuses `name: 'git'` (same as `owl git lock`). Emits
+  `{ ok: true, task_id, commit_sha, pushed }` or `{ ok: false, error: { code, … } }`.
+- **`Owl::Steps::Api.status` / `Owl::Steps::Api.mark_running`.** Root-scoped
+  helpers backing the `commit_push` transaction: read a single step's status,
+  and force a step back to `running` (rollback half of the transaction).
+
+### Changed
+- **`commit_push` skill / context / overlay now call `owl commit-push`.** The
+  `feature` and `composite_feature` `commit_push.context.md`, the
+  `.owl/overlays/commit_push.md` Sequence section, and the `owl-step-execution`
+  skill replace the manual 7-action prose (stage → complete → re-stage → lock →
+  commit → pull → push → unlock) with a single `owl commit-push TASK-ID
+  --message "Owl: …"` call; preconditions (`git status` review, push to `main`,
+  one commit) and stop-conditions are preserved as pre-call checks.
+
 ## [0.6.0] - 2026-06-23
 
 ### Added

@@ -27,39 +27,44 @@ After `archive` in the `feature` and `composite_feature` workflows.
   archived task files.
 - `git push` to the configured remote.
 
-## Sequence (IMPORTANT — overrides the generic execution-step order)
+## Sequence
 
-This step's side effect *is* the commit, so completion MUST be recorded
-**before** the commit. Otherwise `owl step complete` flips this step to
-`done` *after* the commit and leaves the archived `task.yaml` dirty in
-the working tree. Run the actions in exactly this order:
+This step's side effect *is* the commit, and it is delivered by a single
+atomic command:
 
-1. `git add -A` — stage every workflow change (code, tests, published
-   docs, archived task files). At this point the archived `task.yaml`
-   still shows `commit_push: running`.
-2. `owl step complete TASK-ID STEP-ID` — flips this step to `done` in the
-   archived `task.yaml` and releases the current-task pointer. (Completing
-   an already-`done` step is an idempotent no-op, so a later safety-net
-   `complete` from the orchestrator is harmless.)
-3. `git add -A` — re-stage so the `commit_push: done` flip from step 2 is
-   part of the commit.
-4. Serialize and publish the push:
-   a. `owl git lock --json` — take the repo-scoped push lock so two
-      sessions never push to `main` at once; keep the returned `token`.
-      On `lock_held` (exit 2) another session is mid-push: wait briefly
-      and retry, or stop and report — do not `--steal` unless the holder
-      is known dead.
-   b. `git commit`, then `git pull --rebase` and `git push` — the single
-      publishing commit captures `commit_push: done`; rebasing first folds
-      in any peer commits that landed while earlier steps ran.
-   c. `owl git unlock --token <token>` — release the lock (always, even if
-      the push failed; it also self-heals after its TTL). The working tree
-      is left clean.
-5. Write the report (`owl step report ... --body -`). Reports live under
-   `.owl/local/` (gitignored), so this does not dirty the tree.
+```
+owl commit-push TASK-ID --message "Owl: <concise description>"
+```
 
-Do **not** commit before `owl step complete`; the commit must be the last
-mutation of tracked files.
+`owl commit-push` runs the whole sequence as one transaction: `git add -A`
+→ flip `commit_push: done` in the archived `task.yaml` → `git add -A`
+again (so the flip rides the same commit) → take the repo-scoped `git`
+push lock → `git commit` → `git pull --rebase` → `git push` → release the
+lock. No separate `owl step complete`, no double manual `git add`, and no
+"sync … step state to done" follow-up commit are needed; the working tree
+is left clean.
+
+Before calling it, do the preconditions from the project overlay: review
+`git status` for stray or suspicious files (secrets, unexpected
+deletions, large binaries) and confirm the push target. If anything looks
+wrong, stop and report instead of running the command.
+
+Failure handling is built in:
+
+- Any failure **before** `git commit` (staging, lock, commit) leaves
+  `commit_push` `running` and creates no commit — the delivery is not
+  partially applied.
+- A successful commit whose `git pull --rebase`/`git push` fails keeps the
+  local commit (which already carries `commit_push: done`) and returns
+  `push_retryable`. Re-run the **same** `owl commit-push` command: it
+  detects the existing commit and only re-attempts pull + push — it never
+  creates a second commit.
+- `rebase_conflict` (a real merge conflict) and `lock_held` (another live
+  session is mid-push) are returned structurally for a human decision —
+  do **not** `--steal` the lock.
+
+Then write the report (`owl step report ... --body -`). Reports live under
+`.owl/local/` (gitignored), so this does not dirty the tree.
 
 ## Mode
 

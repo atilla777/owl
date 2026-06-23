@@ -298,6 +298,41 @@ module Owl
         Owl::Tasks::Api.local_paths(root: root, task_id: task_id)
       end
 
+      # Read a single step's current status by repo `root`. Returns
+      # `Result.ok(status:)` with the status string (or `nil` when the step is
+      # unknown). Used by the transactional `commit_push` retry predicate.
+      def status(root:, task_id:, step_id:)
+        paths = Owl::Tasks::Internal::Paths.resolve(root: root)
+        return paths if paths.err?
+
+        Result.ok(status: current_status(paths.value[:tasks], task_id, step_id))
+      end
+
+      # Force a step back to `running` regardless of the ready set. This is the
+      # rollback half of the transactional `commit_push`: when the commit fails
+      # after the step was flipped to `done`, restore `running` so the delivery
+      # is retryable and no work is reported as done-but-uncommitted.
+      def mark_running(root:, task_id:, step_id:)
+        paths = Owl::Tasks::Internal::Paths.resolve(root: root)
+        return paths if paths.err?
+
+        current = current_status(paths.value[:tasks], task_id, step_id)
+        if current.nil?
+          return Result.err(
+            code: :unknown_step_id,
+            message: "Step '#{step_id}' is not defined for task '#{task_id}'.",
+            details: { task_id: task_id, step_id: step_id }
+          )
+        end
+
+        strip_local(Internal::StatusWriter.update(
+                      tasks_root: paths.value[:tasks],
+                      task_id: task_id,
+                      step_id: step_id,
+                      attributes: { 'status' => 'running' }
+                    ))
+      end
+
       def strip_local(result)
         return result if result.err?
         return result unless result.value.is_a?(Hash)
