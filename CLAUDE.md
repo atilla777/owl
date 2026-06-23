@@ -74,6 +74,14 @@ Registered in `.owl/workflows.yaml`:
 
 `.claude/skills/kos-*` and `.claude/commands/kos-*` remain in the repository as a non-active snapshot. They are not the agentic workflow for this project anymore — do not invoke them by default. The KOS application database is untouched and can still be queried manually with `/home/aleksei/plums/kos/bin/kos` if needed.
 
+## Versioning & Gem Release
+
+Owl ships as the `owl-cli` gem; consumer projects (`re`/Rrrog, `tetris`, new projects) run the **installed gem** on PATH, not this checkout. So a code change reaches them only via a gem rebuild, and the version is the distribution signal.
+
+- **Any change to behavior or consumer-materialized seed content MUST bump `Owl::VERSION` and add a `CHANGELOG.md` entry in the same commit.** In scope: `lib/**/*.rb`, `bin/owl`, `skills/**`, `commands/**`, `workflows/**`, `artifacts/**`, `schemas/**`. Out of scope (no bump): `spec/**`, `docs/**` (except `README.md`), comments. SemVer: patch = fix/back-compat add, minor = feature, major = breaking (on-disk format, CLI/JSON contract, `required_sections`).
+- Propagation after a bump: `git push` → `gem build owl-cli.gemspec && gem install` → `owl upgrade` in each consumer project (preserves their config + `docs/ai/*` overlays). After editing `skills/owl-*`, also refresh this repo's `.claude/`/`.opencode/` via `bin/owl upgrade`.
+- Full rule: `docs/agents/23_Owl_Project_Constitution.md` §7.1.
+
 ## Safety Rules
 
 - Stop and ask the human on real clarification, failed checks, suspicious files, secrets, ambiguous scope, or push concerns.
