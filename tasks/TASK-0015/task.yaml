@@ -1,0 +1,79 @@
+---
+id: TASK-0015
+title: 'Кросс-задачная память: surface похожих архивных задач/решений в бриф'
+workflow:
+  key: composite_feature
+  version: '1.0'
+  source: workflows/composite_feature/workflow.yaml
+kind: composite_task
+parent_id:
+priority: 20
+created_at: '2026-06-23T09:51:03Z'
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  creates:
+  - brief
+  default_variant: feature
+  variants:
+    feature:
+      context_file: brief.feature.context.md
+      title: Collect feature requirements
+    root_cause:
+      context_file: brief.root_cause.context.md
+      title: Find bug root cause
+    problem_inventory:
+      context_file: brief.problem_inventory.context.md
+      title: Inventory refactor problems
+  status: pending
+- id: design
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: design.context.md
+  requires:
+  - brief
+  creates:
+  - design
+  status: pending
+- id: decompose
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: decompose.context.md
+  requires:
+  - brief
+  creates:
+  - decomposition
+  status: pending
+- id: review
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: review.context.md
+  requires:
+  - decompose
+  creates:
+  - review
+  status: pending
+- id: archive
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: archive.context.md
+  requires:
+  - review
+  gate: children_complete
+  status: pending
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - archive
+  gate: children_complete
+  status: pending
+artifacts: []
