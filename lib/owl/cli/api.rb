@@ -21,6 +21,7 @@ require_relative 'internal/commands/git_lock'
 require_relative 'internal/commands/git_unlock'
 require_relative 'internal/commands/init'
 require_relative 'internal/commands/instructions'
+require_relative 'internal/commands/next'
 require_relative 'internal/commands/overlay'
 require_relative 'internal/commands/publish'
 require_relative 'internal/commands/self_update'
@@ -85,6 +86,7 @@ module Owl
         'init' => Internal::Commands::Init,
         'publish' => Internal::Commands::Publish,
         'instructions' => Internal::Commands::Instructions,
+        'next' => Internal::Commands::Next,
         'status' => Internal::Commands::Status,
         'upgrade' => Internal::Commands::Upgrade,
         'self-update' => Internal::Commands::SelfUpdate

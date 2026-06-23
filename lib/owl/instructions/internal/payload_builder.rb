@@ -64,10 +64,10 @@ module Owl
         end
 
         def resolve_current_task_id(root:)
-          current = Owl::Tasks::Api.current(root: root)
-          return current if current.err?
+          result = Owl::Tasks::Api.current_task_id(root: root)
+          return result if result.err?
 
-          current.value[:task_id]
+          result.value
         end
 
         def build(invocation, skill_payload)

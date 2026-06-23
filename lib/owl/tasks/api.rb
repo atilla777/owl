@@ -88,6 +88,17 @@ module Owl
         strip_local(with_backend(root, &:current))
       end
 
+      # Current-task pointer projected down to just its id. Shared primitive
+      # for the orchestration selection ladder (Instructions / Status /
+      # Orchestration) so each does not carry its own copy. Returns
+      # Result.ok(task_id) or the underlying Err (e.g. no_current_task).
+      def current_task_id(root:)
+        result = current(root: root)
+        return result if result.err?
+
+        Owl::Result.ok(result.value[:task_id])
+      end
+
       def rebuild_index(root:)
         strip_local(with_backend(root, &:rebuild_index))
       end

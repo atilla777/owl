@@ -4,6 +4,35 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.2.0] - 2026-06-23
+
+### Added
+- **`owl next [TASK-ID] --json` — read-only next-action advisor.** A new
+  top-level command that encapsulates the orchestrator's whole "what do I do
+  next?" decision in code instead of skill prose. It runs the canonical
+  selection ladder (explicit `TASK-ID` › current pointer › auto-select the top
+  `owl task available` candidate) and classifies the outcome into a single
+  discriminated `action.kind ∈ {dispatch_step, handoff_composite, stop_blocked,
+  done, no_available_task}`. All outcomes exit 0 (a terminal outcome is a valid
+  result, not an error); the raw `no_current_task` error no longer leaks — it
+  maps to `no_available_task`. `task_resolution` reports `source ∈ {explicit,
+  current_pointer, auto_select, none}` with a `reason` and a `needs_adopt` flag
+  (set when the chosen task has an expired lease over a stuck `running` step).
+  The command is idempotent and never mutates state (no claim, no step start) —
+  claim/adopt remain explicit orchestrator follow-ups.
+- New `Owl::Orchestration` domain (`Api.next_action`, read-only
+  `Internal::NextActionResolver` + shared `Internal::TaskResolver`) composing
+  the existing Tasks/Workflows/Steps APIs.
+
+### Changed
+- **Skill prose deduplicated.** `owl-orchestrator` Workflow §1 (selection
+  ladder) and §4 (pick next step) now delegate to `owl next --json` and dispatch
+  by `action.kind`, keeping the mutation sections (claim/adopt/heartbeat/steal/
+  multi-session) as a thin reference. `owl-cli` documents `owl next` and its
+  response shape. The current→pointer resolution ladder duplicated in
+  `Instructions`/`Status` now reuses a shared `Tasks::Api.current_task_id`
+  primitive (behavior-neutral).
+
 ## [0.1.1] - 2026-06-23
 
 ### Added

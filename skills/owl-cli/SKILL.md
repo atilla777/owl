@@ -86,6 +86,7 @@ Representative commands:
 - `owl publish TASK-ID --json`
 - `owl archive TASK-ID --json`
 - `owl instructions TASK-ID [--step-id STEP] --json`
+- `owl next [TASK-ID] --json`
 - `owl status TASK-ID --json`
 
 The list above is intentionally explicit so agents do not need CLI discovery for normal workflows. If a needed operation is not listed here, stop and report the missing CLI contract instead of guessing a flag.
@@ -97,6 +98,7 @@ A few endpoints return shapes that have surprised agents in the past — always 
 - `owl task ready-steps TASK-ID --json` returns `{ready_steps: [...]}`. Each entry has `id`, `skill`, and dependencies metadata.
 - `owl step show TASK-ID STEP-ID --json` returns a step bundle whose `step` block carries `variants:` (map) and `default_variant:` when the step declares them, plus the resolved `variant:` for the running task. Use `--variant NAME` on `owl step start` (or `--variant STEP=NAME` on `owl task create`) to choose a non-default variant; the chosen `context_file` and overlay `<step>/<variant>.md` files are then loaded automatically.
 - `owl status TASK-ID --json` returns an agent-friendly summary: `steps` (each with a `ready` flag), `progress {done, total, pct}`, `blockers`, and `children` (for composite tasks).
+- `owl next [TASK-ID] --json` is the read-only next-action advisor. It returns `{ok, action, task_resolution}`; **all** outcomes exit 0 (a terminal outcome is a valid result, not an error). `action.kind` is one of `dispatch_step` (carries `task_id, step_id, session_type, skill, variant`), `handoff_composite` (carries `task_id, children` aggregate-status), `done` (carries `task_id`), `stop_blocked` (carries `task_id, blocker`), or `no_available_task`. Every `action` object carries the full key set with `null` for inapplicable fields. `task_resolution.source ∈ {explicit, current_pointer, auto_select, none}` with a `reason`, plus `needs_adopt: true` when the chosen task has an expired lease over a stuck `running` step. The command never mutates state (no claim, no step start) — claim/adopt remain explicit follow-up calls.
 - `owl task tree --json` and `owl task children PARENT-ID --json` return recursive `{children: [...]}` shapes; walk via recursive descent, not just the top level.
 - `owl archive TASK-ID --json` for a composite parent that has unready children returns `composite_with_unready_children` and lists missing children steps — handle this branch before treating the call as a failure.
 - `owl artifact validate` returns `{ok: bool, errors: [...]}` — even when the exit code is zero, inspect `ok` before assuming success.

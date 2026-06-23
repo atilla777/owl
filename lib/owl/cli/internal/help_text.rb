@@ -68,6 +68,7 @@ module Owl
             spec                    Project-level domain specs: list|show|path|validate|trace DOMAIN [--strict]; diff|apply DOMAIN --delta PATH [--dry-run] (structural delta-merge); merge TASK-ID [--dry-run] (apply a task's spec_delta + trace gate).
             overlay                 Inspect context overlays for a step: overlay <list|show|validate> STEP-ID [--variant V].
             instructions            Show the next ready step packaged with its SKILL.md summary (JSON).
+            next                    Read-only next-action advisor: resolves the task + classifies action.kind (dispatch_step|handoff_composite|stop_blocked|done|no_available_task) (JSON).
             status                  Show workflow progress for a task (steps, progress, blockers, children).
             upgrade                 Refresh this project's copied Owl seed files (skills, managed workflow/artifact files, registry merge) after a gem update; preserves project-owned content. --dry-run to preview.
             self-update             Update the owl-cli gem itself from github main (clone→build→install). --check to compare versions only.
