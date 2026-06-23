@@ -38,3 +38,13 @@ tasks:
   created_at: '2026-06-23T09:51:04Z'
   status:
   archived_at:
+- id: TASK-0017
+  title: 'Harden verification-гейт: тесты subprocess-слоя + CLI owl verify, чистка
+    dead-code'
+  workflow: refactor
+  kind: task
+  parent_id:
+  priority: 0
+  created_at: '2026-06-23T12:06:07Z'
+  status:
+  archived_at:
