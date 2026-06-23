@@ -38,7 +38,9 @@ module Owl
                                   workflow_key: result.value[:workflow_key],
                                   dry_run: result.value[:dry_run],
                                   step_status: result.value[:step_status],
-                                  results: result.value[:results]
+                                  results: result.value[:results],
+                                  design_status: result.value[:design_status],
+                                  index: result.value[:index]
                                 })
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)

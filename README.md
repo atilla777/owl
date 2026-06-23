@@ -66,8 +66,9 @@ for the full install recipe.
   tasks linked by `parent_id`; the parent tracks aggregate readiness
   and archives the whole subtree atomically.
 - **Publishing pipeline.** A workflow can declare `publishes:` rules
-  to copy approved artifacts from a task tree into `docs/` (durable
-  domain documentation).
+  to copy approved artifacts from a task tree into `docs/`. On publish,
+  an approved `design` is flipped to `shipped` (source + copy), and a
+  generated `docs/README.md` index of published task docs is refreshed.
 - **Pluggable storage.** Storage roles (`tasks`, `docs`, `archive`,
   `control`, `local_state`, `index`) live in `.owl/config.yaml`;
   workflow YAML never hard-codes physical paths.
@@ -175,7 +176,7 @@ After `owl init`, an Owl-managed project has this shape:
 | `tasks/<TASK-ID>/{brief,design,plan,…}.md`| Active task artifacts.                                                  |
 | `tasks/index.yaml`                        | Cached task index (rebuildable via `owl task index rebuild`).           |
 | `tasks/archive/<date>-<TASK-ID>-<slug>/`  | Archived tasks (composite subtrees archived atomically).                |
-| `docs/`                                   | Published domain documentation (output of `owl publish`).               |
+| `docs/`                                   | Published task artifact copies + generated `README.md` index (`owl publish`). |
 | `docs/ai/<step>/<variant>.md`             | Optional variant-specific overlay merged on top of `.owl/overlays/`.    |
 | `.claude/skills/owl-*/SKILL.md`           | Owl skills loaded by Claude Code sessions.                              |
 | `.claude/skills/_owl_conventions.md`      | Shared conventions doc referenced by every Owl skill.                   |

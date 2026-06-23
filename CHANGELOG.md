@@ -4,6 +4,37 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.5.0] - 2026-06-23
+
+### Added
+- **`owl publish` now flips the design to `shipped`.** After a successful
+  non-dry-run publish, a publishable artifact whose type declares a `status`
+  enum including `shipped` (in practice `design`) is flipped from `approved`
+  to `shipped` in the canonical source (`tasks/<ID>/design.md`) BEFORE the
+  copy, so the published `docs/<ID>/design.md` carries `shipped` and the two
+  stay consistent. Idempotent (already-`shipped` is a no-op); no-op on
+  dry-run, missing source, or no front-matter. Implemented by
+  `Owl::Publish::Internal::StatusFlipper`. This fixes the long-standing
+  documented-but-missing behavior.
+- **`owl publish` maintains a generated `docs/README.md` index.** After a
+  non-dry-run publish, `Owl::Publish::Internal::DocsIndex` scans every
+  `docs/TASK-*/` directory and (re)writes a deterministic, idempotent index
+  of published task docs (links + front-matter `summary` when present, sorted
+  by TASK-ID, no timestamps). dry-run does not write. The generated index is
+  reproducible from `docs/` and is therefore not backed up.
+- `owl publish --json` result gains two additive keys: `design_status`
+  (`flipped_to_shipped` | `already_shipped` | `not_applicable`) and `index`
+  (`{updated, path: "docs/README.md"}`). Existing keys (`results[].action`,
+  `step_status`, `dry_run`, error codes) are unchanged.
+
+### Changed
+- Rewrote the `merge_docs` step context (source + materialized
+  `feature`/`hotfix`/`refactor` variants) and trimmed README overselling to
+  describe what publish actually does — publish artifacts per `publishes`
+  rules, flip the design to `shipped`, refresh the `docs/README.md` index,
+  and apply the optional `spec_delta` — without claiming "merge published
+  docs" / "knowledge base" semantics.
+
 ## [0.4.0] - 2026-06-23
 
 ### Added

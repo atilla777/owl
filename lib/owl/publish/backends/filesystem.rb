@@ -4,9 +4,11 @@ require_relative '../../result'
 require_relative '../../tasks/api'
 require_relative '../../workflows/api'
 require_relative '../backend'
+require_relative '../internal/docs_index'
 require_relative '../internal/path_resolver'
 require_relative '../internal/publisher'
 require_relative '../internal/rules_loader'
+require_relative '../internal/status_flipper'
 require_relative '../internal/step_gate'
 
 module Owl
@@ -44,23 +46,44 @@ module Owl
           )
           return resolve if resolve.err?
 
-          publish = Internal::Publisher.call(
+          published = publish_resolved(
             resolved_rules: resolve.value,
+            workflow_body: context[:workflow_body],
             dry_run: dry_run,
             now: now
           )
-          return publish if publish.err?
+          return published if published.is_a?(Owl::Result::Err)
 
           Result.ok(
             task_id: context[:task_payload]['id'].to_s,
             workflow_key: context[:workflow_key].to_s,
             dry_run: dry_run,
             step_status: gate.value[:status],
-            results: publish.value
+            **published
           )
         end
 
         private
+
+        # Flip the design's status to `shipped` in the canonical source BEFORE
+        # copying (so the copy carries `shipped`), then copy per rules, then
+        # refresh the generated index. A flip failure returns here, never
+        # copying a desynced source/published pair.
+        def publish_resolved(resolved_rules:, workflow_body:, dry_run:, now:)
+          flip = Internal::StatusFlipper.call(
+            root: @root, workflow_body: workflow_body,
+            resolved_rules: resolved_rules, dry_run: dry_run
+          )
+          return flip if flip.err?
+
+          publish = Internal::Publisher.call(resolved_rules: resolved_rules, dry_run: dry_run, now: now)
+          return publish if publish.err?
+
+          index = Internal::DocsIndex.regenerate(root: @root, dry_run: dry_run)
+          return index if index.err?
+
+          { results: publish.value, design_status: flip.value[:design_status], index: index.value }
+        end
 
         def load_context(task_id:)
           task_result = Owl::Tasks::Api.inspect(root: @root, task_id: task_id)

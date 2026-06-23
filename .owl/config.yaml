@@ -6,7 +6,7 @@ project:
   root: "{{cwd}}"
 owl:
   control_root: "{{project.root}}/.owl"
-  version: 0.4.0
+  version: 0.5.0
 workflow:
   default: feature
 storage:

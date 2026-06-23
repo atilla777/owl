@@ -268,6 +268,72 @@ RSpec.describe Owl::Publish::Backends::Filesystem do
       end
     end
 
+    def design_feature_workflow
+      <<~YAML
+        id: feature
+        kind: task
+        artifacts:
+          design:
+            type: design
+            optional: true
+            storage:
+              role: tasks
+              path: "{{task.id}}/design.md"
+        publishes:
+          - from: "{{task.id}}/design.md"
+            to: "{{task.id}}/design.md"
+            optional: true
+        steps:
+          - id: specify
+            creates: [design]
+          - id: verify
+            requires: [specify]
+          - id: publish
+            requires: [verify]
+      YAML
+    end
+
+    def approved_design
+      "---\nstatus: approved\nsummary: \"S\"\n---\n# Design\n"
+    end
+
+    it 'flips the design source to shipped BEFORE copying (copy carries shipped)' do
+      with_tmp_project do |root|
+        task_id = setup_project(root, workflow_yaml: design_feature_workflow)
+        write("#{root}/tasks/#{task_id}/design.md", approved_design)
+        mark_ready_chain(root, task_id)
+
+        # Capture what the Publisher reads as its source at copy time.
+        copied_source = nil
+        original = Owl::Publish::Internal::Publisher.method(:call)
+        allow(Owl::Publish::Internal::Publisher).to receive(:call) do |**kwargs|
+          copied_source = Pathname.new(kwargs[:resolved_rules].first['source_path']).read
+          original.call(**kwargs)
+        end
+
+        result = described_class.new(root: root).run(task_id: task_id, dry_run: false)
+        expect(result).to be_ok
+        expect(copied_source).to include('status: shipped')
+        expect(Pathname.new("#{root}/docs/#{task_id}/design.md").read).to include('status: shipped')
+      end
+    end
+
+    it 'returns the flip error and does not copy when the flip write fails' do
+      with_tmp_project do |root|
+        task_id = setup_project(root, workflow_yaml: design_feature_workflow)
+        write("#{root}/tasks/#{task_id}/design.md", approved_design)
+        mark_ready_chain(root, task_id)
+
+        allow(Owl::Storage::Internal::FilesystemBackend).to receive(:write).and_raise(Errno::EACCES, 'denied')
+
+        result = described_class.new(root: root).run(task_id: task_id, dry_run: false)
+        expect(result).to be_err
+        expect(result.code).to eq(:design_flip_failed)
+        # No copy happened: the published target was never created.
+        expect(Pathname.new("#{root}/docs/#{task_id}/design.md").exist?).to be(false)
+      end
+    end
+
     it 'treats a missing source for an optional rule as a no-op (skipped_missing_source)' do
       with_tmp_project do |root|
         workflow_yaml = <<~YAML

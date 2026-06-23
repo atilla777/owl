@@ -60,6 +60,43 @@ RSpec.describe Owl::Publish::Api do
     YAML
   end
 
+  def design_feature_workflow
+    <<~YAML
+      id: feature
+      kind: task
+      artifacts:
+        design:
+          type: design
+          optional: true
+          storage:
+            role: tasks
+            path: "{{task.id}}/design.md"
+      publishes:
+        - from: "{{task.id}}/design.md"
+          to: "{{task.id}}/design.md"
+          optional: true
+      steps:
+        - id: specify
+          creates: [design]
+        - id: verify
+          requires: [specify]
+        - id: publish
+          requires: [verify]
+    YAML
+  end
+
+  def design_doc(status)
+    <<~MD
+      ---
+      status: #{status}
+      summary: "Design summary for the index"
+      ---
+      # Design
+
+      Body.
+    MD
+  end
+
   def force_step_status(root, task_id, step_id, status)
     task_path = Pathname.new(root) + 'tasks' + task_id + 'task.yaml'
     payload = YAML.safe_load(task_path.read, aliases: false, permitted_classes: [Time])
@@ -291,6 +328,81 @@ RSpec.describe Owl::Publish::Api do
         result = described_class.run(root: root, task_id: task_id)
         expect(result).to be_err
         expect(result.code).to eq(:publishes_invalid)
+      end
+    end
+
+    it 'exposes design_status and index keys (not_applicable for non-design rules)' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        write("#{root}/tasks/#{task_id}/spec.md", "# spec body\n")
+        mark_ready_chain(root, task_id)
+
+        result = described_class.run(root: root, task_id: task_id, dry_run: false)
+        expect(result).to be_ok
+        expect(result.value[:design_status]).to eq('not_applicable')
+        expect(result.value[:index]).to eq(updated: true, path: 'docs/README.md')
+        expect(Pathname.new("#{root}/docs/README.md").exist?).to be(true)
+      end
+    end
+  end
+
+  describe '#run design shipped-flip' do
+    it 'flips approved design to shipped in both source and published copy' do
+      with_tmp_project do |root|
+        task_id = setup_project(root, workflow_yaml: design_feature_workflow)
+        write("#{root}/tasks/#{task_id}/design.md", design_doc('approved'))
+        mark_ready_chain(root, task_id)
+
+        result = described_class.run(root: root, task_id: task_id, dry_run: false)
+        expect(result).to be_ok
+        expect(result.value[:design_status]).to eq('flipped_to_shipped')
+
+        source = Pathname.new("#{root}/tasks/#{task_id}/design.md").read
+        published = Pathname.new("#{root}/docs/#{task_id}/design.md").read
+        expect(source).to include('status: shipped')
+        expect(published).to include('status: shipped')
+        expect(source).to eq(published)
+      end
+    end
+
+    it 'does not flip on dry-run' do
+      with_tmp_project do |root|
+        task_id = setup_project(root, workflow_yaml: design_feature_workflow)
+        write("#{root}/tasks/#{task_id}/design.md", design_doc('approved'))
+        mark_ready_chain(root, task_id)
+
+        result = described_class.run(root: root, task_id: task_id, dry_run: true)
+        expect(result).to be_ok
+        expect(result.value[:design_status]).to eq('not_applicable')
+        expect(result.value[:index]).to eq(updated: false, path: 'docs/README.md')
+
+        expect(Pathname.new("#{root}/tasks/#{task_id}/design.md").read).to include('status: approved')
+        expect(Pathname.new("#{root}/docs/README.md").exist?).to be(false)
+      end
+    end
+
+    it 'is idempotent: already shipped design reports already_shipped' do
+      with_tmp_project do |root|
+        task_id = setup_project(root, workflow_yaml: design_feature_workflow)
+        write("#{root}/tasks/#{task_id}/design.md", design_doc('shipped'))
+        mark_ready_chain(root, task_id)
+
+        result = described_class.run(root: root, task_id: task_id, dry_run: false)
+        expect(result).to be_ok
+        expect(result.value[:design_status]).to eq('already_shipped')
+        expect(Pathname.new("#{root}/tasks/#{task_id}/design.md").read).to include('status: shipped')
+      end
+    end
+
+    it 'is not_applicable when the optional design source is missing' do
+      with_tmp_project do |root|
+        task_id = setup_project(root, workflow_yaml: design_feature_workflow)
+        mark_ready_chain(root, task_id) # design.md deliberately absent
+
+        result = described_class.run(root: root, task_id: task_id, dry_run: false)
+        expect(result).to be_ok
+        expect(result.value[:design_status]).to eq('not_applicable')
+        expect(result.value[:results].first['action']).to eq('skipped_missing_source')
       end
     end
   end

@@ -1,15 +1,6 @@
 ---
 schema_version: 1
 tasks:
-- id: TASK-0014
-  title: 'merge_docs/publish: усилить до реальной базы знаний либо честно переименовать'
-  workflow: feature
-  kind: task
-  parent_id:
-  priority: 30
-  created_at: '2026-06-23T09:51:03Z'
-  status:
-  archived_at:
 - id: TASK-0015
   title: 'Кросс-задачная память: surface похожих архивных задач/решений в бриф'
   workflow: composite_feature

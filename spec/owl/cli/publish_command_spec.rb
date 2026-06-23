@@ -69,7 +69,10 @@ RSpec.describe 'owl publish CLI' do
       expect(body['task_id']).to eq(task_id)
       expect(body['dry_run']).to be(false)
       expect(body['results'].first['action']).to eq('created')
+      expect(body['design_status']).to eq('not_applicable')
+      expect(body['index']).to eq('updated' => true, 'path' => 'docs/README.md')
       expect(Pathname.new("#{root}/docs/#{task_id}/spec.md").read).to eq("# spec\n")
+      expect(Pathname.new("#{root}/docs/README.md").exist?).to be(true)
     end
   end
 

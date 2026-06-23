@@ -38,8 +38,10 @@ module OwlConstitutionFixtures
     config/internal/loader.rb
     config/internal/serializer.rb
     locks/internal/file_lock.rb
+    publish/internal/docs_index.rb
     publish/internal/path_resolver.rb
     publish/internal/publisher.rb
+    publish/internal/status_flipper.rb
     steps/internal/active_step_lock.rb
     steps/internal/artifact_hasher.rb
     storage/backends/filesystem.rb
