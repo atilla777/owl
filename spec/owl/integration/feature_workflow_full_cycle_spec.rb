@@ -15,25 +15,27 @@ require 'owl/cli/api'
 module FeatureWorkflowFullCycleFixtures
   FEATURE_STEPS = %w[brief design plan implement review_code merge_docs archive commit_push].freeze
 
-  # filename within tasks/<TASK> for each step that has `creates:` in seeded YAML.
+  # filenames within tasks/<TASK> for each step that has `creates:` in seeded
+  # YAML. `implement` is now a build-only step (no artifact); `review_code`
+  # owns both `review` and `verification` (authored here as a self-report since
+  # this fixture configures no verification command — fail-open).
   STEPS_WITH_ARTIFACTS = {
-    'brief' => 'brief.md',
-    'design' => 'design.md',
-    'plan' => 'plan.md',
-    'implement' => 'verification.md',
-    'review_code' => 'review.md'
+    'brief' => %w[brief.md],
+    'design' => %w[design.md],
+    'plan' => %w[plan.md],
+    'review_code' => %w[review.md verification.md]
   }.freeze
 
   module_function
 
-  def minimal_artifact(step_id, task_id)
-    case step_id
-    when 'brief'       then brief_artifact(task_id)
-    when 'design'      then design_artifact(task_id)
-    when 'plan'        then plan_artifact
-    when 'implement'   then verification_artifact(task_id)
-    when 'review_code' then review_artifact(task_id)
-    else raise "no minimal artifact for step #{step_id}"
+  def minimal_artifact(filename, task_id)
+    case filename
+    when 'brief.md'        then brief_artifact(task_id)
+    when 'design.md'       then design_artifact(task_id)
+    when 'plan.md'         then plan_artifact
+    when 'verification.md' then verification_artifact(task_id)
+    when 'review.md'       then review_artifact(task_id)
+    else raise "no minimal artifact for file #{filename}"
     end
   end
 
@@ -217,8 +219,8 @@ RSpec.describe 'seeded feature workflow happy-path full cycle (end-to-end)' do
         expect_ok(ec, out, err, "step start #{step_id}")
         expect(JSON.parse(out).dig('step', 'status')).to eq('running')
 
-        if (artifact_path = FeatureWorkflowFullCycleFixtures::STEPS_WITH_ARTIFACTS[step_id])
-          write_artifact(root, task_id, artifact_path, minimal_artifact(step_id, task_id))
+        Array(FeatureWorkflowFullCycleFixtures::STEPS_WITH_ARTIFACTS[step_id]).each do |artifact_path|
+          write_artifact(root, task_id, artifact_path, minimal_artifact(artifact_path, task_id))
         end
 
         ec, out, err = cli(%W[step complete #{task_id} #{step_id} --root #{root} --json], root)

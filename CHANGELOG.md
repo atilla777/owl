@@ -4,6 +4,51 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.3.0] - 2026-06-23
+
+### Added
+- **Objective verification gate (`verify: true` step-marker + `owl verify`).**
+  A step can now opt into an objective verification gate with a boolean
+  `verify: true` marker (mirroring the `publishes: true` precedent). At
+  `owl step complete`, Owl itself runs the project's
+  `settings.verification.command` as a subprocess, derives the status from its
+  exit code, and **authors** the `verification` artifact — the status can no
+  longer be faked by an agent self-report. Completion is refused (structured
+  `verification_failed`, non-zero exit, step stays `running`) unless the
+  objective status is `passed`; the result is fresh by construction because the
+  run happens at completion time. Fix a failure with
+  `owl step reopen TASK-ID implement --cascade`.
+- New `Owl::Verification` domain (`Api.run` / `Api.gate` /
+  `Api.configured_command`, with injectable `Internal::CommandRunner`,
+  `Internal::Engine`, `Internal::Gate`, `Internal::ReportWriter`).
+- **`owl verify TASK-ID [--json]`** — run the verification command for a task
+  without completing a step (a convenience pre-check); reports
+  `{ok, status, exit_code, command, gate_active}`. `gate_active: false` with a
+  warning when no command is configured.
+- `settings.verification.command` (string|null) and
+  `settings.verification.timeout_seconds` (positive integer, default 1800) are
+  now recognized and validated in `.owl/config.yaml`
+  (`invalid_settings_verification_shape` /
+  `invalid_settings_verification_command` /
+  `invalid_settings_verification_timeout`). A commented example ships in the
+  default config template. New workflow step field `verify` (boolean) in
+  `schemas/workflow.json`.
+
+### Changed
+- **Verification ownership moved from `implement` to `review_code`.** In the
+  seeded `feature` workflow `creates: [verification]` now lives on `review_code`
+  (alongside `creates: [review]`), which carries `verify: true`; `implement`
+  becomes a build-only step that creates no artifact. Step context files updated
+  accordingly. Only new tasks pick up the new graph (in-flight `task.yaml` files
+  are untouched).
+
+### Compatibility
+- **Opt-in and fail-open.** With no `settings.verification.command` configured,
+  the gate is inactive: `owl step complete` proceeds and prints a
+  `verification_gate_inactive` warning. A `partial` status does not block
+  (warning only). Existing consumers that do not configure a command keep their
+  current behaviour across `owl upgrade`.
+
 ## [0.2.0] - 2026-06-23
 
 ### Added

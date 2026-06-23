@@ -80,14 +80,14 @@ steps:
     tier: advanced
     context_file: implement.context.md
     requires: [plan]
-    creates: [verification]
   - id: review_code
     skill: owl-step-execution
     session_type: execution
     tier: advanced
+    verify: true
     context_file: review_code.context.md
     requires: [implement]
-    creates: [review]
+    creates: [review, verification]
   - id: merge_docs
     skill: owl-step-execution
     session_type: execution

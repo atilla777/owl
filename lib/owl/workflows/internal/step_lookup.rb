@@ -6,7 +6,7 @@ module Owl
       module StepLookup
         STRING_FIELDS = %w[id title skill kind context default_variant session_type tier drift_policy gate].freeze
         ARRAY_FIELDS = %w[requires creates uses_if_present].freeze
-        BOOLEAN_FIELDS = %w[optional].freeze
+        BOOLEAN_FIELDS = %w[optional verify].freeze
 
         module_function
 

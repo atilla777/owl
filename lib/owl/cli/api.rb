@@ -64,6 +64,7 @@ require_relative 'internal/commands/task_set_priority'
 require_relative 'internal/commands/task_tree'
 require_relative 'internal/commands/task_use'
 require_relative 'internal/commands/upgrade'
+require_relative 'internal/commands/verify'
 require_relative 'internal/commands/workflow_context'
 require_relative 'internal/commands/workflow_list'
 require_relative 'internal/commands/workflow_new'
@@ -89,6 +90,7 @@ module Owl
         'next' => Internal::Commands::Next,
         'status' => Internal::Commands::Status,
         'upgrade' => Internal::Commands::Upgrade,
+        'verify' => Internal::Commands::Verify,
         'self-update' => Internal::Commands::SelfUpdate
       }.freeze
 

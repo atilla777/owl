@@ -63,6 +63,7 @@ module Owl
             git unlock              Release the repo-scoped push lock: git unlock --token T [--name N].
             artifact resolve        Resolve task-scoped artifact path + template + validation rules.
             artifact validate       Validate a task artifact (existence, sections, patterns, front matter).
+            verify                  Run the objective verification command (settings.verification.command) for a task and author verification.md; gate_active:false + warning when unconfigured (JSON).
             publish                 Publish task artifacts to the docs storage role per workflow `publishes` rules.
             archive                 Move a completed task into the archive role; or read-only list|show|read of archived tasks.
             spec                    Project-level domain specs: list|show|path|validate|trace DOMAIN [--strict]; diff|apply DOMAIN --delta PATH [--dry-run] (structural delta-merge); merge TASK-ID [--dry-run] (apply a task's spec_delta + trace gate).

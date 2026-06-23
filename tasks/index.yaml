@@ -1,15 +1,6 @@
 ---
 schema_version: 1
 tasks:
-- id: TASK-0012
-  title: 'Объективный verification-гейт: реальный прогон тестов + гейт графа на passed'
-  workflow: feature
-  kind: task
-  parent_id:
-  priority: 50
-  created_at: '2026-06-23T09:50:54Z'
-  status:
-  archived_at:
 - id: TASK-0013
   title: Опциональный plan-approval гейт + документировать дефолтную автономию как
     trade-off

@@ -66,6 +66,15 @@ module Owl
               workflows:
                 enabled: []
 
+              # Optional: objective verification gate. When `command` is set, a
+              # step flagged `verify: true` (the seeded `review_code` step) runs
+              # it at `owl step complete`, authors verification.md from the exit
+              # code, and blocks completion unless it passes. Left unset =>
+              # gate inactive (fail-open with a warning).
+              # verification:
+              #   command: "bundle exec rspec"
+              #   timeout_seconds: 1800
+
             # Optional: explicit overlay paths per workflow step. The convention
             # paths .owl/overlays/<step>.md and docs/ai/<step>.md are auto-
             # discovered; this block lets you point at additional files.

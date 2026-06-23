@@ -4,6 +4,7 @@ require_relative '../result'
 require_relative '../tasks/api'
 require_relative '../tasks/internal/paths'
 require_relative '../tasks/internal/task_reader'
+require_relative '../verification/api'
 require_relative '../workflows/api'
 require_relative '../workflows/internal/graph_builder'
 require_relative 'internal/archive_finalizer'
@@ -90,6 +91,14 @@ module Owl
           )
         end
 
+        # The objective verification gate runs BEFORE output validation: for a
+        # `verify: true` step it executes the configured command and (re)writes
+        # the `verification` artifact, so OutputValidator then validates an
+        # Owl-authored, fresh-by-construction result. A failed gate keeps the
+        # step `running`.
+        gate = Owl::Verification::Api.gate(root: root, task_id: task_id, step_id: step_id)
+        return gate if gate.err?
+
         validation = Internal::OutputValidator.call(root: root, task_id: task_id, step_id: step_id)
         return validation if validation.err?
 
@@ -108,7 +117,16 @@ module Owl
         Internal::ArchiveFinalizer.call(
           tasks_root: paths.value[:tasks], local_state_root: paths.value[:local_state], task_id: task_id
         )
-        write
+        with_gate_warnings(write, gate)
+      end
+
+      # Surface non-blocking gate warnings (inactive gate / partial status) to
+      # the caller so the CLI can print them to stderr without failing.
+      def with_gate_warnings(write, gate)
+        warning = gate.value[:warning] if gate.ok? && gate.value.is_a?(Hash)
+        return write unless warning
+
+        Result.ok(write.value.merge(warnings: [warning]))
       end
 
       def reopen(root:, task_id:, step_id:, cascade: false)

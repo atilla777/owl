@@ -66,7 +66,42 @@ module Owl
           errors.concat(validate_settings_language(settings['language']))
           errors.concat(validate_settings_storage(settings['storage']))
           errors.concat(validate_settings_agent_targets(settings['agent_targets']))
+          errors.concat(validate_settings_verification(settings['verification']))
           errors
+        end
+
+        def validate_settings_verification(verification)
+          return [] if verification.nil?
+
+          unless verification.is_a?(Hash)
+            return [{
+              code: :invalid_settings_verification_shape,
+              message: 'settings.verification must be a mapping when present'
+            }]
+          end
+
+          validate_verification_command(verification['command']) +
+            validate_verification_timeout(verification['timeout_seconds'])
+        end
+
+        def validate_verification_command(command)
+          return [] if command.nil?
+          return [] if command.is_a?(String) && !command.strip.empty?
+
+          [{
+            code: :invalid_settings_verification_command,
+            message: 'settings.verification.command must be a non-empty string when present'
+          }]
+        end
+
+        def validate_verification_timeout(timeout)
+          return [] if timeout.nil?
+          return [] if timeout.is_a?(Integer) && timeout.positive?
+
+          [{
+            code: :invalid_settings_verification_timeout,
+            message: 'settings.verification.timeout_seconds must be a positive integer when present'
+          }]
         end
 
         SUPPORTED_AGENT_TARGETS = %w[claude opencode].freeze

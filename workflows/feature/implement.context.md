@@ -2,14 +2,17 @@
 step_id: "implement"
 applies_to_session_type: "execution"
 intended_audience: "subagent"
-summary: "Execute the plan checklist and record the verification artifact."
+summary: "Execute the plan checklist — write code and tests together."
 ---
 
 # Purpose
 
-Execute the `plan` checklist — write code and tests together, run the
-local verification harness, and record the outcome as a `verification`
-artifact.
+Execute the `plan` checklist — write production code and tests together
+and run your own iterative checks as you go. This is the build step: it
+creates no artifact. The authoritative, objective verification happens
+later at `review_code`, where Owl itself runs the configured command and
+authors the `verification` artifact — your in-progress runs here are your
+own working signal, not the gate.
 
 ## When to use
 
@@ -23,13 +26,12 @@ After `plan` in the `feature` workflow.
 
 ## Outputs
 
-- Repository changes scoped to the task.
-- `verification` artifact at `tasks/<TASK-ID>/verification.md` with
-  `Summary / Commands / Outcomes` and front matter status
-  `passed | failed | partial`.
+- Repository changes scoped to the task. (No artifact is recorded by this
+  step.)
 
 ## Mode
 
-Autonomous. Write tests alongside production code (test-first
-preferred). Re-run verification until status is `passed` or the
-remaining failures are real blockers that need the user.
+Autonomous. Write tests alongside production code (test-first preferred).
+Run the suite locally as often as you like to drive the work; leave the
+authoritative verification to `review_code`. Stop and escalate only on a
+real blocker.

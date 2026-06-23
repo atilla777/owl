@@ -52,6 +52,10 @@
           "type": "boolean",
           "description": "Marks this step as the one that performs `owl publish` (the publish step gate resolves the publishing step by this flag, falling back to a step literally named `publish`). At most one step per workflow should set it."
         },
+        "verify": {
+          "type": "boolean",
+          "description": "Opts this step into the objective verification gate: at `owl step complete` Owl runs `settings.verification.command` itself, authors the `verification` artifact from the exit code, and refuses completion unless the objective status is `passed` (fail-open with a warning when no command is configured). Mirrors the `publishes` step-marker precedent; the command is never stored in the workflow."
+        },
         "tier": {
           "type": "string",
           "enum": ["standard", "advanced"],

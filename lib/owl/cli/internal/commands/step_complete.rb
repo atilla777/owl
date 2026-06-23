@@ -40,9 +40,15 @@ module Owl
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
             Owl::Steps::Internal::ActiveStepLock.clear(root: root, task_id: options[:task_id])
+            emit_gate_warnings(stderr: stderr, result: result)
             emit_success(stdout: stdout, result: result, root: root, options: options)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
+          end
+
+          def emit_gate_warnings(stderr:, result:)
+            warnings = result.value.is_a?(Hash) ? result.value[:warnings] : nil
+            Array(warnings).each { |w| stderr.puts("WARNING: #{w[:code]}: #{w[:message]}") }
           end
 
           def emit_success(stdout:, result:, root:, options:)
