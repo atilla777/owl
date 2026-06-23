@@ -37,16 +37,6 @@ module Owl
           decide(run_result.value, task_id, step_id)
         end
 
-        # First step flagged `verify: true`, by the publish-gate precedent. Used
-        # by standalone tooling; nil when no step opts in.
-        def resolve_step_id(workflow_body)
-          steps = workflow_body.is_a?(Hash) ? (workflow_body['steps'] || workflow_body[:steps]) : nil
-          return nil unless steps.is_a?(Array)
-
-          marked = steps.find { |s| s.is_a?(Hash) && (s['verify'] || s[:verify]) == true }
-          marked ? (marked['id'] || marked[:id]).to_s : nil
-        end
-
         def verify_step?(root:, task_id:, step_id:)
           task = Owl::Tasks::Api.inspect(root: root, task_id: task_id)
           return task if task.err?

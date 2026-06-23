@@ -1,16 +1,6 @@
 ---
 schema_version: 1
 tasks:
-- id: TASK-0017
-  title: 'Harden verification-гейт: тесты subprocess-слоя + CLI owl verify, чистка
-    dead-code'
-  workflow: refactor
-  kind: task
-  parent_id:
-  priority: 0
-  created_at: '2026-06-23T12:06:07Z'
-  status:
-  archived_at:
 - id: TASK-0019
   title: 'Composite gate bug: child self-archive (owl archive CHILD) wedges parent
     children_complete gate (aggregate empty→open)'

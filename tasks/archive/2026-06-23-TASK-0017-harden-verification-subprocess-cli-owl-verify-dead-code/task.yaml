@@ -27,7 +27,8 @@ steps:
     problem_inventory:
       context_file: brief.problem_inventory.context.md
       title: Inventory refactor problems
-  status: pending
+  status: done
+  content_sha: 42479d3b15d6c44534c8762e96af885c157db4093718b5476fcf2f0bf9818dd8
 - id: design
   skill: owl-step-discussion
   session_type: discussion
@@ -37,7 +38,8 @@ steps:
   - brief
   creates:
   - design
-  status: pending
+  status: done
+  content_sha: 2f05c7f74d949816b684034de27fe52e082802d646c247f1d70b5d8929274e28
 - id: plan
   skill: owl-step-discussion
   session_type: discussion
@@ -47,7 +49,8 @@ steps:
   - brief
   creates:
   - plan
-  status: pending
+  status: done
+  content_sha: 6c64e568c446fb5ee87e59395d97a2e10a3c2d06fd07bf13c42ec279ed6ee6df
 - id: implement
   skill: owl-step-execution
   session_type: execution
@@ -57,7 +60,8 @@ steps:
   - plan
   creates:
   - verification
-  status: pending
+  status: done
+  content_sha: 5c73fb58d6d75f44388ae3f240c51770c0bd87f98c7deee0fd064957caba8e36
 - id: review_code
   skill: owl-step-execution
   session_type: execution
@@ -67,7 +71,8 @@ steps:
   - implement
   creates:
   - review
-  status: pending
+  status: done
+  content_sha: af5d114752621276ed4fd07a70fb7d1eb41671bd847e09fdc2e7b62807dfb432
 - id: merge_docs
   skill: owl-step-execution
   session_type: execution
@@ -76,7 +81,7 @@ steps:
   context_file: merge_docs.context.md
   requires:
   - review_code
-  status: pending
+  status: done
 - id: archive
   skill: owl-step-execution
   session_type: execution
@@ -84,7 +89,7 @@ steps:
   context_file: archive.context.md
   requires:
   - merge_docs
-  status: pending
+  status: done
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
@@ -92,5 +97,7 @@ steps:
   context_file: commit_push.context.md
   requires:
   - archive
-  status: pending
+  status: done
 artifacts: []
+status: archived
+archived_at: '2026-06-23T19:08:17Z'

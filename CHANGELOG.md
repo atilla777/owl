@@ -4,6 +4,26 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.7.1] - 2026-06-23
+
+### Changed
+- **Harden the objective verification gate (TASK-0017).** Added direct specs
+  for the two previously-unpatched layers of the gate: the real subprocess
+  runner `Owl::Verification::Internal::CommandRunner` is now exercised with
+  genuine short subprocesses (exit-code propagation, stdout/stderr capture,
+  `timeout` → `TERM` of the whole process group with a verified-dead child, and
+  spawn failure on a missing `chdir`), and the `owl verify TASK-ID` CLI command
+  is covered across all of its branches (`invalid_arguments`, fail-open
+  `gate_active:false` + warning, active gate `passed`/`failed`, and structured
+  engine-error propagation). No behaviour change.
+
+### Removed
+- **Dead `Owl::Verification::Internal::Gate.resolve_step_id`.** The method had
+  no callers anywhere in `lib/` or `spec/` (the live copy used by the publish
+  gate lives in `Owl::Publish::Internal::StepGate`); the verification gate
+  resolves `verify: true` steps directly. Removing it changes no observable
+  behaviour. Public `Owl::Verification::Api` signatures are untouched.
+
 ## [0.7.0] - 2026-06-23
 
 ### Added
