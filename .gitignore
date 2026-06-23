@@ -16,5 +16,8 @@ coverage/
 # Owl local state (per-clone pointer files, not shared)
 .owl/local/
 
+# Owl upgrade/init pre-write backups (transient, per-clone)
+.owl/.backup/
+
 # Owl atomic-archive staging (per-transaction work dirs; transient)
 tasks/.archive-staging/
