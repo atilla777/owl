@@ -95,11 +95,13 @@ module Owl
         end
 
         def entry_summary(entry)
+          payload = read_task_yaml(entry[:dir])
           {
             task_id: entry[:task_id],
             slug: entry[:slug],
             archived_date: entry[:date],
-            title: read_task_yaml(entry[:dir])['title'],
+            title: payload['title'],
+            parent_id: payload['parent_id'],
             path: entry[:dir].to_s
           }
         end

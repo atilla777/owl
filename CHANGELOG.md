@@ -4,6 +4,28 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.7.2] - 2026-06-23
+
+### Fixed
+- **Composite `children_complete` gate no longer wedges when a child
+  self-archives (TASK-0019).** A composite parent's gated `archive`/`commit_push`
+  steps open only when `owl task aggregate-status PARENT` ∈ {ready, done}, but the
+  aggregate was computed solely from the active `tasks/index.yaml`. Once the last
+  child ran `owl archive CHILD` it left the index, `ChildrenLister` saw an empty
+  set, and `aggregate_state` returned `'open'` forever — stranding the parent.
+  `ChildrenLister` now also folds in archived children, discovered by `parent_id`
+  through the public `Owl::Archive::Api.list` boundary (dedup by task id,
+  preferring the archived/terminal entry), so a fully-archived child yields state
+  `archived` → aggregate `done` → the gate opens. A parent that never had any
+  children still aggregates `open` (no false open).
+
+### Added
+- **`owl archive list` now exposes `parent_id` per archived entry.**
+  `Owl::Archive::Api.list` reads the archived `task.yaml` (already read for
+  `title`) and surfaces its `parent_id` as an additive field — closing the gap
+  where the parent→child link survived in the archived payload but was never
+  visible through the archive read surface.
+
 ## [0.7.1] - 2026-06-23
 
 ### Changed

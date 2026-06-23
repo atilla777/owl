@@ -70,7 +70,7 @@ steps:
   requires:
   - review
   gate: children_complete
-  status: pending
+  status: done
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
@@ -79,7 +79,7 @@ steps:
   requires:
   - archive
   gate: children_complete
-  status: pending
+  status: done
 artifacts: []
 status: archived
 archived_at: '2026-06-23T15:32:32Z'

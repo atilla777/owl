@@ -26,8 +26,45 @@ module Owl
             entry.is_a?(Hash) && entry['parent_id'].to_s == parent_id.to_s
           end
 
-          children = entries.map { |entry| enrich(tasks_root: paths[:tasks], entry: entry) }
+          index_children = entries.map { |entry| enrich(tasks_root: paths[:tasks], entry: entry) }
+          children = merge_archived(root: root, parent_id: parent_id, index_children: index_children)
           Result.ok(parent_id: parent_id.to_s, children: children)
+        end
+
+        # Archived children disappear from tasks/index.yaml, so gather them from
+        # the archive role through the public boundary and fold them in. Dedup by
+        # task id, preferring the archived (terminal) entry.
+        def merge_archived(root:, parent_id:, index_children:)
+          archived = archived_children(root: root, parent_id: parent_id)
+          return index_children if archived.empty?
+
+          archived_ids = archived.map { |child| child[:id] }
+          index_children.reject { |child| archived_ids.include?(child[:id]) } + archived
+        end
+
+        def archived_children(root:, parent_id:)
+          # Lazy require through the public Archive boundary: a top-level require
+          # would form a load-time cycle (archive/api -> tasks/api ->
+          # backends/filesystem -> children_lister). By call time everything is
+          # loaded, so this resolves without recursion.
+          require_relative '../../archive/api'
+          list_result = Owl::Archive::Api.list(root: root)
+          return [] if list_result.err?
+
+          (list_result.value[:archived] || [])
+            .select { |entry| entry[:parent_id].to_s == parent_id.to_s && !entry[:parent_id].to_s.empty? }
+            .map { |entry| archived_summary(entry) }
+        end
+
+        def archived_summary(entry)
+          {
+            id: entry[:task_id].to_s,
+            title: entry[:title],
+            workflow_key: entry[:workflow_key],
+            status: 'archived',
+            kind: entry[:kind],
+            progress: empty_progress
+          }
         end
 
         def enrich(tasks_root:, entry:)
