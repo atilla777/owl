@@ -73,7 +73,7 @@ Those belong to `owl-step-discussion`.
 ## Workflow
 
 1. Verify the step is in scope: parse the input bundle, ensure `step.session_type == "execution"`. Abort with `final_state: error` if not.
-2. Mark the step started: `owl step start TASK-ID STEP-ID`.
+2. Mark the step started: `owl step start TASK-ID STEP-ID`. Run this **before** the `owl step show` that reads the started step, and run the two **sequentially** — never dispatch `step start` and `step show` (or any mutator→reader pair) in the same parallel batch, or `step show` can return the step still `pending` (stale read). See `_owl_conventions.md` §10.
 3. Compose the working context strictly from the supplied bundle: built-in `context` + overlays in returned order + `task.artifacts`. Do not call discovery tools that read filesystem state outside `bin/owl`.
 4. NEVER prompt the user directly. If the step needs human input to proceed, finalize with `final_state: interrupted` and surface the question in the `## Open follow-ups` section of the report. The orchestrator will then ask the user from the main session.
 5. If `artifact_template` is present:

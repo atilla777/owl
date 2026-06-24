@@ -238,3 +238,20 @@ also invalidates a prior approval. The gate is **off in every seeded
 workflow** and `owl upgrade` never adds it — enabling it is an explicit,
 per-workflow opt-in. `children_complete` (composite-parent wait) is a separate,
 unrelated gate and is unaffected.
+
+## 10. Run dependent owl commands sequentially (no parallel mutator→reader)
+
+When one `owl` command mutates state and a following command reads that
+state, the two MUST run **sequentially** — never dispatched in parallel.
+Parallel tool calls can interleave so the reader observes the *pre-mutation*
+state (a stale read).
+
+The canonical trap is `owl step start TASK-ID STEP` immediately followed by
+`owl step show TASK-ID STEP`: if both are issued in the same parallel batch,
+`step show` can return the step still `pending` instead of `running`. Issue
+`step start`, wait for its result, *then* issue `step show`. The same rule
+applies to any mutator→reader pair (`task use` → `task current`,
+`step complete` → `status`, `step report` → `step report --read`, etc.).
+
+Independent, read-only commands MAY still be batched in parallel — the
+constraint is only on a write that a later read in the same batch depends on.
