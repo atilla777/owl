@@ -81,6 +81,67 @@ RSpec.describe Owl::Cli::Api do
     end
   end
 
+  describe 'group subcommand help (TASK-0023 FF1)' do
+    it 'prints the step subcommand list and exits 0 for a bare group command' do
+      with_tmp_project do |root|
+        exit_code, stdout, stderr = run(%w[step], cwd: root)
+        expect(exit_code).to eq(0)
+        expect(stdout).to eq('')
+        expect(stderr).to include('Usage: owl step <subcommand>')
+        expect(stderr).to include('Subcommands:')
+        expect(stderr).to include('start', 'complete', 'reopen', 'report')
+      end
+    end
+
+    it 'prints the step subcommand list for `step --help` and exits 0' do
+      with_tmp_project do |root|
+        exit_code, stdout, stderr = run(%w[step --help], cwd: root)
+        expect(exit_code).to eq(0)
+        expect(stdout).to eq('')
+        expect(stderr).to include('Subcommands:')
+        expect(stderr).to include('skip')
+      end
+    end
+
+    it 'emits a machine-readable subcommand list under --json' do
+      with_tmp_project do |root|
+        exit_code, stdout, stderr = run(%w[step --help --json], cwd: root)
+        expect(exit_code).to eq(0)
+        expect(stderr).to eq('')
+        body = JSON.parse(stdout)
+        expect(body['ok']).to be(true)
+        expect(body['command']).to eq('step')
+        expect(body['subcommands']).to include('start', 'complete', 'report')
+      end
+    end
+
+    it 'still reports an unknown concrete subcommand as unknown_command' do
+      with_tmp_project do |root|
+        exit_code, stdout, stderr = run(%w[step bogus], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(stdout).to eq('')
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('unknown_command')
+      end
+    end
+
+    it 'prints subcommands for the other registered groups' do
+      with_tmp_project do |root|
+        %w[task workflow artifact].each do |group|
+          exit_code, _stdout, stderr = run([group, '--help'], cwd: root)
+          expect(exit_code).to eq(0), "#{group} --help should exit 0"
+          expect(stderr).to include('Subcommands:'), "#{group} --help should list subcommands"
+        end
+      end
+    end
+
+    it 'does not treat a bare-arg group (archive) as a subcommand group' do
+      with_tmp_project do |root|
+        _exit_code, _stdout, stderr = run(%w[archive], cwd: root)
+        expect(stderr).not_to include('Subcommands:')
+      end
+    end
+  end
+
   describe 'owl init' do
     it 'creates the default layout plus seeded workflow and artifact templates' do
       with_tmp_project do |root|

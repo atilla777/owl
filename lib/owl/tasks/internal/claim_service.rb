@@ -111,19 +111,42 @@ module Owl
                   end
           return lease if lease.err?
 
-          finalize_claim(root: root, paths: paths, task_id: task_id, token: token, payload: payload, stole_from: prior)
+          running_step = opts[:steal] ? first_running_step(paths: paths, task_id: task_id) : nil
+          finalize_claim(root: root, paths: paths, task_id: task_id, token: token, payload: payload,
+                         stole_from: prior, running_step: running_step)
         end
 
-        def finalize_claim(root:, paths:, task_id:, token:, payload:, stole_from: nil)
+        def finalize_claim(root:, paths:, task_id:, token:, payload:, stole_from: nil, running_step: nil)
           CurrentPointer.write(local_state_root: paths[:local_state], task_id: task_id)
           Result.ok(
-            task_id: task_id.to_s,
-            token: token,
-            claimed_by: token,
-            expires_at: payload['expires_at'],
-            stole_from: stole_from,
-            ready_step_ids: ready_step_ids(root: root, task_id: task_id)
+            task_id: task_id.to_s, token: token, claimed_by: token,
+            expires_at: payload['expires_at'], stole_from: stole_from,
+            ready_step_ids: ready_step_ids(root: root, task_id: task_id),
+            **takeover_hint(task_id: task_id, running_step: running_step)
           )
+        end
+
+        # A stolen lease does NOT reset the running step the displaced session
+        # left behind — `owl task adopt` does. Surface a non-blocking pointer to
+        # it; empty hash when none, so the common response is unchanged.
+        def takeover_hint(task_id:, running_step:)
+          return {} if running_step.nil?
+
+          {
+            running_step: running_step,
+            hint: "step '#{running_step}' is running; run `owl task adopt #{task_id}` " \
+                  'to take it over and reset the stuck step'
+          }
+        end
+
+        # Id of the first `running` step in the task, or nil. Task payloads are
+        # read from disk YAML, so their step keys are always strings.
+        def first_running_step(paths:, task_id:)
+          read = TaskReader.read(tasks_root: paths[:tasks], task_id: task_id)
+          return nil if read.err?
+
+          step = Array(read.value[:payload]['steps']).find { |s| s.is_a?(Hash) && s['status'].to_s == 'running' }
+          step && step['id'].to_s
         end
 
         # Snapshot of the lease being stolen, surfaced in the claim result so the

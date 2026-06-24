@@ -1,0 +1,104 @@
+---
+id: TASK-0023
+title: 'CLI UX из отчёта re: subcommand-help, takeover-hint, child-create re-read'
+workflow:
+  key: feature
+  version: '1.0'
+  source: workflows/feature/workflow.yaml
+kind: task
+parent_id:
+priority: 70
+created_at: '2026-06-24T14:34:14Z'
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  creates:
+  - brief
+  default_variant: feature
+  variants:
+    feature:
+      context_file: brief.feature.context.md
+      title: Collect feature requirements
+    root_cause:
+      context_file: brief.root_cause.context.md
+      title: Find bug root cause
+    problem_inventory:
+      context_file: brief.problem_inventory.context.md
+      title: Inventory refactor problems
+  status: done
+  content_sha: d89e58295dd8795b7938265ce1f0dad4f6ef83c8048e50a75501e49d0ec52340
+- id: design
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: design.context.md
+  requires:
+  - brief
+  creates:
+  - design
+  status: skipped
+  skip_reason: Набор узких CLI-UX фиксов; решения в brief.
+- id: plan
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: plan.context.md
+  requires:
+  - brief
+  creates:
+  - plan
+  status: done
+  content_sha: dc5c923a89a9bea0697e704c8f00034c0aebf344e6ff83534638e955bce01322
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - plan
+  status: done
+- id: review_code
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  verify: true
+  context_file: review_code.context.md
+  requires:
+  - implement
+  creates:
+  - review
+  - verification
+  status: done
+  content_sha:
+    review: e0ce6466b2a3e01a2d96b269e15abb0481e05e80882ba93e4eb10c9009d83272
+    verification: f7f117e23e671ea3904b5a9e5cf567b46ff904dcf53bf9972a5822e80bcae6d2
+- id: merge_docs
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  publishes: true
+  context_file: merge_docs.context.md
+  requires:
+  - review_code
+  status: done
+- id: archive
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: archive.context.md
+  requires:
+  - merge_docs
+  status: done
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - archive
+  status: done
+artifacts: []
+status: archived
+archived_at: '2026-06-24T15:52:36Z'

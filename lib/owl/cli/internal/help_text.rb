@@ -82,6 +82,36 @@ module Owl
             --help, -h              Show this help message.
             --version, -V           Show owl version.
         HELP
+
+        # Subcommand registry for command groups, consumed by the
+        # group-level help affordance (`owl <group>` / `owl <group> --help`).
+        # Only groups that route by a real subcommand verb are listed; bare-arg
+        # groups (`archive`, `recall`, `commit-push`) are intentionally absent
+        # so their positional usage is preserved.
+        GROUP_SUBCOMMANDS = {
+          'workflow' => %w[list new validate show source context register unregister],
+          'artifact-type' => %w[list new validate show template register unregister],
+          'config' => %w[get set show validate],
+          'git' => %w[lock unlock],
+          'task' => %w[
+            create list inspect use current ready-steps tree children parent
+            aggregate-status abandon delete claim release heartbeat claims
+            available set-priority adopt child index
+          ],
+          'plan' => %w[approve status],
+          'step' => %w[start complete reopen reset skip invocation show report],
+          'artifact' => %w[resolve validate],
+          'spec' => %w[list show path validate trace diff apply merge]
+        }.freeze
+
+        module_function
+
+        # Human-readable subcommand listing for a command group.
+        def group_help_text(group, subcommands)
+          lines = ["Usage: owl #{group} <subcommand> [options]", '', 'Subcommands:']
+          subcommands.each { |sub| lines << "  #{sub}" }
+          lines.join("\n")
+        end
       end
     end
   end

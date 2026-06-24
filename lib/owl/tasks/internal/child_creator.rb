@@ -59,7 +59,18 @@ module Owl
           )
           return seed_result if seed_result.is_a?(Result::Err)
 
-          create_result
+          refresh_payload(create_result: create_result, tasks_root: tasks_root)
+        end
+
+        # The create result's payload was captured before `seed_brief` flipped
+        # the brief step to `done` on disk, so it still reads `brief: pending`.
+        # Re-read the task so the returned payload reflects the post-prefill
+        # status; fall back to the original result if the re-read fails.
+        def refresh_payload(create_result:, tasks_root:)
+          refreshed = TaskReader.read(tasks_root: tasks_root, task_id: create_result.value[:task_id])
+          return create_result if refreshed.err?
+
+          Result.ok(create_result.value.merge(payload: refreshed.value[:payload]))
         end
 
         def seed_brief(root:, tasks_root:, task_id:, brief_body:)

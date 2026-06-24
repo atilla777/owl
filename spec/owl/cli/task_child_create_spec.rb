@@ -83,6 +83,27 @@ RSpec.describe 'owl task child create + owl task create --parent allowed_childre
     end
   end
 
+  it 'child create --brief prints a payload with brief: done, not stale pending (TASK-0023 FF4)' do
+    with_tmp_project do |root|
+      init_strict_composite(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+      brief_file = root + 'child-brief.md'
+      brief_file.write("# Child brief\n\nbody\n")
+
+      exit_code, stdout, _stderr = run(
+        ['task', 'child', 'create', 'TASK-0001',
+         '--workflow', 'feature', '--title', 'C', '--brief', brief_file.to_s, '--root', root.to_s],
+        cwd: root
+      )
+
+      expect(exit_code).to eq(0)
+      payload = JSON.parse(stdout)
+      expect(payload['ok']).to be(true)
+      brief_step = payload.dig('task', 'steps').find { |s| s['id'] == 'brief' }
+      expect(brief_step['status']).to eq('done')
+    end
+  end
+
   it 'task create --parent returns exit 1 + identical JSON envelope (ac-6)' do
     with_tmp_project do |root|
       init_strict_composite(root)

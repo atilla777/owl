@@ -4,6 +4,30 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.10.0] - 2026-06-24
+
+### Added
+- **Group commands now print their subcommand list (TASK-0023).** `owl step`
+  and `owl step --help` (and the same for `task`, `workflow`, `artifact`,
+  `artifact-type`, `config`, `git`, `plan`, `spec`) previously failed with
+  `unknown_command`; they now emit the group's available subcommands and exit 0.
+  A concrete-but-unknown verb (`owl step bogus`) still returns `unknown_command`
+  with its prior exit code. `--json` yields a machine-readable
+  `{ ok, command, subcommands }` list; plain mode prints a human-readable usage
+  block. Bare-arg groups (`archive`, `recall`, `commit-push`) keep their
+  positional behaviour.
+- **`owl task claim --steal` hints at adopt for a wedged step (TASK-0023).**
+  When a steal displaces a session that left a step `running`, the success
+  response gains additive `running_step` and `hint` fields pointing at
+  `owl task adopt TASK-ID` (which resets the stuck step); the hint is also echoed
+  to stderr. Claim success, exit code, and existing response fields are
+  unchanged.
+
+### Fixed
+- **`owl task child create … --brief …` no longer prints a stale step status
+  (TASK-0023).** The JSON payload now re-reads the task after the brief prefill,
+  so it reflects `brief: done` instead of the pre-prefill `brief: pending`.
+
 ## [0.9.0] - 2026-06-24
 
 ### Changed

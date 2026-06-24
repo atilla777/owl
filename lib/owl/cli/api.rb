@@ -141,9 +141,38 @@ module Owl
         return Internal::Commands::Overlay.run(argv: args, **kwargs) if command == 'overlay'
 
         group = GROUP_DISPATCHERS[command]
-        return send(group, args, **kwargs) if group
+        if group
+          return group_help(command, args, stdout: stdout, stderr: stderr) if group_help_request?(command, args)
+
+          return send(group, args, **kwargs)
+        end
 
         unknown_command(stderr, command)
+      end
+
+      # Help flags that, on their own, ask for a group's subcommand listing.
+      HELP_FLAGS = %w[--help -h].freeze
+
+      # A group help is requested when the group routes by subcommand verb
+      # (registered in HelpText::GROUP_SUBCOMMANDS) and no real subcommand was
+      # supplied — i.e. no args at all, or only help/`--json` flags. A concrete
+      # but unknown verb (`owl step bogus`) is NOT a help request and still
+      # falls through to the group's `unknown_command`.
+      def group_help_request?(command, args)
+        return false unless Internal::HelpText::GROUP_SUBCOMMANDS.key?(command)
+        return true if args.empty?
+
+        args.all? { |arg| HELP_FLAGS.include?(arg) || arg == '--json' }
+      end
+
+      def group_help(command, args, stdout:, stderr:)
+        subcommands = Internal::HelpText::GROUP_SUBCOMMANDS.fetch(command)
+        if args.include?('--json')
+          return Internal::JsonPrinter.success(stdout, { ok: true, command: command, subcommands: subcommands })
+        end
+
+        stderr.puts(Internal::HelpText.group_help_text(command, subcommands))
+        0
       end
 
       def dispatch_archive(args, **)

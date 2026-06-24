@@ -127,6 +127,21 @@ RSpec.describe 'Owl::Tasks::Api.child_create' do
     end
   end
 
+  it 'returns a payload reflecting the post-prefill brief status (TASK-0023 FF4)' do
+    with_tmp_project do |root|
+      init_with_workflows(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+      result = Owl::Tasks::Api.child_create(
+        root: root, parent_id: 'TASK-0001', workflow: 'feature', title: 'C',
+        brief_body: "# Child brief\n\nbody\n"
+      )
+      expect(result.ok?).to be(true)
+      brief_step = result.value[:payload]['steps'].find { |s| s['id'] == 'brief' }
+      expect(brief_step['status']).to eq('done')
+    end
+  end
+
   it 'records content_sha on the seeded brief step so drift detection works' do
     with_tmp_project do |root|
       init_with_workflows(root)

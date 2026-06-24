@@ -676,6 +676,28 @@ RSpec.describe Owl::Tasks::Api do
       end
     end
 
+    it 'adds an adopt hint when --steal displaces a task with a running step (TASK-0023 FF3)' do
+      with_tmp_project do |root|
+        seed_one(root)
+        Owl::Steps::Api.start(root: root, task_id: 'TASK-0001', step_id: 'noop')
+        result = described_class.claim(root: root, task_id: 'TASK-0001', steal: true)
+        expect(result).to be_ok
+        expect(result.value[:running_step]).to eq('noop')
+        expect(result.value[:hint]).to include('owl task adopt TASK-0001')
+        expect(result.value[:hint]).to include("step 'noop' is running")
+      end
+    end
+
+    it 'omits the adopt hint when --steal hits a task with no running step (TASK-0023 FF3)' do
+      with_tmp_project do |root|
+        seed_one(root)
+        result = described_class.claim(root: root, task_id: 'TASK-0001', steal: true)
+        expect(result).to be_ok
+        expect(result.value).not_to have_key(:hint)
+        expect(result.value).not_to have_key(:running_step)
+      end
+    end
+
     it 'leaves stole_from nil for a plain (non-steal) claim' do
       with_tmp_project do |root|
         seed_one(root)

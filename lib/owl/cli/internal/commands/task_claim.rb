@@ -29,16 +29,28 @@ module Owl
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            JsonPrinter.success(stdout, {
-                                  ok: true,
-                                  task_id: result.value[:task_id],
-                                  token: result.value[:token],
-                                  expires_at: result.value[:expires_at],
-                                  stole_from: result.value[:stole_from],
-                                  ready_step_ids: result.value[:ready_step_ids]
-                                })
+            payload = {
+              ok: true,
+              task_id: result.value[:task_id],
+              token: result.value[:token],
+              expires_at: result.value[:expires_at],
+              stole_from: result.value[:stole_from],
+              ready_step_ids: result.value[:ready_step_ids]
+            }
+            thread_takeover_hint(payload: payload, result: result, stderr: stderr)
+            JsonPrinter.success(stdout, payload)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
+          end
+
+          # Additive takeover hint: present only when a --steal displaced a
+          # session that left a step running (see ClaimService#takeover_hint).
+          def thread_takeover_hint(payload:, result:, stderr:)
+            return unless result.value[:hint]
+
+            payload[:running_step] = result.value[:running_step]
+            payload[:hint] = result.value[:hint]
+            stderr.puts(result.value[:hint])
           end
 
           def parse_options(argv)

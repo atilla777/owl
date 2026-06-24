@@ -87,6 +87,20 @@ RSpec.describe 'owl task/step lease CLI subcommands' do
         expect(body['stole_from']['expired']).to be(false)
       end
     end
+
+    it 'threads the adopt hint into JSON + stderr when --steal hits a running step (TASK-0023 FF3)' do
+      with_tmp_project do |root|
+        setup_project(root)
+        create(root, 't')
+        cli(['step', 'start', 'TASK-0001', 'a', '--root', root.to_s, '--json'], root)
+        code, out, err = cli(['task', 'claim', 'TASK-0001', '--steal', '--root', root.to_s, '--json'], root)
+        expect(code).to eq(0)
+        body = JSON.parse(out)
+        expect(body['running_step']).to eq('a')
+        expect(body['hint']).to include('owl task adopt TASK-0001')
+        expect(err).to include('owl task adopt TASK-0001')
+      end
+    end
   end
 
   describe 'task heartbeat' do
