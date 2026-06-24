@@ -12,8 +12,8 @@ module Owl
       module WhenThenChecker
         SCENARIO_RE = /\AScenario\b/
         CLAUSE_RES = {
-          'WHEN' => /\A[\s>*-]*\**\s*WHEN\b/,
-          'THEN' => /\A[\s>*-]*\**\s*THEN\b/
+          'WHEN' => /\A[\s>*-]*\**\s*WHEN\b/i,
+          'THEN' => /\A[\s>*-]*\**\s*THEN\b/i
         }.freeze
 
         module_function
@@ -54,7 +54,8 @@ module Owl
             scenario: scenario,
             missing: keyword,
             level: 'error',
-            description: "Scenario '#{scenario}' is missing a #{keyword} clause."
+            description: "Scenario '#{scenario}' is missing a #{keyword} clause — expected a line like " \
+                         "'- #{keyword} …' (case-insensitive) inside the '#### Scenario:' block."
           }
         end
       end

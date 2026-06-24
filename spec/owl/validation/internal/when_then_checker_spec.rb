@@ -16,8 +16,14 @@ RSpec.describe Owl::Validation::Internal::WhenThenChecker do
       violations = described_class.check(body, true)
       expect(violations).to eq(
         [{ type: 'scenario_missing_clause', scenario: 'Scenario: half', missing: 'THEN', level: 'error',
-           description: "Scenario 'Scenario: half' is missing a THEN clause." }]
+           description: "Scenario 'Scenario: half' is missing a THEN clause — expected a line like " \
+                        "'- THEN …' (case-insensitive) inside the '#### Scenario:' block." }]
       )
+    end
+
+    it 'includes the expected-format hint in the missing-clause message' do
+      violations = described_class.check("#### Scenario: bare\n\njust prose\n", true)
+      expect(violations.first[:description]).to include("expected a line like '- WHEN …' (case-insensitive)")
     end
 
     it 'reports both clauses when neither is present' do
@@ -35,6 +41,33 @@ RSpec.describe Owl::Validation::Internal::WhenThenChecker do
         #### Scenario: styled
         - **WHEN** the user acts
         * THEN the system responds
+      MD
+      expect(described_class.check(body, true)).to eq([])
+    end
+
+    it 'accepts Title-case When/Then clauses' do
+      body = <<~MD
+        #### Scenario: titlecase
+        - When the user acts
+        - Then the system responds
+      MD
+      expect(described_class.check(body, true)).to eq([])
+    end
+
+    it 'accepts lower-case when/then clauses' do
+      body = <<~MD
+        #### Scenario: lower
+        - when the user acts
+        - then the system responds
+      MD
+      expect(described_class.check(body, true)).to eq([])
+    end
+
+    it 'still accepts UPPERCASE WHEN/THEN clauses (back-compat)' do
+      body = <<~MD
+        #### Scenario: upper
+        - WHEN the user acts
+        - THEN the system responds
       MD
       expect(described_class.check(body, true)).to eq([])
     end

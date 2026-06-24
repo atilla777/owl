@@ -4,6 +4,25 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.9.0] - 2026-06-24
+
+### Changed
+- **`require_when_then` scenario validation now accepts WHEN/THEN
+  case-insensitively (TASK-0022).** The `WhenThenChecker` clause regexes
+  previously matched only UPPERCASE `WHEN`/`THEN`, so a `#### Scenario:` block
+  written with Title-case (`- When …`) or lower-case (`- when …`) bullets was
+  rejected even though it was well-formed Gherkin prose. Both clause regexes now
+  carry the `i` flag, accepting any case while preserving the existing
+  leading-prefix tolerance (`>`, `*`, `-`, whitespace, bold markers) and full
+  UPPERCASE back-compat. This loosens a validation contract, hence the MINOR
+  bump.
+- **Missing-clause error message is now actionable.** The
+  `scenario_missing_clause` violation `description` now spells out the expected
+  format — `expected a line like '- WHEN …' (case-insensitive) inside the
+  '#### Scenario:' block` — instead of the bare `is missing a WHEN clause.`. The
+  violation `type` and `missing` keyword fields are unchanged, so downstream
+  consumers keying on those are unaffected.
+
 ## [0.8.1] - 2026-06-24
 
 ### Fixed
