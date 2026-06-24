@@ -128,6 +128,7 @@ module Owl
           valid: data[:valid],
           violations: data[:violations],
           applied: data[:applied],
+          unchanged: data[:unchanged],
           created: data[:created]
         )
       end
@@ -154,6 +155,7 @@ module Owl
           domain: data[:domain],
           path: data[:path],
           applied: data[:applied],
+          unchanged: data[:unchanged],
           created: data[:created],
           dry_run: dry_run,
           before: data[:before],

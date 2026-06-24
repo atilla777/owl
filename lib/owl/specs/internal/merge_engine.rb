@@ -67,11 +67,11 @@ module Owl
 
           summarize(
             domain: domain, spec_path: spec_path, base: base.value,
-            after: after, ops: ops, checked: checked.value
+            after: after, ops: ops, unchanged: merged.value[:unchanged], checked: checked.value
           )
         end
 
-        def summarize(domain:, spec_path:, base:, after:, ops:, checked:)
+        def summarize(domain:, spec_path:, base:, after:, ops:, unchanged:, checked:)
           before = base[:before]
           Result.ok(
             domain: domain,
@@ -81,7 +81,8 @@ module Owl
             unified_diff: TextDiff.unified(before, after),
             valid: checked[:valid],
             violations: checked[:violations],
-            applied: counts(ops),
+            applied: counts(ops, unchanged),
+            unchanged: unchanged,
             created: base[:created]
           )
         end
@@ -123,8 +124,15 @@ module Owl
           Result.ok(valid: blocking_count(violations).zero?, violations: violations)
         end
 
-        def counts(ops)
-          { added: ops[:added].length, modified: ops[:modified].length, removed: ops[:removed].length }
+        # Truly-applied changes: declared operations minus idempotent no-ops, so
+        # an already-applied (no-op) op is never counted as an applied change.
+        # The no-op counts are surfaced separately as `unchanged`.
+        def counts(ops, unchanged)
+          {
+            added: ops[:added].length - unchanged[:added],
+            modified: ops[:modified].length - unchanged[:modified],
+            removed: ops[:removed].length - unchanged[:removed]
+          }
         end
 
         def blocking_count(violations)

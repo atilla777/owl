@@ -57,15 +57,15 @@ RSpec.describe Owl::Specs::Internal::DeltaMerger do
       expect(result.details[:operation]).to eq('modified')
     end
 
-    it 'fails with delta_target_missing when a REMOVED name is absent' do
+    it 'treats a REMOVED name that is already absent as an idempotent no-op' do
       result = described_class.apply(model_for('A'), added: [], modified: [], removed: ['Z'])
-      expect(result).to be_err
-      expect(result.code).to eq(:delta_target_missing)
-      expect(result.details[:operation]).to eq('removed')
+      expect(result).to be_ok
+      expect(result.value[:requirements].map { |req| req[:name] }).to eq(%w[A])
+      expect(result.value[:unchanged]).to eq(added: 0, modified: 0, removed: 1)
     end
 
-    it 'matches names case-sensitively' do
-      result = described_class.apply(model_for('Alpha'), added: [], modified: [], removed: ['alpha'])
+    it 'matches names case-sensitively (a MODIFIED name of different case is missing)' do
+      result = described_class.apply(model_for('Alpha'), added: [], modified: [block('alpha')], removed: [])
       expect(result).to be_err
       expect(result.code).to eq(:delta_target_missing)
     end
@@ -91,6 +91,43 @@ RSpec.describe Owl::Specs::Internal::DeltaMerger do
       original = model[:requirements].map { |req| req[:name] }
       described_class.apply(model, added: [], modified: [], removed: ['A'])
       expect(model[:requirements].map { |req| req[:name] }).to eq(original)
+    end
+
+    it 'reports zero unchanged when every operation genuinely changes the spec' do
+      result = described_class.apply(model_for('A'), added: [block('B')], modified: [], removed: [])
+      expect(result.value[:unchanged]).to eq(added: 0, modified: 0, removed: 0)
+    end
+  end
+
+  describe '.apply idempotency' do
+    it 'treats a re-ADDED requirement with identical content as a no-op, not a conflict' do
+      once = described_class.apply(model_for('A'), added: [block('B')], modified: [], removed: [])
+      twice = described_class.apply(once.value, added: [block('B')], modified: [], removed: [])
+      expect(twice).to be_ok
+      expect(twice.value[:requirements].map { |req| req[:name] }).to eq(%w[A B])
+      expect(twice.value[:unchanged]).to eq(added: 1, modified: 0, removed: 0)
+    end
+
+    it 'still flags delta_conflict when an ADDED name exists with DIFFERENT content' do
+      once = described_class.apply(model_for('A'), added: [block('B')], modified: [], removed: [])
+      different = { name: 'B', heading: 'Requirement: B', body: "### Requirement: B\n\nThe system SHALL other B.\n" }
+      twice = described_class.apply(once.value, added: [different], modified: [], removed: [])
+      expect(twice).to be_err
+      expect(twice.code).to eq(:delta_conflict)
+      expect(twice.details[:name]).to eq('B')
+    end
+
+    it 'treats a MODIFY to the same content as a no-op' do
+      once = described_class.apply(model_for('A', 'B'), added: [], modified: [block('B')], removed: [])
+      twice = described_class.apply(once.value, added: [], modified: [block('B')], removed: [])
+      expect(twice).to be_ok
+      expect(twice.value[:unchanged]).to eq(added: 0, modified: 1, removed: 0)
+      expect(twice.value[:requirements][1][:body]).to include('SHALL new B')
+    end
+
+    it 'counts a genuine MODIFY (different content) as applied, not unchanged' do
+      result = described_class.apply(model_for('A', 'B'), added: [], modified: [block('B')], removed: [])
+      expect(result.value[:unchanged]).to eq(added: 0, modified: 0, removed: 0)
     end
   end
 end

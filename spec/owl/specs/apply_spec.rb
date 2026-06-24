@@ -91,6 +91,26 @@ RSpec.describe 'Owl::Specs::Api delta merge' do
       end
     end
 
+    it 'is idempotent — applying the same delta twice succeeds and the spec is byte-stable' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_spec(root)
+        add_delta(root)
+
+        first = Owl::Specs::Api.apply(root: root, domain: 'billing', delta_path: "#{root}/d.md")
+        expect(first).to be_ok
+        expect(first.value[:applied]).to eq(added: 1, modified: 0, removed: 0)
+        after_first = Pathname.new("#{root}/specs/billing/spec.md").read
+
+        second = Owl::Specs::Api.apply(root: root, domain: 'billing', delta_path: "#{root}/d.md")
+        expect(second).to be_ok # not a delta_conflict
+        # The re-applied ADDED is reported as an unchanged no-op, not an applied change.
+        expect(second.value[:applied]).to eq(added: 0, modified: 0, removed: 0)
+        expect(second.value[:unchanged]).to eq(added: 1, modified: 0, removed: 0)
+        expect(Pathname.new("#{root}/specs/billing/spec.md").read).to eq(after_first)
+      end
+    end
+
     it 'does not write on --dry-run' do
       with_tmp_project do |root|
         init_project(root)

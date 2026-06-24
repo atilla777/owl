@@ -1,0 +1,106 @@
+---
+id: TASK-0029
+title: 'Движок P2-B: идемпотентный owl spec merge (убрать delta_conflict при повторе)'
+workflow:
+  key: hotfix
+  version: '1.0'
+  source: workflows/hotfix/workflow.yaml
+kind: task
+parent_id:
+priority: 90
+created_at: '2026-06-24T19:12:36Z'
+status: archived
+labels: []
+blocked_by: []
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  creates:
+  - brief
+  default_variant: feature
+  variants:
+    feature:
+      context_file: brief.feature.context.md
+      title: Collect feature requirements
+    root_cause:
+      context_file: brief.root_cause.context.md
+      title: Find bug root cause
+    problem_inventory:
+      context_file: brief.problem_inventory.context.md
+      title: Inventory refactor problems
+  status: done
+  content_sha: 4a52a02c5c0df43d0731046a1fafbda454bafc1d533749e9169719aec28b618c
+- id: design
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: design.context.md
+  requires:
+  - brief
+  creates:
+  - design
+  status: skipped
+  skip_reason: Узкий idempotency-фикс delta_merger; решения и критерий конфликта в
+    brief.
+- id: plan
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: plan.context.md
+  requires:
+  - brief
+  creates:
+  - plan
+  status: done
+  content_sha: 3a78d1db7d7f2d8b7c1331cbfc4db0e14673f379a9ded5db0c523f4e5d651eec
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - plan
+  creates:
+  - verification
+  status: done
+  content_sha: 872378410d4cfd5b9f83f0d4cb446c00e7e2a31adc69b7e82e008ce38ac6aad2
+- id: review_code
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: review_code.context.md
+  requires:
+  - implement
+  creates:
+  - review
+  status: done
+  content_sha: a444fd308a449bb88c164960232a3ef585654183a87b1f9f7e05907ad7815f93
+- id: merge_docs
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  publishes: true
+  context_file: merge_docs.context.md
+  requires:
+  - review_code
+  status: done
+- id: archive
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: archive.context.md
+  requires:
+  - merge_docs
+  status: done
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - archive
+  status: done
+artifacts: []
+archived_at: '2026-06-24T19:56:29Z'

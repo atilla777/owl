@@ -4,6 +4,24 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.15.1] - 2026-06-24
+
+### Fixed
+- **Idempotent spec merge — re-applying a delta is a no-op, not `delta_conflict`
+  (TASK-0029).** `Owl::Specs::Internal::DeltaMerger.apply` is now idempotent.
+  An `ADDED` requirement whose name already exists with IDENTICAL (normalized)
+  content is treated as an already-applied no-op instead of erroring with
+  `delta_conflict`; a `REMOVED` name that is already absent is an already-removed
+  no-op instead of `delta_target_missing`. A genuine conflict — same requirement
+  name but DIFFERENT content — still errors with `delta_conflict`, and `MODIFIED`
+  of an absent target still errors with `delta_target_missing`. This lets a
+  retried `owl spec merge` / `owl spec apply` of the same delta succeed with a
+  byte-stable spec rather than wedging the operator.
+  - **Honest counts.** The merge result now reports `applied` as truly-applied
+    changes (declared operations minus idempotent no-ops) and surfaces the no-op
+    count separately as `unchanged: { added:, modified:, removed: }`, so a no-op
+    is never counted as an applied change.
+
 ## [0.15.0] - 2026-06-24
 
 ### Added
