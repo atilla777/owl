@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://owl.dev/schemas/task/v1.json",
+  "title": "Task",
+  "description": "Owl task.yaml payload. Tracker metadata (`status`, `labels`) added in the P1-A tracker iteration. The schema is deliberately permissive (additionalProperties: true, no required fields) so legacy task.yaml files written before a field existed still validate: a missing `status` reads as `open` and a missing `labels` reads as `[]` at read time. Validation is wired on tracker mutations (create, set-status, label add/rm) to reject malformed values rather than silently persisting them.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string" },
+    "workflow": {
+      "type": ["object", "string"],
+      "description": "Workflow snapshot mapping (with a `key`) for live tasks, or a bare key string in some legacy/index projections."
+    },
+    "kind": { "type": "string" },
+    "parent_id": { "type": ["string", "null"] },
+    "priority": { "type": "integer" },
+    "created_at": { "type": "string" },
+    "steps": { "type": "array" },
+    "artifacts": { "type": ["object", "array", "null"] },
+    "status": {
+      "type": "string",
+      "enum": ["open", "in_progress", "blocked", "on_hold", "done", "archived", "abandoned"],
+      "description": "Explicit, task-level lifecycle status. Orthogonal to step progress (set by the agent/user, never derived from steps). Default `open` at create. `archived` is set systemically by `owl archive`; `abandoned` by `owl task abandon`. The other values are user-settable via `owl task set-status`."
+    },
+    "labels": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Free-form labels for grouping and filtering. Mutated idempotently via `owl task label add|rm`; deduplicated and trimmed."
+    }
+  }
+}

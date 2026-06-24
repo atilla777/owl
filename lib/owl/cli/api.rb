@@ -60,11 +60,14 @@ require_relative 'internal/commands/task_current'
 require_relative 'internal/commands/task_delete'
 require_relative 'internal/commands/task_index_rebuild'
 require_relative 'internal/commands/task_inspect'
+require_relative 'internal/commands/task_label'
 require_relative 'internal/commands/task_list'
 require_relative 'internal/commands/task_parent'
+require_relative 'internal/commands/task_query'
 require_relative 'internal/commands/task_ready_steps'
 require_relative 'internal/commands/task_release'
 require_relative 'internal/commands/task_set_priority'
+require_relative 'internal/commands/task_set_status'
 require_relative 'internal/commands/task_tree'
 require_relative 'internal/commands/task_use'
 require_relative 'internal/commands/upgrade'
@@ -294,6 +297,8 @@ module Owl
         'claims' => Internal::Commands::TaskClaims,
         'available' => Internal::Commands::TaskAvailable,
         'set-priority' => Internal::Commands::TaskSetPriority,
+        'set-status' => Internal::Commands::TaskSetStatus,
+        'query' => Internal::Commands::TaskQuery,
         'adopt' => Internal::Commands::TaskAdopt
       }.freeze
 
@@ -303,6 +308,7 @@ module Owl
         case subcommand
         when 'child' then dispatch_task_child(args, **nested_kwargs)
         when 'index' then dispatch_task_index(args, **nested_kwargs)
+        when 'label' then dispatch_task_label(args, **nested_kwargs)
         else
           command_module = TASK_SUBCOMMANDS[subcommand]
           return unknown_command(stderr, "task #{subcommand}".strip) unless command_module
@@ -346,6 +352,17 @@ module Owl
         when 'report'     then Internal::Commands::StepReport.run(**kwargs)
         else
           unknown_command(stderr, "step #{subcommand}".strip)
+        end
+      end
+
+      def dispatch_task_label(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
+        case subcommand
+        when 'add' then Internal::Commands::TaskLabel.add(**kwargs)
+        when 'rm'  then Internal::Commands::TaskLabel.rm(**kwargs)
+        else
+          unknown_command(stderr, "task label #{subcommand}".strip)
         end
       end
 

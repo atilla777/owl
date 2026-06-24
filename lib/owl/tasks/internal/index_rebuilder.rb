@@ -68,7 +68,8 @@ module Owl
             'parent_id' => raw['parent_id'],
             'priority' => raw['priority'],
             'created_at' => raw['created_at'],
-            'status' => raw['status'],
+            'status' => raw['status'] || 'open',
+            'labels' => raw['labels'] || [],
             'archived_at' => raw['archived_at']
           }
         end

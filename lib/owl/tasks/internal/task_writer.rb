@@ -28,6 +28,8 @@ module Owl
             'parent_id' => parent_id,
             'priority' => priority,
             'created_at' => now.iso8601,
+            'status' => 'open',
+            'labels' => [],
             'steps' => snapshot[:steps],
             'artifacts' => snapshot[:artifacts]
           }

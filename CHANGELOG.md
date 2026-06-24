@@ -4,6 +4,35 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.12.0] - 2026-06-24
+
+### Added
+- **First-class tracker metadata on tasks (TASK-0025).** Tasks now carry an
+  explicit, task-level `status` (`open | in_progress | blocked | on_hold | done |
+  archived`, default `open` at create, orthogonal to step progress) and a
+  free-form `labels: []` array in `task.yaml` and in each `tasks/index.yaml`
+  entry. New CLI:
+  - `owl task set-status TASK-ID <status>` — validates the enum, returns
+    `invalid_status` otherwise.
+  - `owl task label add|rm TASK-ID LABEL` — `add` is idempotent (trimmed,
+    de-duplicated); `rm` of an absent label is a clean no-op.
+  - `owl task query [--status S] [--label L] [--priority N] [--parent ID]
+    [--workflow K]` — combinable AND filters evaluated over the index (never
+    scans every `task.yaml`). `owl task list` is unchanged.
+- **`schemas/task.json`.** A formal JSON schema for `task.yaml` (existing fields
+  plus `status` enum and `labels`), validated on tracker mutations through the
+  same JSON-schema walker used for `workflow.json` / `artifact.json`.
+  `additionalProperties: true` and all-optional fields keep legacy task files
+  valid.
+
+### Changed
+- **Read-time migration for tracker fields (TASK-0025).** Legacy `task.yaml`
+  files written before these fields existed read as `status: open`,
+  `labels: []` with no forced rewrite; `owl task index rebuild` fills the
+  defaults into the index. `owl archive` continues to set `status: archived`;
+  `owl task abandon` continues to set `status: abandoned`. All index writes go
+  through the locked `IndexWriter`.
+
 ## [0.11.0] - 2026-06-24
 
 ### Added

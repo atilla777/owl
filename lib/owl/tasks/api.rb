@@ -35,6 +35,22 @@ module Owl
         strip_local(with_backend(root) { |backend| backend.set_priority(task_id: task_id, priority: priority) })
       end
 
+      def set_status(root:, task_id:, status:)
+        strip_local(with_backend(root) { |backend| backend.set_status(task_id: task_id, status: status) })
+      end
+
+      def add_label(root:, task_id:, label:)
+        strip_local(with_backend(root) { |backend| backend.add_label(task_id: task_id, label: label) })
+      end
+
+      def remove_label(root:, task_id:, label:)
+        strip_local(with_backend(root) { |backend| backend.remove_label(task_id: task_id, label: label) })
+      end
+
+      def query(root:, filters: {})
+        strip_local(with_backend(root) { |backend| backend.query(filters: filters) })
+      end
+
       def claim(root:, task_id: nil, next_: false, ttl: nil, label: nil, steal: false)
         strip_local(with_backend(root) do |backend|
           backend.claim(task_id: task_id, next_: next_, ttl: ttl, label: label, steal: steal)

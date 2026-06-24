@@ -18,8 +18,11 @@ require_relative '../internal/id_generator'
 require_relative '../internal/index_reader'
 require_relative '../internal/index_rebuilder'
 require_relative '../internal/index_writer'
+require_relative '../internal/label_writer'
 require_relative '../internal/parent_resolver'
 require_relative '../internal/paths'
+require_relative '../internal/query'
+require_relative '../internal/status_writer'
 require_relative '../internal/task_reader'
 require_relative '../internal/task_writer'
 require_relative '../internal/tree_builder'
@@ -199,6 +202,22 @@ module Owl
           return paths_result if paths_result.err?
 
           write_priority(paths: paths_result.value, task_id: task_id, priority: integer)
+        end
+
+        def set_status(task_id:, status:)
+          Internal::StatusWriter.call(root: @root, task_id: task_id, status: status)
+        end
+
+        def add_label(task_id:, label:)
+          Internal::LabelWriter.add(root: @root, task_id: task_id, label: label)
+        end
+
+        def remove_label(task_id:, label:)
+          Internal::LabelWriter.remove(root: @root, task_id: task_id, label: label)
+        end
+
+        def query(filters: {})
+          Internal::Query.call(root: @root, filters: filters)
         end
 
         def children(parent_id:)

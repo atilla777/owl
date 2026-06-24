@@ -1,0 +1,104 @@
+---
+id: TASK-0025
+title: 'Трекер P1-A: task-level status + labels + schemas/task.json + owl task query/filter'
+workflow:
+  key: feature
+  version: '1.0'
+  source: workflows/feature/workflow.yaml
+kind: task
+parent_id:
+priority: 100
+created_at: '2026-06-24T16:19:27Z'
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  creates:
+  - brief
+  default_variant: feature
+  variants:
+    feature:
+      context_file: brief.feature.context.md
+      title: Collect feature requirements
+    root_cause:
+      context_file: brief.root_cause.context.md
+      title: Find bug root cause
+    problem_inventory:
+      context_file: brief.problem_inventory.context.md
+      title: Inventory refactor problems
+  status: done
+  content_sha: 1d00709580e38d81f1616310c38877d3d5980b7c134d5a12262c527e34e79f09
+- id: design
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: design.context.md
+  requires:
+  - brief
+  creates:
+  - design
+  status: done
+  content_sha: defa4795ea971120e450f3fdfc3b8024f5871c7a2923dbee1082725a778f12f2
+- id: plan
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: plan.context.md
+  requires:
+  - brief
+  creates:
+  - plan
+  status: done
+  content_sha: 7e711911afdc6f736cfd7b8f91001961ab01e0ab8e0d1308b65892c600b7200e
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - plan
+  status: done
+- id: review_code
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  verify: true
+  context_file: review_code.context.md
+  requires:
+  - implement
+  creates:
+  - review
+  - verification
+  status: done
+  content_sha:
+    review: 0bc04ee896d74693c72765ad5805ce1c29ac46ab0982a40bf239af34aacbfddd
+    verification: 3c9d02b5a6a1fb9ce3d60f6a4b1b0949e8d33ab616fac46fbff049c0967457c9
+- id: merge_docs
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  publishes: true
+  context_file: merge_docs.context.md
+  requires:
+  - review_code
+  status: done
+- id: archive
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: archive.context.md
+  requires:
+  - merge_docs
+  status: done
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - archive
+  status: done
+artifacts: []
+status: archived
+archived_at: '2026-06-24T16:51:33Z'

@@ -50,6 +50,9 @@ module Owl
             task claims             List active claim leases across the repo (JSON).
             task available          List runnable, unclaimed tasks ranked best-first (JSON).
             task set-priority       Set a task's integer priority: set-priority TASK-ID N.
+            task set-status         Set a task's explicit lifecycle status: set-status TASK-ID <open|in_progress|blocked|on_hold|done|archived>.
+            task label              Add or remove a label: label <add|rm> TASK-ID LABEL (add idempotent, rm of absent is a no-op).
+            task query              Filter tasks by combinable AND predicates: query [--status S] [--label L] [--priority N] [--parent ID] [--workflow K] (JSON).
             task adopt              Steal a task's claim and reset its running steps to pending: adopt TASK-ID [--token T].
             plan approve            Approve a task's plan, opening the plan_approved gate: approve TASK-ID [--token T].
             plan status             Show plan-approval status for a TASK-ID (approved, plan_sha, gate_open).
@@ -96,7 +99,7 @@ module Owl
           'task' => %w[
             create list inspect use current ready-steps tree children parent
             aggregate-status abandon delete claim release heartbeat claims
-            available set-priority adopt child index
+            available set-priority set-status label query adopt child index
           ],
           'plan' => %w[approve status],
           'step' => %w[start complete reopen reset skip invocation show report],

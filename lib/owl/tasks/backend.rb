@@ -31,6 +31,22 @@ module Owl
         raise NotImplementedError
       end
 
+      def set_status(task_id:, status:)
+        raise NotImplementedError
+      end
+
+      def add_label(task_id:, label:)
+        raise NotImplementedError
+      end
+
+      def remove_label(task_id:, label:)
+        raise NotImplementedError
+      end
+
+      def query(filters: {})
+        raise NotImplementedError
+      end
+
       def claim(task_id: nil, next_: false, ttl: nil, label: nil, steal: false)
         raise NotImplementedError
       end

@@ -17,6 +17,14 @@ module Owl
       # least one ready step. The result is ordered so the first element is the
       # best candidate for `task claim --next` / orchestrator auto-selection.
       module AvailabilityScanner
+        # Statuses that take a task out of the runnable pool. Before explicit
+        # task-level status existed, only `archived` / `abandoned` were ever
+        # written and a runnable task simply had an empty status; now `open` is
+        # the create-time default, so availability keys off this terminal set
+        # rather than "status is empty". `done` is terminal (logically finished,
+        # not yet archived).
+        TERMINAL_STATUSES = %w[archived abandoned done].freeze
+
         module_function
 
         def scan(root:, now: Time.now.utc)
@@ -39,7 +47,7 @@ module Owl
 
         def active_entries(entries)
           Array(entries).select do |entry|
-            entry.is_a?(Hash) && entry['status'].to_s.empty?
+            entry.is_a?(Hash) && !TERMINAL_STATUSES.include?(entry['status'].to_s)
           end
         end
 
