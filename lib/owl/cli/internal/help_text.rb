@@ -74,7 +74,7 @@ module Owl
             publish                 Publish task artifacts to the docs storage role per workflow `publishes` rules.
             archive                 Move a completed task into the archive role; or read-only list|show|read of archived tasks.
             commit-push             Atomically stage, complete, commit, and push the commit_push step: commit-push TASK-ID --message M.
-            recall                  Find similar archived tasks by lexical match (read-only): recall <query> [--limit N] [--root PATH] [--json|--no-json].
+            recall                  Find similar tasks by lexical match (read-only): recall <query> [--scope active|archive|all] [--limit N] [--root PATH] [--json|--no-json]. Default scope archive.
             spec                    Project-level domain specs: list|show|path|validate|trace DOMAIN [--strict]; diff|apply DOMAIN --delta PATH [--dry-run] (structural delta-merge); merge TASK-ID [--dry-run] (apply a task's spec_delta + trace gate).
             overlay                 Inspect context overlays for a step: overlay <list|show|validate> STEP-ID [--variant V].
             instructions            Show the next ready step packaged with its SKILL.md summary (JSON).

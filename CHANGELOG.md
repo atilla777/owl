@@ -4,6 +4,22 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.14.0] - 2026-06-24
+
+### Added
+- **`owl recall --scope active|archive|all` (TASK-0027).** Cross-task recall
+  can now search the live roster, not just the archive. `--scope archive`
+  (the default) is unchanged — existing callers, including the orchestrator
+  brief-step recall, behave exactly as before. `--scope active` builds the
+  tf-idf corpus from non-terminal, non-archived tasks (their `brief`
+  Problem/Goal prose, falling back to the title when a task has no brief yet);
+  `--scope all` searches active + archived together. Every match now carries a
+  `scope: "active"|"archived"` label so a consumer can tell where a hit came
+  from. An unknown `--scope` is reported as `invalid_scope` (exit 1). Active
+  tasks are read through `Owl::Tasks::Api.list` plus the artifact/storage
+  roles (`Owl::Artifacts::Api.resolve` → `Owl::Storage::Api.read`), never raw
+  filesystem; the archive corpus still flows through `Owl::Archive::Api`.
+
 ## [0.13.0] - 2026-06-24
 
 ### Added

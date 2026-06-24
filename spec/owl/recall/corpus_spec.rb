@@ -132,4 +132,71 @@ RSpec.describe Owl::Recall::Internal::CorpusBuilder do
       expect(described_class.build(root: "#{root}/missing")).to eq([])
     end
   end
+
+  it 'tags archived documents with scope: archived' do
+    with_tmp_project do |root|
+      archive(root, title: 'Archived', brief: "# Problem\np\n# Goal\ng\n")
+
+      doc = described_class.build(root: root, scope: 'archive').first
+      expect(doc[:scope]).to eq('archived')
+    end
+  end
+
+  it 'builds active documents from active task briefs, tagged scope: active' do
+    with_tmp_project do |root|
+      archive(root, title: 'Archived feature', brief: "# Problem\narchived\n# Goal\ndone\n")
+      active_id = setup_project(root, title: 'Active feature')
+      write("#{root}/tasks/#{active_id}/brief.md", "# Problem\nactive brief corpus token\n# Goal\ng\n")
+
+      corpus = described_class.build(root: root, scope: 'active')
+      doc = corpus.find { |d| d[:task_id] == active_id }
+
+      expect(corpus.map { |d| d[:task_id] }).to eq([active_id])
+      expect(doc[:scope]).to eq('active')
+      expect(doc[:text]).to include('active brief corpus token')
+    end
+  end
+
+  it 'reads active briefs through the tasks + artifact/storage layer, not direct File.read' do
+    with_tmp_project do |root|
+      active_id = setup_project(root, title: 'Active feature')
+      write("#{root}/tasks/#{active_id}/brief.md", "# Problem\nlayered read\n# Goal\ng\n")
+
+      allow(Owl::Tasks::Api).to receive(:list).and_call_original
+      allow(Owl::Artifacts::Api).to receive(:resolve).and_call_original
+      allow(Owl::Storage::Api).to receive(:read).and_call_original
+
+      described_class.build(root: root, scope: 'active')
+
+      expect(Owl::Tasks::Api).to have_received(:list).with(root: root)
+      expect(Owl::Artifacts::Api).to have_received(:resolve)
+        .with(root: root, task_id: active_id, artifact_key: 'brief')
+      expect(Owl::Storage::Api).to have_received(:read).at_least(:once)
+    end
+  end
+
+  it 'falls back to the title when an active task has no brief' do
+    with_tmp_project do |root|
+      active_id = setup_project(root, title: 'No Active Brief')
+
+      doc = described_class.build(root: root, scope: 'active').find { |d| d[:task_id] == active_id }
+      expect(doc[:text]).to eq('No Active Brief')
+    end
+  end
+
+  it 'unions active and archived under scope all' do
+    with_tmp_project do |root|
+      archived_id = archive(root, title: 'Archived', brief: "# Problem\na\n# Goal\nb\n")
+      active_id = setup_project(root, title: 'Active')
+
+      ids = described_class.build(root: root, scope: 'all').map { |d| d[:task_id] }
+      expect(ids).to contain_exactly(active_id, archived_id)
+    end
+  end
+
+  it 'returns [] for an unrecognised scope' do
+    with_tmp_project do |root|
+      expect(described_class.build(root: root, scope: 'bogus')).to eq([])
+    end
+  end
 end

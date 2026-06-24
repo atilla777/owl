@@ -68,6 +68,12 @@ RSpec.describe 'owl recall CLI' do
     task_id
   end
 
+  def active(root, title:, brief: nil)
+    task_id = setup_project(root, title: title)
+    write("#{root}/tasks/#{task_id}/brief.md", brief) if brief
+    task_id
+  end
+
   it 'emits {ok:true, matches:[{task_id,title,score,snippet}]} for a matching query' do
     with_tmp_project do |root|
       task_id = archive(root, title: 'Spec validation engine',
@@ -80,8 +86,9 @@ RSpec.describe 'owl recall CLI' do
       expect(body['ok']).to be(true)
       first = body['matches'].first
       expect(first['task_id']).to eq(task_id)
-      expect(first.keys).to contain_exactly('task_id', 'title', 'score', 'snippet')
+      expect(first.keys).to contain_exactly('task_id', 'title', 'score', 'snippet', 'scope')
       expect(first['score']).to be > 0
+      expect(first['scope']).to eq('archived')
     end
   end
 
@@ -139,6 +146,56 @@ RSpec.describe 'owl recall CLI' do
       exit_code, _, stderr = run(['recall', 'x', '--limit', 'NaN', '--root', root.to_s, '--json'], cwd: root)
       expect(exit_code).to eq(1)
       expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_arguments')
+    end
+  end
+
+  it 'finds an active task by its brief under --scope active, tagged scope:active' do
+    with_tmp_project do |root|
+      task_id = active(root, title: 'Active recall feature',
+                             brief: "# Problem\nactive tracker corpus token\n# Goal\nfind me\n")
+      archive(root, title: 'Archived noise', brief: "# Problem\narchived widgets\n# Goal\nx\n")
+
+      exit_code, stdout, = run(['recall', 'active tracker corpus token', '--scope', 'active',
+                                '--root', root.to_s, '--json'], cwd: root)
+      matches = JSON.parse(stdout)['matches']
+
+      expect(exit_code).to eq(0)
+      expect(matches.map { |m| m['task_id'] }).to include(task_id)
+      expect(matches.map { |m| m['scope'] }.uniq).to eq(['active'])
+    end
+  end
+
+  it 'searches both areas under --scope all with per-match scope labels' do
+    with_tmp_project do |root|
+      archive(root, title: 'Archived corpus item', brief: "# Problem\nscope all shared token\n# Goal\nx\n")
+      active(root, title: 'Active corpus item', brief: "# Problem\nscope all shared token\n# Goal\nx\n")
+
+      _, stdout, = run(['recall', 'scope all shared token', '--scope', 'all', '--root', root.to_s, '--json'], cwd: root)
+      matches = JSON.parse(stdout)['matches']
+
+      expect(matches.map { |m| m['scope'] }.sort).to eq(%w[active archived])
+    end
+  end
+
+  it 'defaults to --scope archive (active tasks excluded)' do
+    with_tmp_project do |root|
+      archived_id = archive(root, title: 'Archived default item', brief: "# Problem\ndefault scope token\n# Goal\nx\n")
+      active(root, title: 'Active default item', brief: "# Problem\ndefault scope token\n# Goal\nx\n")
+
+      _, stdout, = run(['recall', 'default scope token', '--root', root.to_s, '--json'], cwd: root)
+      matches = JSON.parse(stdout)['matches']
+
+      expect(matches.map { |m| m['task_id'] }).to eq([archived_id])
+      expect(matches.map { |m| m['scope'] }.uniq).to eq(['archived'])
+    end
+  end
+
+  it 'reports invalid_scope (exit 1) for an unknown --scope' do
+    with_tmp_project do |root|
+      setup_project(root, title: 't')
+      exit_code, _, stderr = run(['recall', 'x', '--scope', 'bogus', '--root', root.to_s, '--json'], cwd: root)
+      expect(exit_code).to eq(1)
+      expect(JSON.parse(stderr).dig('error', 'code')).to eq('invalid_scope')
     end
   end
 end

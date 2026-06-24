@@ -68,6 +68,13 @@ RSpec.describe Owl::Recall::Api do
     task_id
   end
 
+  # Create a live (non-terminal) task, optionally writing its brief.
+  def active_task(root, title:, brief: nil)
+    task_id = setup_project(root, title: title)
+    write("#{root}/tasks/#{task_id}/brief.md", brief) if brief
+    task_id
+  end
+
   describe '.recall' do
     it 'returns ranked {task_id,title,score,snippet} hashes sorted by score desc' do
       with_tmp_project do |root|
@@ -81,9 +88,10 @@ RSpec.describe Owl::Recall::Api do
         expect(matches).not_to be_empty
         expect(matches.first[:title]).to eq('Archive read command')
         match = matches.first
-        expect(match.keys).to contain_exactly(:task_id, :title, :score, :snippet)
+        expect(match.keys).to contain_exactly(:task_id, :title, :score, :snippet, :scope)
         expect(match[:score]).to be > 0
         expect(match[:snippet]).to be_a(String)
+        expect(match[:scope]).to eq('archived')
         scores = matches.map { |m| m[:score] }
         expect(scores).to eq(scores.sort.reverse)
       end
@@ -138,6 +146,77 @@ RSpec.describe Owl::Recall::Api do
 
     it 'uses the default limit constant' do
       expect(described_class::DEFAULT_LIMIT).to eq(10)
+    end
+  end
+
+  describe '.recall scope' do
+    it 'defaults to archive, excluding active tasks' do
+      with_tmp_project do |root|
+        archived_id = archive_task(root, title: 'Archived recall corpus item',
+                                         brief: "# Problem\nshared distinctive corpus token\n# Goal\nx\n")
+        active_task(root, title: 'Active other item',
+                          brief: "# Problem\nshared distinctive corpus token\n# Goal\nx\n")
+
+        matches = described_class.recall(root: root, query: 'shared distinctive corpus token')
+
+        expect(matches.map { |m| m[:task_id] }).to eq([archived_id])
+        expect(matches.map { |m| m[:scope] }.uniq).to eq(['archived'])
+      end
+    end
+
+    it 'finds an active task by its brief text under scope active' do
+      with_tmp_project do |root|
+        active_id = active_task(root, title: 'Active feature',
+                                      brief: "# Problem\nactive tracker recall corpus\n# Goal\nfind me\n")
+        archive_task(root, title: 'Archived feature',
+                           brief: "# Problem\narchived widgets gears\n# Goal\nx\n")
+
+        matches = described_class.recall(root: root, query: 'active tracker recall corpus', scope: 'active')
+
+        expect(matches.map { |m| m[:task_id] }).to include(active_id)
+        expect(matches.map { |m| m[:scope] }.uniq).to eq(['active'])
+      end
+    end
+
+    it 'falls back to the title for an active task without a brief' do
+      with_tmp_project do |root|
+        active_id = active_task(root, title: 'Nobrief distinctive heading')
+
+        matches = described_class.recall(root: root, query: 'nobrief distinctive heading', scope: 'active')
+
+        expect(matches.map { |m| m[:task_id] }).to include(active_id)
+      end
+    end
+
+    it 'searches both areas under scope all and labels each match' do
+      with_tmp_project do |root|
+        archive_task(root, title: 'Archived corpus item',
+                           brief: "# Problem\nrecall scope token alpha\n# Goal\nx\n")
+        active_task(root, title: 'Active corpus item',
+                          brief: "# Problem\nrecall scope token alpha\n# Goal\nx\n")
+
+        matches = described_class.recall(root: root, query: 'recall scope token alpha', scope: 'all')
+
+        expect(matches.map { |m| m[:scope] }.sort).to eq(%w[active archived])
+      end
+    end
+
+    it 'returns [] under scope active when there are no active tasks' do
+      with_tmp_project do |root|
+        archive_task(root, title: 'Archived only', brief: "# Problem\narchived token\n")
+
+        expect(described_class.recall(root: root, query: 'archived token', scope: 'active')).to eq([])
+      end
+    end
+
+    it 'returns an invalid_scope error for an unknown scope' do
+      with_tmp_project do |root|
+        result = described_class.recall(root: root, query: 'anything', scope: 'bogus')
+
+        expect(result).to be_a(Owl::Result::Err)
+        expect(result.code).to eq(:invalid_scope)
+        expect(result.details[:allowed]).to eq(%w[active archive all])
+      end
     end
   end
 end

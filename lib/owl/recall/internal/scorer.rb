@@ -33,7 +33,7 @@ module Owl
         def prepare(doc)
           tokens = Tokenizer.tokens(doc[:text])
           { task_id: doc[:task_id], title: doc[:title].to_s, text: doc[:text].to_s,
-            counts: tokens.tally, length: tokens.length }
+            scope: doc[:scope], counts: tokens.tally, length: tokens.length }
         end
 
         # idf with add-one smoothing: ln((1 + N) / (1 + df)) + 1.
@@ -53,7 +53,7 @@ module Owl
 
           score = doc[:length].zero? ? 0.0 : raw / Math.sqrt(doc[:length])
           { task_id: doc[:task_id], title: doc[:title], score: score.round(6),
-            snippet: snippet(doc, query) }
+            snippet: snippet(doc, query), scope: doc[:scope] }
         end
 
         def snippet(doc, query)
