@@ -9,6 +9,7 @@ require_relative '../backend'
 require_relative '../local'
 require_relative '../internal/default_template'
 require_relative '../internal/frontmatter_parser'
+require_relative '../internal/condition_evaluator'
 require_relative '../internal/graph_builder'
 require_relative '../internal/ready_resolver'
 require_relative '../internal/registry_loader'
@@ -28,6 +29,7 @@ module Owl
         GATE_CHILDREN_COMPLETE = 'children_complete'
         GATE_PLAN_APPROVED = 'plan_approved'
         CHILDREN_READY_AGGREGATES = %w[ready done].freeze
+        CONDITION_UNMET_REASON = 'condition_unmet'
 
         def initialize(root:)
           @root = root
@@ -330,13 +332,51 @@ module Owl
             task_id: task_id, payload: payload, ready: ready, definition_steps: definition_steps
           )
 
+          ready, conditional_skip = apply_conditional_gate(
+            task_id: task_id, ready: ready, definition_steps: definition_steps
+          )
+
           Result.ok(
             task_id: task_id.to_s,
             workflow_key: workflow_key,
             ready: ready,
             blocked_by_children: blocked_by_children,
-            awaiting_plan_approval: awaiting_plan_approval
+            awaiting_plan_approval: awaiting_plan_approval,
+            conditional_skip: conditional_skip
           )
+        end
+
+        # First conditional-logic gate: for each otherwise-ready step that
+        # declares a `when:` predicate, evaluate it against the named artifact's
+        # body (ConditionEvaluator has `@root`, keeping ReadyResolver pure). A
+        # false predicate moves the step out of `ready` into `conditional_skip`
+        # so the orchestrator auto-skips it (`condition_unmet`), unblocking its
+        # dependents. An invalid/unreadable predicate fails open — the step
+        # stays ready rather than silently dropping work; authoring-time
+        # `workflow validate` is the guard against malformed predicates.
+        # Returns [remaining_ready, conditional_skip_entries].
+        def apply_conditional_gate(task_id:, ready:, definition_steps:)
+          conditional = []
+          remaining = ready.reject do |entry|
+            predicate = conditional_predicate(definition_steps[entry[:id].to_s])
+            next false if predicate.nil?
+
+            evaluation = Internal::ConditionEvaluator.evaluate(
+              root: @root, task_id: task_id, predicate: predicate
+            )
+            next false unless evaluation.ok? && evaluation.value[:met] == false
+
+            conditional << { id: entry[:id].to_s, reason: CONDITION_UNMET_REASON }
+            true
+          end
+          [remaining, conditional]
+        end
+
+        def conditional_predicate(definition)
+          return nil unless definition.is_a?(Hash)
+
+          predicate = definition['when']
+          predicate.is_a?(Hash) ? predicate : nil
         end
 
         # Steps flagged `gate: plan_approved` (typically `implement`) are held

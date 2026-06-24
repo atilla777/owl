@@ -108,6 +108,28 @@
           "type": "string",
           "minLength": 1,
           "description": "Variant key used when the running task does not select one explicitly. Required when `variants` is present, must be one of its keys."
+        },
+        "when": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "artifact": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Key of a previously-created artifact whose body the predicate is evaluated against. Should reference a declared `artifacts:` key (a non-declared key is a non-fatal validate warning)."
+            },
+            "matches": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Regex (Ruby Regexp syntax). The predicate is true when the artifact body matches it. Mutually exclusive with `not_matches`."
+            },
+            "not_matches": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Regex (Ruby Regexp syntax). The predicate is true when the artifact body does NOT match it. Mutually exclusive with `matches`."
+            }
+          },
+          "description": "Optional conditional predicate evaluated against a prior artifact's body. Exactly one of `matches` / `not_matches` is required alongside `artifact`. When the predicate is false the otherwise-ready step is auto-skipped (`condition_unmet`), unblocking its dependents; a missing/unreadable artifact evaluates to false. Steps without `when:` are unaffected. Evaluated in a layer with `root` access — `ready_resolver` stays pure."
         }
       }
     },

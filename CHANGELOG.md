@@ -4,6 +4,32 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.15.0] - 2026-06-24
+
+### Added
+- **Conditional workflow steps — `when:` predicate + auto-skip (TASK-0028).**
+  A workflow step may now declare an optional `when: { artifact, matches | not_matches }`
+  predicate evaluated against a prior artifact's body. When the predicate is
+  false the otherwise-ready step is auto-skipped (`condition_unmet`), unblocking
+  its dependents exactly like a completed step — the engine's first conditional
+  logic, and a step toward branching workflows. Fully back-compatible: steps
+  without `when:` are unchanged.
+  - **Schema + validation.** `schemas/workflow.json` gains the `when` object on a
+    step; `owl workflow validate` rejects a malformed predicate (missing/empty
+    `artifact`, not exactly one of `matches`/`not_matches`, or an uncompilable
+    regex) and warns when `when.artifact` is not a declared `artifacts:` key.
+  - **Evaluation layer.** `Owl::Workflows::Internal::ConditionEvaluator.evaluate`
+    reads the named artifact's body through the Artifacts + Storage roles (never
+    raw FS); a missing/unreadable artifact safely evaluates to `met: false`.
+    `ready_resolver` stays a pure function — the predicate is evaluated in the
+    backend layer that has `root`.
+  - **Ready-steps + `owl next`.** `owl task ready-steps --json` adds a
+    `conditional_skip: [{id, reason}]` bucket (false-predicate steps are held out
+    of `ready`). `owl next` stays read-only and returns the new
+    `action.kind: "skip_conditional_step"` `{task_id, step_id, reason}`, surfaced
+    before `dispatch_step`; the orchestrator performs `owl step skip … --reason
+    condition_unmet` (existing API, unchanged) and loops.
+
 ## [0.14.0] - 2026-06-24
 
 ### Added

@@ -22,7 +22,7 @@ module Owl
         # (null when not applicable) so consumers can parse without probing.
         ACTION_FIELDS = {
           task_id: nil, step_id: nil, session_type: nil,
-          skill: nil, variant: nil, blocker: nil, children: nil
+          skill: nil, variant: nil, blocker: nil, children: nil, reason: nil
         }.freeze
 
         module_function
@@ -58,8 +58,11 @@ module Owl
           ready = Array(ready_value[:ready])
           blocked = Array(ready_value[:blocked_by_children])
           awaiting_plan = Array(ready_value[:awaiting_plan_approval])
+          conditional = Array(ready_value[:conditional_skip])
 
-          if ready.any?
+          if conditional.any?
+            skip_conditional_action(task_id: task_id, entry: conditional.first)
+          elsif ready.any?
             dispatch_action(root: root, task_id: task_id, step: ready.first,
                             workflow_key: ready_value[:workflow_key], task_payload: task_payload)
           elsif blocked.any?
@@ -102,6 +105,25 @@ module Owl
             step_id: step_id,
             blocker: "step '#{step_id}' is held by the plan-approval gate; approve with " \
                      "'owl plan approve #{task_id}' or request changes via 'owl step reopen #{task_id} plan'"
+          )
+        end
+
+        # A `when:`-conditional step whose predicate is false is held out of the
+        # ready set and surfaced here. `owl next` stays read-only: it advises the
+        # skip; the orchestrator performs `owl step skip TASK STEP --reason
+        # condition_unmet` (which unblocks dependents) and loops. A pending
+        # conditional skip is cleared before any dispatch so the real next step
+        # is not chosen while a stale conditional step still gates its dependents.
+        def skip_conditional_action(task_id:, entry:)
+          step_id = (entry[:id] || entry['id']).to_s
+          reason = (entry[:reason] || entry['reason'] || 'condition_unmet').to_s
+          action(
+            'skip_conditional_step',
+            task_id: task_id,
+            step_id: step_id,
+            reason: reason,
+            blocker: "step '#{step_id}' is held by a false `when:` predicate; auto-skip with " \
+                     "'owl step skip #{task_id} #{step_id} --reason #{reason}'"
           )
         end
 

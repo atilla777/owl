@@ -7,6 +7,7 @@ module Owl
         STRING_FIELDS = %w[id title skill kind context default_variant session_type tier drift_policy gate].freeze
         ARRAY_FIELDS = %w[requires creates uses_if_present].freeze
         BOOLEAN_FIELDS = %w[optional verify].freeze
+        HASH_FIELDS = %w[when].freeze
 
         module_function
 
@@ -24,6 +25,7 @@ module Owl
           STRING_FIELDS.each { |field| copy_string_field(step, normalized, field) }
           ARRAY_FIELDS.each  { |field| copy_array_field(step, normalized, field) }
           BOOLEAN_FIELDS.each { |field| copy_boolean_field(step, normalized, field) }
+          HASH_FIELDS.each { |field| copy_hash_field(step, normalized, field) }
           variants = step['variants'] || step[:variants]
           normalized['variants'] = normalize_variants(variants) if variants.is_a?(Hash)
           normalized
@@ -42,6 +44,15 @@ module Owl
         def copy_boolean_field(step, normalized, field)
           value = step.key?(field) ? step[field] : step[field.to_sym]
           normalized[field] = value == true unless value.nil?
+        end
+
+        def copy_hash_field(step, normalized, field)
+          value = step[field] || step[field.to_sym]
+          normalized[field] = stringify_keys(value) if value.is_a?(Hash)
+        end
+
+        def stringify_keys(hash)
+          hash.each_with_object({}) { |(key, value), acc| acc[key.to_s] = value }
         end
 
         def normalize_variants(variants)

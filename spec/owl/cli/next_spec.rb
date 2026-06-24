@@ -246,6 +246,88 @@ RSpec.describe 'owl next CLI subcommand' do
     end
   end
 
+  describe 'conditional when: steps' do
+    def write_brief_registry(root)
+      write("#{root}/.owl/artifacts.yaml", <<~YAML)
+        schema_version: 1
+        artifacts:
+          brief:
+            source: "artifacts/brief/artifact.yaml"
+      YAML
+      write("#{root}/.owl/artifacts/brief/artifact.yaml", <<~YAML)
+        id: brief
+        kind: markdown
+        default_template: templates/default.md
+      YAML
+      write("#{root}/.owl/artifacts/brief/templates/default.md", "# Brief\n")
+    end
+
+    def seed_conditional(root)
+      write("#{root}/.owl/workflows.yaml", <<~YAML)
+        schema_version: 1
+        workflows:
+          feat:
+            enabled: true
+            source: "workflows/feat/workflow.yaml"
+      YAML
+      write_brief_registry(root)
+      body = {
+        'id' => 'feat', 'kind' => 'task',
+        'artifacts' => { 'brief' => { 'type' => 'brief',
+                                      'storage' => { 'role' => 'tasks', 'path' => '{{task.id}}/brief.md' } } },
+        'steps' => [
+          { 'id' => 'brief', 'skill' => 'owl-step-discussion', 'session_type' => 'discussion', 'creates' => ['brief'] },
+          { 'id' => 'design', 'skill' => 'owl-step-discussion', 'session_type' => 'discussion',
+            'requires' => ['brief'], 'when' => { 'artifact' => 'brief', 'matches' => 'needs design' } },
+          { 'id' => 'plan', 'skill' => 'owl-step-execution', 'session_type' => 'execution', 'requires' => ['design'] }
+        ]
+      }
+      write("#{root}/.owl/workflows/feat/workflow.yaml", YAML.dump(body))
+    end
+
+    def complete_brief(root, body)
+      write("#{root}/tasks/TASK-0001/brief.md", body)
+      run(['step', 'start', 'TASK-0001', 'brief', '--root', root.to_s], cwd: root)
+      run(['step', 'complete', 'TASK-0001', 'brief', '--root', root.to_s], cwd: root)
+    end
+
+    it 'returns skip_conditional_step when the predicate is false, then dispatches the unblocked step after skip' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_conditional(root)
+        run(['task', 'create', '--workflow', 'feat', '--title', 't', '--root', root.to_s], cwd: root)
+        complete_brief(root, "# Brief\n\nA tiny change, nothing fancy.\n")
+
+        _exit, stdout, = run(['next', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
+        body = JSON.parse(stdout)
+        expect(body.dig('action', 'kind')).to eq('skip_conditional_step')
+        expect(body.dig('action', 'step_id')).to eq('design')
+        expect(body.dig('action', 'reason')).to eq('condition_unmet')
+
+        run(['step', 'skip', 'TASK-0001', 'design', '--reason', 'condition_unmet', '--root', root.to_s], cwd: root)
+
+        _exit2, stdout2, = run(['next', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
+        body2 = JSON.parse(stdout2)
+        expect(body2.dig('action', 'kind')).to eq('dispatch_step')
+        expect(body2.dig('action', 'step_id')).to eq('plan')
+      end
+    end
+
+    it 'dispatches the conditional step normally when the predicate is true' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_conditional(root)
+        run(['task', 'create', '--workflow', 'feat', '--title', 't', '--root', root.to_s], cwd: root)
+        complete_brief(root, "# Brief\n\nThis one needs design.\n")
+
+        _exit, stdout, = run(['next', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
+        body = JSON.parse(stdout)
+        expect(body.dig('action', 'kind')).to eq('dispatch_step')
+        expect(body.dig('action', 'step_id')).to eq('design')
+      end
+    end
+  end
+
   describe 'variant resolution on dispatch_step' do
     def seed_variant_feature(root)
       write("#{root}/.owl/workflows.yaml", <<~YAML)

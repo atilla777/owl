@@ -10,6 +10,7 @@ require_relative 'allowed_children_check'
 require_relative 'filesystem_refs_check'
 require_relative 'graph_builder'
 require_relative 'step_context_frontmatter_check'
+require_relative 'step_when_check'
 
 module Owl
   module Workflows
@@ -96,6 +97,7 @@ module Owl
 
           steps.each_with_index do |step, idx|
             errors.concat(validate_step_shape(step, idx))
+            errors.concat(StepWhenCheck.call(step, idx, declared_artifacts)) if step.is_a?(Hash)
           end
 
           graph_result = GraphBuilder.build(steps)

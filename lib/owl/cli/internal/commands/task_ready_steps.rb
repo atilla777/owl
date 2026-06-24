@@ -36,7 +36,8 @@ module Owl
                                   workflow_key: result.value[:workflow_key],
                                   ready: result.value[:ready],
                                   blocked_by_children: Array(result.value[:blocked_by_children]),
-                                  awaiting_plan_approval: Array(result.value[:awaiting_plan_approval])
+                                  awaiting_plan_approval: Array(result.value[:awaiting_plan_approval]),
+                                  conditional_skip: Array(result.value[:conditional_skip])
                                 })
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
