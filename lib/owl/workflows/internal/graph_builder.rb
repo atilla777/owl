@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../result'
+require_relative '../../internal/cycle_detector'
 
 module Owl
   module Workflows
@@ -104,33 +105,12 @@ module Owl
           Array(raw).map(&:to_s)
         end
 
+        # Delegates to the shared Owl::Internal::CycleDetector over an adjacency
+        # map projected from the step nodes' `:requires` edges. Kept as a named
+        # method so existing callers/tests keep their entrypoint.
         def detect_cycle(nodes)
-          color = {}
-          stack = []
-
-          catch(:cycle) do
-            nodes.each_key do |id|
-              visit_for_cycle(id, nodes, color, stack) if color[id].nil?
-            end
-            nil
-          end
-        end
-
-        def visit_for_cycle(id, nodes, color, stack)
-          color[id] = :gray
-          stack << id
-
-          nodes[id][:requires].each do |dep|
-            case color[dep]
-            when :gray
-              throw(:cycle, stack[stack.index(dep)..] + [dep])
-            when nil
-              visit_for_cycle(dep, nodes, color, stack)
-            end
-          end
-
-          color[id] = :black
-          stack.pop
+          adjacency = nodes.transform_values { |node| node[:requires] }
+          Owl::Internal::CycleDetector.detect(adjacency)
         end
       end
     end

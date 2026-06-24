@@ -1,0 +1,91 @@
+# frozen_string_literal: true
+
+require 'time'
+
+require_relative '../../result'
+require_relative 'claim_paths'
+require_relative 'exclusive_lease'
+require_relative 'index_reader'
+require_relative 'paths'
+
+module Owl
+  module Tasks
+    module Internal
+      # Dependency-aware readiness scan: returns the index entries whose every
+      # `blocked_by` dependency is complete, that carry no live claim, and whose
+      # own status is non-terminal. This is the cross-task counterpart to
+      # AvailabilityScanner — `available` stays dependency-blind by design;
+      # `ready` is the new dep-aware command.
+      module ReadyScanner
+        # A task's own status that removes it from the ready pool.
+        TERMINAL_STATUSES = %w[done archived abandoned].freeze
+        # A dependency status that counts as satisfied. An archived dependency
+        # leaves the index entirely, so it surfaces as a missing id and is also
+        # treated as complete (see `deps_complete?`).
+        DEP_COMPLETE_STATUSES = %w[done archived].freeze
+
+        module_function
+
+        def scan(root:, now: Time.now.utc)
+          paths_result = Paths.resolve(root: root)
+          return paths_result if paths_result.err?
+
+          index_result = IndexReader.read(index_path: paths_result.value[:index])
+          return index_result if index_result.err?
+
+          entries = Array(index_result.value[:tasks])
+          status_by_id = status_map(entries)
+          ready = entries.select do |entry|
+            ready_entry?(entry: entry, status_by_id: status_by_id, paths: paths_result.value, now: now)
+          end
+          Result.ok(ready: sort_entries(ready))
+        end
+
+        def status_map(entries)
+          entries.each_with_object({}) do |entry, acc|
+            next unless entry.is_a?(Hash)
+
+            acc[entry['id'].to_s] = entry['status'].to_s
+          end
+        end
+
+        def ready_entry?(entry:, status_by_id:, paths:, now:)
+          return false unless entry.is_a?(Hash)
+          return false if TERMINAL_STATUSES.include?(entry['status'].to_s)
+          return false unless deps_complete?(entry, status_by_id)
+
+          !live_claim?(paths: paths, task_id: entry['id'].to_s, now: now)
+        end
+
+        # A dependency is complete when its status is terminal-complete OR it is
+        # absent from the index (archived out of the roster, or a dangling ref —
+        # never crash, never block forever).
+        def deps_complete?(entry, status_by_id)
+          Array(entry['blocked_by']).all? do |dep|
+            dep_status = status_by_id[dep.to_s]
+            dep_status.nil? || DEP_COMPLETE_STATUSES.include?(dep_status)
+          end
+        end
+
+        def live_claim?(paths:, task_id:, now:)
+          read = ExclusiveLease.read(
+            path: ClaimPaths.claim_path(local_state_root: paths[:local_state], task_id: task_id)
+          )
+          return false if read.err?
+
+          existing = read.value
+          existing.is_a?(Hash) && !ExclusiveLease.expired?(existing, now)
+        end
+
+        def sort_entries(entries)
+          entries.sort_by { |entry| [-priority_of(entry), entry['created_at'].to_s, entry['id'].to_s] }
+        end
+
+        def priority_of(entry)
+          raw = entry['priority']
+          raw.is_a?(Integer) ? raw : raw.to_i
+        end
+      end
+    end
+  end
+end

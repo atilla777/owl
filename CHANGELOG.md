@@ -4,6 +4,42 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.13.0] - 2026-06-24
+
+### Added
+- **Cross-task dependencies + dependency-aware `ready` (TASK-0026).** Tasks now
+  carry a canonical `blocked_by: []` edge (ids that must reach a terminal status
+  before this task is runnable) in `task.yaml` and in each `tasks/index.yaml`
+  entry; the reverse `blocks`/dependents direction is never stored, but computed
+  by reverse-scanning the index. `schemas/task.json` gains an optional
+  `blocked_by` array (legacy task.yaml without it reads as `[]`). New CLI:
+  - `owl task dep add TASK --on DEP` / `owl task dep rm TASK --on DEP` — declare
+    or remove a dependency edge. `add` rejects self-dependencies
+    (`self_dependency`), unknown tasks (`task_not_found`), and any edge that
+    would close a cycle in the `blocked_by` graph (`dependency_cycle`, carrying
+    the cycle path). `rm` of an absent edge is a clean no-op.
+  - `owl task dep list TASK` — `{ blocked_by, blocks }` (dependents computed by
+    reverse index scan).
+  - `owl task ready` — tasks whose every `blocked_by` dependency is complete
+    (`done`/`archived`; an archived or deleted dependency counts as complete and
+    never crashes the scan), that carry no live claim, and whose own status is
+    non-terminal. Ranked priority desc then age, like `task available`.
+- **`Owl::Internal::CycleDetector`.** The DFS cycle walk was extracted from the
+  workflow graph builder into a shared adjacency-map detector now reused by both
+  workflow-step `requires` validation and cross-task `blocked_by` validation —
+  one implementation, no duplication.
+
+### Changed
+- **`owl task delete` cleans dangling dependency edges.** Deleting a task now
+  strips its id from every other live task's `blocked_by` before rebuilding the
+  index, so no dangling reference survives.
+
+### Notes
+- Scope boundary (by design): `owl task available` / `owl next` / auto-claim
+  remain dependency-blind in this release — `owl task ready` is the new
+  dep-aware command. Wiring deps into the orchestrator's auto-selection is a
+  flagged follow-up.
+
 ## [0.12.0] - 2026-06-24
 
 ### Added

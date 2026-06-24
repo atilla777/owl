@@ -49,6 +49,8 @@ module Owl
             task heartbeat          Extend a held lease before it expires: heartbeat TASK-ID --token T [--ttl N].
             task claims             List active claim leases across the repo (JSON).
             task available          List runnable, unclaimed tasks ranked best-first (JSON).
+            task ready              List dependency-ready tasks (all blocked_by deps complete, unclaimed, non-terminal), ranked best-first (JSON).
+            task dep                Manage cross-task dependencies: dep <add|rm> TASK --on DEP | dep list TASK (blocked_by + computed blocks).
             task set-priority       Set a task's integer priority: set-priority TASK-ID N.
             task set-status         Set a task's explicit lifecycle status: set-status TASK-ID <open|in_progress|blocked|on_hold|done|archived>.
             task label              Add or remove a label: label <add|rm> TASK-ID LABEL (add idempotent, rm of absent is a no-op).
@@ -99,7 +101,7 @@ module Owl
           'task' => %w[
             create list inspect use current ready-steps tree children parent
             aggregate-status abandon delete claim release heartbeat claims
-            available set-priority set-status label query adopt child index
+            available ready set-priority set-status label query adopt dep child index
           ],
           'plan' => %w[approve status],
           'step' => %w[start complete reopen reset skip invocation show report],

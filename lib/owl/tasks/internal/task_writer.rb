@@ -30,6 +30,7 @@ module Owl
             'created_at' => now.iso8601,
             'status' => 'open',
             'labels' => [],
+            'blocked_by' => [],
             'steps' => snapshot[:steps],
             'artifacts' => snapshot[:artifacts]
           }

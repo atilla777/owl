@@ -70,6 +70,7 @@ module Owl
             'created_at' => raw['created_at'],
             'status' => raw['status'] || 'open',
             'labels' => raw['labels'] || [],
+            'blocked_by' => raw['blocked_by'] || [],
             'archived_at' => raw['archived_at']
           }
         end

@@ -4,7 +4,9 @@ require_relative '../result'
 require_relative '../internal/backend_resolver'
 require_relative 'backend'
 require_relative 'backends/filesystem'
+require_relative 'internal/dependency_writer'
 require_relative 'internal/plan_approval'
+require_relative 'internal/ready_scanner'
 require_relative 'local'
 
 module Owl
@@ -49,6 +51,29 @@ module Owl
 
       def query(root:, filters: {})
         strip_local(with_backend(root) { |backend| backend.query(filters: filters) })
+      end
+
+      # Add a cross-task dependency: `task_id` becomes blocked_by `depends_on`.
+      # Rejects self-dependencies, unknown tasks, and cycles.
+      def add_dependency(root:, task_id:, depends_on:)
+        Internal::DependencyWriter.add(root: root, task_id: task_id, depends_on: depends_on)
+      end
+
+      # Remove a cross-task dependency edge. Clean no-op when absent.
+      def remove_dependency(root:, task_id:, depends_on:)
+        Internal::DependencyWriter.remove(root: root, task_id: task_id, depends_on: depends_on)
+      end
+
+      # Read a task's dependency edges: { blocked_by: [...], blocks: [...] }
+      # where `blocks` is the reverse-scanned dependents set.
+      def dependencies(root:, task_id:)
+        Internal::DependencyWriter.dependencies(root: root, task_id: task_id)
+      end
+
+      # Dependency-aware ready set: tasks whose `blocked_by` deps are all
+      # complete, that are unclaimed, and whose own status is non-terminal.
+      def ready(root:)
+        Internal::ReadyScanner.scan(root: root)
       end
 
       def claim(root:, task_id: nil, next_: false, ttl: nil, label: nil, steal: false)

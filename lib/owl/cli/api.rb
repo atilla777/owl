@@ -58,12 +58,14 @@ require_relative 'internal/commands/task_create'
 require_relative 'internal/commands/task_heartbeat'
 require_relative 'internal/commands/task_current'
 require_relative 'internal/commands/task_delete'
+require_relative 'internal/commands/task_dep'
 require_relative 'internal/commands/task_index_rebuild'
 require_relative 'internal/commands/task_inspect'
 require_relative 'internal/commands/task_label'
 require_relative 'internal/commands/task_list'
 require_relative 'internal/commands/task_parent'
 require_relative 'internal/commands/task_query'
+require_relative 'internal/commands/task_ready'
 require_relative 'internal/commands/task_ready_steps'
 require_relative 'internal/commands/task_release'
 require_relative 'internal/commands/task_set_priority'
@@ -299,7 +301,8 @@ module Owl
         'set-priority' => Internal::Commands::TaskSetPriority,
         'set-status' => Internal::Commands::TaskSetStatus,
         'query' => Internal::Commands::TaskQuery,
-        'adopt' => Internal::Commands::TaskAdopt
+        'adopt' => Internal::Commands::TaskAdopt,
+        'ready' => Internal::Commands::TaskReady
       }.freeze
 
       def dispatch_task(args, stdout:, stderr:, cwd:, env:)
@@ -309,6 +312,7 @@ module Owl
         when 'child' then dispatch_task_child(args, **nested_kwargs)
         when 'index' then dispatch_task_index(args, **nested_kwargs)
         when 'label' then dispatch_task_label(args, **nested_kwargs)
+        when 'dep' then dispatch_task_dep(args, **nested_kwargs)
         else
           command_module = TASK_SUBCOMMANDS[subcommand]
           return unknown_command(stderr, "task #{subcommand}".strip) unless command_module
@@ -363,6 +367,18 @@ module Owl
         when 'rm'  then Internal::Commands::TaskLabel.rm(**kwargs)
         else
           unknown_command(stderr, "task label #{subcommand}".strip)
+        end
+      end
+
+      def dispatch_task_dep(args, stdout:, stderr:, cwd:, env:)
+        subcommand = args.shift
+        kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
+        case subcommand
+        when 'add'  then Internal::Commands::TaskDep.add(**kwargs)
+        when 'rm'   then Internal::Commands::TaskDep.rm(**kwargs)
+        when 'list' then Internal::Commands::TaskDep.list(**kwargs)
+        else
+          unknown_command(stderr, "task dep #{subcommand}".strip)
         end
       end
 

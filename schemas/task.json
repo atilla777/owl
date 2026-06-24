@@ -27,6 +27,11 @@
       "type": "array",
       "items": { "type": "string" },
       "description": "Free-form labels for grouping and filtering. Mutated idempotently via `owl task label add|rm`; deduplicated and trimmed."
+    },
+    "blocked_by": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Cross-task dependency edge: ids of tasks that must reach a terminal status (`done`/`archived`) before this task is considered ready. Canonical direction — reverse `blocks`/dependents are not stored, but computed by reverse-scanning the index. Mutated via `owl task dep add|rm`, which rejects self-dependencies and cycles. A missing `blocked_by` reads as `[]` for legacy task.yaml."
     }
   }
 }
