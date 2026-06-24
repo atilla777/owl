@@ -133,13 +133,14 @@ module Owl
         with_backend(root) { |backend| backend.aggregate_status(task_id: task_id) }
       end
 
-      def child_create(root:, parent_id:, workflow:, title:, brief_body: nil)
+      def child_create(root:, parent_id:, workflow:, title:, brief_body: nil, validate_brief: false)
         strip_local(with_backend(root) do |backend|
           backend.child_create(
             parent_id: parent_id,
             workflow: workflow,
             title: title,
-            brief_body: brief_body
+            brief_body: brief_body,
+            validate_brief: validate_brief
           )
         end)
       end

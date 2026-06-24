@@ -7,6 +7,7 @@ require_relative '../../artifacts/api'
 require_relative '../../steps/internal/artifact_sha_collector'
 require_relative '../../steps/internal/status_writer'
 require_relative '../../storage/api'
+require_relative '../../validation/api'
 require_relative 'allowed_children_guard'
 require_relative 'paths'
 require_relative 'task_reader'
@@ -22,7 +23,7 @@ module Owl
 
         module_function
 
-        def call(root:, parent_id:, workflow:, title:, creator:, brief_body: nil)
+        def call(root:, parent_id:, workflow:, title:, creator:, brief_body: nil, validate_brief: false)
           paths_result = Paths.resolve(root: root)
           return paths_result if paths_result.err?
 
@@ -55,7 +56,8 @@ module Owl
             root: root,
             tasks_root: tasks_root,
             task_id: create_result.value[:task_id],
-            brief_body: brief_body
+            brief_body: brief_body,
+            validate_brief: validate_brief
           )
           return seed_result if seed_result.is_a?(Result::Err)
 
@@ -73,7 +75,7 @@ module Owl
           Result.ok(create_result.value.merge(payload: refreshed.value[:payload]))
         end
 
-        def seed_brief(root:, tasks_root:, task_id:, brief_body:)
+        def seed_brief(root:, tasks_root:, task_id:, brief_body:, validate_brief: false)
           descriptor = Owl::Artifacts::Api.resolve(
             root: root, task_id: task_id, artifact_key: BRIEF_ARTIFACT_KEY
           )
@@ -83,6 +85,18 @@ module Owl
           path.dirname.mkpath
           write_result = Owl::Storage::Api.write(path: path, contents: brief_body.to_s)
           return write_result if write_result.err?
+
+          # A brief body supplied inline (`--brief-body`) must pass the same
+          # artifact validation a normal author would satisfy — otherwise an
+          # invalid body would be silently accepted with `brief: done`. On
+          # failure we leave the written file in place (for the human to fix)
+          # but keep the brief step pending and surface a clear error. The
+          # `--brief PATH` path keeps its prior behaviour (no validation) for
+          # backward compatibility.
+          if validate_brief
+            invalid = brief_validation_error(root: root, task_id: task_id)
+            return invalid if invalid
+          end
 
           # Record content_sha so drift detection works for pre-authored briefs,
           # matching what `owl step complete` does for normally-completed steps.
@@ -97,6 +111,24 @@ module Owl
             task_id: task_id,
             step_id: BRIEF_STEP_ID,
             attributes: attributes
+          )
+        end
+
+        # Returns a Result::Err describing the blocking violations when the
+        # written brief fails validation, or nil when it is valid.
+        def brief_validation_error(root:, task_id:)
+          outcome = Owl::Validation::Api.artifact(
+            root: root, task_id: task_id, artifact_key: BRIEF_ARTIFACT_KEY
+          )
+          return outcome if outcome.is_a?(Result::Err)
+          return nil if outcome.value[:valid]
+
+          blocking = outcome.value[:violations].select { |v| (v[:level] || v['level']).to_s == 'error' }
+          descriptions = blocking.filter_map { |v| v[:description] || v['description'] }
+          Result.err(
+            code: :brief_invalid,
+            message: "Provided brief body failed validation: #{descriptions.join('; ')}",
+            details: { task_id: task_id.to_s, violations: blocking }
           )
         end
 

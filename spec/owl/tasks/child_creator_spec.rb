@@ -161,6 +161,99 @@ RSpec.describe 'Owl::Tasks::Api.child_create' do
     end
   end
 
+  def valid_brief_body
+    <<~BRIEF
+      ---
+      status: approved
+      summary: Child slice brief.
+      ---
+
+      # Brief
+
+      ## Problem
+
+      The parent needs this slice carved out so it can ship independently.
+
+      ## Goal
+
+      Deliver the slice behind a clear, testable boundary.
+
+      ## Scenarios
+
+      ### Requirement: The slice behaves as specified
+
+      The system SHALL deliver the sliced behaviour.
+
+      #### Scenario: happy path
+      - WHEN the user triggers the slice
+      - THEN the expected outcome is observed
+
+      ## Edge cases
+
+      - Empty input is rejected.
+
+      ## Acceptance criteria
+
+      - [ ] The slice is covered by a test.
+    BRIEF
+  end
+
+  it 'seeds a validated brief body when validate_brief is true' do
+    with_tmp_project do |root|
+      init_with_workflows(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+      result = Owl::Tasks::Api.child_create(
+        root: root, parent_id: 'TASK-0001', workflow: 'feature', title: 'C',
+        brief_body: valid_brief_body, validate_brief: true
+      )
+      expect(result.ok?).to be(true)
+
+      child_id = result.value[:task_id]
+      payload = YAML.safe_load((root + "tasks/#{child_id}/task.yaml").read, aliases: false, permitted_classes: [Time])
+      brief_step = payload['steps'].find { |s| s['id'] == 'brief' }
+      expect(brief_step['status']).to eq('done')
+    end
+  end
+
+  it 'returns brief_invalid and leaves brief pending when validate_brief rejects the body' do
+    with_tmp_project do |root|
+      init_with_workflows(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+      result = Owl::Tasks::Api.child_create(
+        root: root, parent_id: 'TASK-0001', workflow: 'feature', title: 'C',
+        brief_body: "not a valid brief\n", validate_brief: true
+      )
+      expect(result.err?).to be(true)
+      expect(result.code).to eq(:brief_invalid)
+      expect(result.message).to include('failed validation')
+
+      child_id = result.details[:task_id]
+      payload = YAML.safe_load((root + "tasks/#{child_id}/task.yaml").read, aliases: false, permitted_classes: [Time])
+      brief_step = payload['steps'].find { |s| s['id'] == 'brief' }
+      expect(brief_step['status']).to eq('pending')
+    end
+  end
+
+  it 'does not validate the brief body when validate_brief is false (default, --brief parity)' do
+    with_tmp_project do |root|
+      init_with_workflows(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+      result = Owl::Tasks::Api.child_create(
+        root: root, parent_id: 'TASK-0001', workflow: 'feature', title: 'C',
+        brief_body: "not a valid brief\n"
+      )
+      expect(result.ok?).to be(true)
+
+      child_id = result.value[:task_id]
+      payload = YAML.safe_load((root + "tasks/#{child_id}/task.yaml").read, aliases: false, permitted_classes: [Time])
+      brief_step = payload['steps'].find { |s| s['id'] == 'brief' }
+      expect(brief_step['status']).to eq('done')
+    end
+  end
+
   it 'leaves brief step pending when no brief_body provided' do
     with_tmp_project do |root|
       init_with_workflows(root)

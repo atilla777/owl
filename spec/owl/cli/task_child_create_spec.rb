@@ -2,15 +2,65 @@
 
 require 'json'
 require 'stringio'
+require 'yaml'
 
 require 'owl/cli/api'
 
 RSpec.describe 'owl task child create + owl task create --parent allowed_children enforcement' do
-  def run(argv, cwd:)
+  def run(argv, cwd:, stdin: nil)
     stdout = StringIO.new
     stderr = StringIO.new
-    exit_code = Owl::Cli::Api.run(argv: argv, stdout: stdout, stderr: stderr, env: {}, cwd: cwd.to_s)
-    [exit_code, stdout.string, stderr.string]
+    with_stdin(stdin) do
+      exit_code = Owl::Cli::Api.run(argv: argv, stdout: stdout, stderr: stderr, env: {}, cwd: cwd.to_s)
+      [exit_code, stdout.string, stderr.string]
+    end
+  end
+
+  def with_stdin(content)
+    return yield if content.nil?
+
+    original = $stdin
+    $stdin = StringIO.new(content)
+    yield
+  ensure
+    $stdin = original if content
+  end
+
+  def valid_brief
+    <<~BRIEF
+      ---
+      status: approved
+      summary: Child slice brief authored over stdin.
+      ---
+
+      # Brief
+
+      ## Problem
+
+      The parent needs this slice carved out so it can ship independently.
+
+      ## Goal
+
+      Deliver the slice behind a clear, testable boundary.
+
+      ## Scenarios
+
+      ### Requirement: The slice behaves as specified
+
+      The system SHALL deliver the sliced behaviour.
+
+      #### Scenario: happy path
+      - WHEN the user triggers the slice
+      - THEN the expected outcome is observed
+
+      ## Edge cases
+
+      - Empty input is rejected.
+
+      ## Acceptance criteria
+
+      - [ ] The slice is covered by a test.
+    BRIEF
   end
 
   def init_strict_composite(root)
@@ -101,6 +151,75 @@ RSpec.describe 'owl task child create + owl task create --parent allowed_childre
       expect(payload['ok']).to be(true)
       brief_step = payload.dig('task', 'steps').find { |s| s['id'] == 'brief' }
       expect(brief_step['status']).to eq('done')
+    end
+  end
+
+  it 'child create --brief-body - reads the brief from stdin and marks brief done (TASK-0024 FF5)' do
+    with_tmp_project do |root|
+      init_strict_composite(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+      exit_code, stdout, _stderr = run(
+        ['task', 'child', 'create', 'TASK-0001',
+         '--workflow', 'feature', '--title', 'C', '--brief-body', '-', '--root', root.to_s],
+        cwd: root, stdin: valid_brief
+      )
+
+      expect(exit_code).to eq(0)
+      payload = JSON.parse(stdout)
+      expect(payload['ok']).to be(true)
+      brief_step = payload.dig('task', 'steps').find { |s| s['id'] == 'brief' }
+      expect(brief_step['status']).to eq('done')
+
+      child_id = payload.dig('task', 'id')
+      expect((root + "tasks/#{child_id}/brief.md").read).to eq(valid_brief)
+      # No scratch brief is written under the parent's .briefs/ directory.
+      expect((root + 'tasks/TASK-0001/.briefs').exist?).to be(false)
+    end
+  end
+
+  it 'child create rejects --brief and --brief-body together with a clear error (TASK-0024 FF5)' do
+    with_tmp_project do |root|
+      init_strict_composite(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+      brief_file = root + 'child-brief.md'
+      brief_file.write(valid_brief)
+
+      exit_code, _stdout, stderr = run(
+        ['task', 'child', 'create', 'TASK-0001',
+         '--workflow', 'feature', '--title', 'C',
+         '--brief', brief_file.to_s, '--brief-body', '-', '--root', root.to_s],
+        cwd: root, stdin: valid_brief
+      )
+
+      expect(exit_code).to eq(1)
+      payload = JSON.parse(stderr)
+      expect(payload['ok']).to be(false)
+      expect(payload.dig('error', 'code')).to eq('invalid_arguments')
+      expect(payload.dig('error', 'message')).to include('mutually exclusive')
+    end
+  end
+
+  it 'child create --brief-body - rejects an invalid brief body with a validation error (TASK-0024 FF5)' do
+    with_tmp_project do |root|
+      init_strict_composite(root)
+      run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
+
+      exit_code, _stdout, stderr = run(
+        ['task', 'child', 'create', 'TASK-0001',
+         '--workflow', 'feature', '--title', 'C', '--brief-body', '-', '--root', root.to_s],
+        cwd: root, stdin: "not really a brief\n"
+      )
+
+      expect(exit_code).to eq(1)
+      payload = JSON.parse(stderr)
+      expect(payload['ok']).to be(false)
+      expect(payload.dig('error', 'code')).to eq('brief_invalid')
+      # The brief step is NOT silently marked done.
+      brief_path = root + 'tasks/TASK-0002/task.yaml'
+      payload_yaml = YAML.safe_load(brief_path.read, aliases: false, permitted_classes: [Time])
+      brief_step = payload_yaml['steps'].find { |s| s['id'] == 'brief' }
+      expect(brief_step['status']).to eq('pending')
     end
   end
 

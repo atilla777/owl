@@ -4,6 +4,35 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.11.0] - 2026-06-24
+
+### Added
+- **`owl task child create … --brief-body -` (TASK-0024).** Decompose can now
+  hand a child its brief markdown over stdin (or an inline `--brief-body BODY`),
+  matching the `--body -` convention of `workflow context set` /
+  `artifact-type template set`. This removes the need to write scratch brief
+  files under `tasks/<PARENT>/.briefs/`. `--brief` and `--brief-body` are
+  mutually exclusive (clear error if both are given). The supplied body now
+  passes normal brief artifact validation before the brief step is marked
+  `done`; an invalid body returns a clear `brief_invalid` error instead of
+  silently creating a "done" brief. Existing `--brief PATH` and no-brief
+  behaviour are unchanged.
+
+### Changed
+- **Decompose context drops the `.briefs/` scratch flow and requires
+  non-overlapping child scopes (TASK-0024).** `composite_feature/decompose`
+  now instructs the agent to pipe each child brief via `--brief-body -`
+  (heredoc/stdin) and to verify children have non-overlapping file scopes at
+  decompose time (a short checklist), rather than leaving overlap for review to
+  catch.
+- **Skill/overlay docs hardened (TASK-0024).** `_owl_conventions` /
+  `owl-step-execution` now state that dependent owl commands (a mutator followed
+  by a reader, especially `step start` → `step show`) must run sequentially,
+  never in parallel, to avoid a stale-read race. `owl-orchestrator` and the
+  `review_code` overlay now document that a `changes_required` verdict leaves
+  the review step `running` and the operator must
+  `owl step reset <TASK-ID> review_code` before re-running.
+
 ## [0.10.0] - 2026-06-24
 
 ### Added

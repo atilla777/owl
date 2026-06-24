@@ -25,10 +25,18 @@ module Owl
               )
             end
 
+            if options[:brief_path] && !options[:brief_body].nil?
+              return JsonPrinter.failure(
+                stderr,
+                code: :invalid_arguments,
+                message: '--brief and --brief-body are mutually exclusive; pass only one.'
+              )
+            end
+
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
 
-            brief_body = load_brief_body(options[:brief_path], stderr)
+            brief_body = resolve_brief_body(options, stderr)
             return brief_body if brief_body.is_a?(Integer)
 
             result = Owl::Tasks::Api.child_create(
@@ -36,20 +44,32 @@ module Owl
               parent_id: parent_id,
               workflow: options[:workflow],
               title: options[:title],
-              brief_body: brief_body
+              brief_body: brief_body,
+              validate_brief: !options[:brief_body].nil?
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            payload = {
-              ok: true,
-              parent_id: parent_id.to_s,
-              task: result.value[:payload]
-            }
-            paths = Owl::Tasks::Api.local_paths(root: root, task_id: result.value[:task_id])
-            payload[:task_path] = paths.value[:task_file].task_path if paths.ok?
-            JsonPrinter.success(stdout, payload)
+            JsonPrinter.success(stdout, success_payload(parent_id: parent_id, root: root, result: result))
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
+          end
+
+          def success_payload(parent_id:, root:, result:)
+            payload = { ok: true, parent_id: parent_id.to_s, task: result.value[:payload] }
+            paths = Owl::Tasks::Api.local_paths(root: root, task_id: result.value[:task_id])
+            payload[:task_path] = paths.value[:task_file].task_path if paths.ok?
+            payload
+          end
+
+          # Resolve the brief markdown from whichever source the invoker used:
+          # `--brief PATH` (read a host file) or `--brief-body BODY` (inline, or
+          # `-` to read stdin, mirroring `workflow context set --body -`). The
+          # two are mutually exclusive; that is enforced by the caller.
+          def resolve_brief_body(options, stderr)
+            return load_brief_body(options[:brief_path], stderr) unless options[:brief_path].nil?
+            return read_inline_brief_body(options[:brief_body], stderr) unless options[:brief_body].nil?
+
+            nil
           end
 
           def load_brief_body(path, stderr)
@@ -66,15 +86,28 @@ module Owl
             result.value
           end
 
+          def read_inline_brief_body(body_opt, stderr)
+            return $stdin.read if body_opt == '-'
+
+            body_opt
+          rescue StandardError => e
+            JsonPrinter.failure(stderr, code: :invalid_arguments, message: "Failed to read brief body: #{e.message}")
+          end
+
           def parse_options(argv)
-            options = { root: nil, workflow: nil, title: nil, brief_path: nil }
+            options = { root: nil, workflow: nil, title: nil, brief_path: nil, brief_body: nil }
             parser = OptionParser.new do |opts|
               opts.banner = 'Usage: owl task child create TASK-ID --workflow KEY --title TITLE ' \
-                            '[--brief PATH] [--root PATH] [--json]'
+                            '[--brief PATH | --brief-body -] [--root PATH] [--json]'
               opts.on('--workflow KEY', String) { |v| options[:workflow] = v }
               opts.on('--title TITLE', String) { |v| options[:title] = v }
               opts.on('--brief PATH', String, 'Pre-author child brief.md from PATH; marks brief step done') do |v|
                 options[:brief_path] = v
+              end
+              opts.on('--brief-body BODY', String,
+                      'Pre-author child brief.md from BODY (use - for stdin); marks brief step done. ' \
+                      'Mutually exclusive with --brief') do |v|
+                options[:brief_body] = v
               end
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
