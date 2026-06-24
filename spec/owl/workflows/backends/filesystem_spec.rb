@@ -346,7 +346,9 @@ RSpec.describe Owl::Workflows::Backends::Filesystem do
       with_tmp_project do |root|
         backend = described_class.new(root: root)
         parsed = YAML.safe_load(backend.default_template)
-        expect(parsed['workflows'].keys).to contain_exactly('feature', 'composite_feature')
+        expect(parsed['workflows'].keys).to contain_exactly(
+          'feature', 'composite_feature', 'hotfix', 'refactor', 'quick'
+        )
         expect(parsed['default_workflow']).to eq('feature')
         expect(parsed['schema_version']).to eq(1)
       end

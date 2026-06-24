@@ -6,7 +6,7 @@ require 'owl/workflows/backends/filesystem'
 
 RSpec.describe 'seeded workflows pass validate including filesystem refs' do
   GEM_ROOT = Pathname.new(File.expand_path('../../..', __dir__))
-  SEEDED_WORKFLOWS = %w[feature composite_feature].freeze
+  SEEDED_WORKFLOWS = %w[feature composite_feature hotfix refactor quick].freeze
 
   SEEDED_WORKFLOWS.each do |name|
     it "validates workflows/#{name}/workflow.yaml end-to-end" do

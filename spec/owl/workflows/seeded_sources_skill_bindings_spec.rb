@@ -14,10 +14,13 @@ RSpec.describe Owl::Workflows::Internal::SeededSources do
     workflow_files.to_h { |entry| [entry[:relative_path], YAML.safe_load(entry[:contents])] }
   end
 
-  it 'ships two seeded workflows' do
+  it 'ships five seeded workflows' do
     expect(parsed_workflows.keys).to contain_exactly(
       '.owl/workflows/feature/workflow.yaml',
-      '.owl/workflows/composite_feature/workflow.yaml'
+      '.owl/workflows/composite_feature/workflow.yaml',
+      '.owl/workflows/hotfix/workflow.yaml',
+      '.owl/workflows/refactor/workflow.yaml',
+      '.owl/workflows/quick/workflow.yaml'
     )
   end
 

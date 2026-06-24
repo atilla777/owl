@@ -15,10 +15,11 @@ TODO — what concrete outcome marks success.
 
 ## Scenarios
 
-Express scenarios with the formal Requirement/Scenario grammar — see
-`docs/agents/31_Owl_Requirement_Scenario_grammar.md`. Each `### Requirement:`
-states one RFC 2119 normative sentence and carries at least one
-`#### Scenario:` with `- WHEN` / `- THEN` (and optional `- AND`) clauses.
+Express scenarios with the formal Requirement/Scenario grammar — see the
+"Requirement/Scenario grammar" section in the brief step context. Each
+`### Requirement:` states one RFC 2119 normative sentence and carries at
+least one `#### Scenario:` with `- WHEN` / `- THEN` (and optional `- AND`)
+clauses.
 
 ### Requirement: TODO — name the behaviour
 

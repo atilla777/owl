@@ -27,8 +27,8 @@ validation:
       level: error
       description: >-
         Brief must define at least one formal "### Requirement:" heading
-        (see the Requirement/Scenario grammar in
-        docs/agents/31_Owl_Requirement_Scenario_grammar.md).
+        (see the "Requirement/Scenario grammar" section in the brief step
+        context).
   require_scenarios: true
   require_when_then: true
   # Enforced only at `owl step complete` (not by plain `owl artifact validate`):

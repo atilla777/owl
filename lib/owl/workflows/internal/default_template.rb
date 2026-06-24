@@ -30,6 +30,24 @@ module Owl
                 title: Composite feature
                 source: "workflows/composite_feature/workflow.yaml"
                 managed: true
+              hotfix:
+                enabled: true
+                version: "1.0"
+                title: Hotfix
+                source: "workflows/hotfix/workflow.yaml"
+                managed: true
+              refactor:
+                enabled: true
+                version: "1.0"
+                title: Refactor
+                source: "workflows/refactor/workflow.yaml"
+                managed: true
+              quick:
+                enabled: true
+                version: "1.0"
+                title: Quick
+                source: "workflows/quick/workflow.yaml"
+                managed: true
           YAML
         end
 

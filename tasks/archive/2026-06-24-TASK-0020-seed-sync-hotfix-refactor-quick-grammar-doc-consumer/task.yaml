@@ -1,0 +1,105 @@
+---
+id: TASK-0020
+title: Seed-sync hotfix/refactor/quick + grammar-doc в consumer-установки
+workflow:
+  key: feature
+  version: '1.0'
+  source: workflows/feature/workflow.yaml
+kind: task
+parent_id:
+priority: 100
+created_at: '2026-06-24T14:34:14Z'
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  creates:
+  - brief
+  default_variant: feature
+  variants:
+    feature:
+      context_file: brief.feature.context.md
+      title: Collect feature requirements
+    root_cause:
+      context_file: brief.root_cause.context.md
+      title: Find bug root cause
+    problem_inventory:
+      context_file: brief.problem_inventory.context.md
+      title: Inventory refactor problems
+  status: done
+  content_sha: 6e06c9d9c49686acc244a8bd4003064db9a2c20756fae15946a2bffc6cfd08bc
+- id: design
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: design.context.md
+  requires:
+  - brief
+  creates:
+  - design
+  status: skipped
+  skip_reason: Механический seed/registry/gemspec sync — отдельный дизайн не требуется;
+    решения зафиксированы в brief (Edge cases/Acceptance), детали — в plan.
+- id: plan
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: plan.context.md
+  requires:
+  - brief
+  creates:
+  - plan
+  status: done
+  content_sha: aa8bd309c66c8747622e118b3eeff224e91a6a3a516e2c56a9b05146b469796f
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - plan
+  status: done
+- id: review_code
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  verify: true
+  context_file: review_code.context.md
+  requires:
+  - implement
+  creates:
+  - review
+  - verification
+  status: done
+  content_sha:
+    review: 350446c2acacbe8eeb1feb3fcfdd09556e56f0dc7722d0cc8cab7bdc11715747
+    verification: 73f3abb7a5e3c8a328ab627ea647b878ce4ef665cfb62081c3d619dd1315c26e
+- id: merge_docs
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  publishes: true
+  context_file: merge_docs.context.md
+  requires:
+  - review_code
+  status: done
+- id: archive
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: archive.context.md
+  requires:
+  - merge_docs
+  status: done
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - archive
+  status: done
+artifacts: []
+status: archived
+archived_at: '2026-06-24T15:03:38Z'

@@ -4,6 +4,33 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.8.0] - 2026-06-24
+
+### Added
+- **Fresh `owl init`/`owl upgrade` now ships all five workflows
+  (TASK-0020).** `hotfix`, `refactor`, and `quick` were valid only in this
+  repo's dogfood `.owl/workflows/` copy and never reached the gem
+  distribution: `owl-cli.gemspec` packs the repo-root `workflows/` tree (which
+  held only `feature` + `composite_feature`) and the default registry in
+  `Owl::Workflows::Internal::DefaultTemplate.render` registered just those two.
+  The three workflow seed directories (`workflow.yaml` + every `*.context.md`)
+  are now promoted into repo-root `workflows/hotfix/`, `workflows/refactor/`,
+  and `workflows/quick/`, and the default registry registers all five as
+  `managed: true` (version `1.0`) with `source:` paths that resolve against the
+  shipped seed tree. This resolves the open question on `quick`: it ships as a
+  managed seed, not a registered-but-undelivered example.
+- **Requirement/Scenario grammar is now self-contained for consumer
+  projects.** The `brief` artifact's `required_patterns` description and the
+  brief context/template files previously pointed at
+  `docs/agents/31_Owl_Requirement_Scenario_grammar.md`, which is not seeded into
+  consumer projects (a dead link, observed in the `re` project). A compact
+  "Requirement/Scenario grammar" section (RFC 2119 `### Requirement:` headings +
+  `#### Scenario:` blocks with UPPERCASE `- WHEN` / `- THEN` lines) is now
+  embedded directly in every seeded brief context file across all five
+  workflows, and the brief `artifact.yaml` / `templates/default.md` references
+  point at that inline section instead of the unshipped doc path.
+  `docs/agents/31_…` remains the extended canon inside the Owl repo.
+
 ## [0.7.2] - 2026-06-23
 
 ### Fixed

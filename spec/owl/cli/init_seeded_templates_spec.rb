@@ -6,7 +6,7 @@ require 'yaml'
 
 require 'owl/cli/api'
 
-SEEDED_WORKFLOW_KEYS = %w[feature composite_feature].freeze
+SEEDED_WORKFLOW_KEYS = %w[feature composite_feature hotfix refactor quick].freeze
 SEEDED_ARTIFACT_KEYS = %w[brief design plan review decomposition verification spec spec_delta].freeze
 
 RSpec.describe 'owl init seeded workflow + artifact templates' do
@@ -17,7 +17,7 @@ RSpec.describe 'owl init seeded workflow + artifact templates' do
     [exit_code, stdout.string, stderr.string]
   end
 
-  it 'materializes a workflow.yaml for each of the two workflow types' do
+  it 'materializes a workflow.yaml for each of the five workflow types' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
 
@@ -57,14 +57,14 @@ RSpec.describe 'owl init seeded workflow + artifact templates' do
   end
 
   describe 'owl config validate --json' do
-    it 'returns valid: true with all two workflows + eight artifacts on a fresh init' do
+    it 'returns valid: true with all five workflows + eight artifacts on a fresh init' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
         exit_code, stdout, _stderr = run(['config', 'validate', '--root', root.to_s, '--json'], cwd: root)
         expect(exit_code).to eq(0)
         body = JSON.parse(stdout)
         expect(body['valid']).to be(true)
-        expect(body.dig('workflows', 'count')).to eq(2)
+        expect(body.dig('workflows', 'count')).to eq(5)
         expect(body.dig('workflows', 'keys')).to match_array(SEEDED_WORKFLOW_KEYS)
         expect(body.dig('artifacts', 'count')).to eq(8)
         expect(body.dig('artifacts', 'keys')).to match_array(SEEDED_ARTIFACT_KEYS)
