@@ -4,6 +4,27 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.8.1] - 2026-06-24
+
+### Fixed
+- **Concurrent roster mutations no longer lose updates (TASK-0021).** Every
+  write of `tasks/index.yaml` (create, archive, delete, abandon, set-priority,
+  and `owl task index rebuild`) now runs its full filesystem scan + atomic
+  write under a repo-scoped `Owl::Locks` lock named `index`. Previously the
+  index was rebuilt by a full scan and written atomically (write+rename), which
+  prevented a *corrupt* file but not a *lost update*: two sessions mutating the
+  roster at the same time would both scan, both write, and the last `rename`
+  would win — silently dropping the other session's change. This is exactly the
+  parallel-orchestrator scenario Owl encourages. A new
+  `Owl::Tasks::Internal::IndexWriter` centralizes the locked scan+write and all
+  roster writers route through it; the lock is a leaf (acquired immediately
+  before the scan, released in an `ensure`) so a normal single-session chain
+  (create → … → archive) never self-deadlocks, and it carries the same TTL /
+  auto-reclaim semantics as the other Owl locks so a crashed session cannot
+  wedge the roster permanently. Because the lock primitive is non-blocking,
+  `IndexWriter` retries acquisition with a short backoff up to a bounded
+  deadline to actually serialize contending writers instead of failing one.
+
 ## [0.8.0] - 2026-06-24
 
 ### Added

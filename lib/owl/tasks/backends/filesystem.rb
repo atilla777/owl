@@ -17,6 +17,7 @@ require_relative '../internal/deleter'
 require_relative '../internal/id_generator'
 require_relative '../internal/index_reader'
 require_relative '../internal/index_rebuilder'
+require_relative '../internal/index_writer'
 require_relative '../internal/parent_resolver'
 require_relative '../internal/paths'
 require_relative '../internal/task_reader'
@@ -95,7 +96,8 @@ module Owl
             payload: payload
           )
 
-          rebuild_result = Internal::IndexRebuilder.rebuild(
+          rebuild_result = Internal::IndexWriter.rebuild(
+            root: @root,
             tasks_root: paths[:tasks],
             index_path: paths[:index]
           )
@@ -267,7 +269,8 @@ module Owl
           paths_result = Internal::Paths.resolve(root: @root)
           return paths_result if paths_result.err?
 
-          rebuild_result = Internal::IndexRebuilder.rebuild(
+          rebuild_result = Internal::IndexWriter.rebuild(
+            root: @root,
             tasks_root: paths_result.value[:tasks],
             index_path: paths_result.value[:index]
           )
@@ -361,7 +364,7 @@ module Owl
           payload['priority'] = priority
           Internal::TaskWriter.write(tasks_root: paths[:tasks], task_id: task_id, payload: payload)
 
-          rebuild = Internal::IndexRebuilder.rebuild(tasks_root: paths[:tasks], index_path: paths[:index])
+          rebuild = Internal::IndexWriter.rebuild(root: @root, tasks_root: paths[:tasks], index_path: paths[:index])
           return rebuild if rebuild.err?
 
           Result.ok(task_id: task_id.to_s, priority: priority)

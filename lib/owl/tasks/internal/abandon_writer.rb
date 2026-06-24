@@ -5,7 +5,7 @@ require 'time'
 require_relative '../../result'
 require_relative 'archive/claim_resetter'
 require_relative 'atomic_yaml_writer'
-require_relative 'index_rebuilder'
+require_relative 'index_writer'
 require_relative 'paths'
 require_relative 'task_reader'
 
@@ -39,11 +39,11 @@ module Owl
           payload['abandon_reason'] = reason unless reason.nil?
 
           AtomicYamlWriter.write(path: read.value[:path], payload: payload)
-          persist(paths: paths_result.value, task_id: task_id, payload: payload, path: read.value[:path])
+          persist(root: root, paths: paths_result.value, task_id: task_id, payload: payload, path: read.value[:path])
         end
 
-        def persist(paths:, task_id:, payload:, path:)
-          rebuild = IndexRebuilder.rebuild(tasks_root: paths[:tasks], index_path: paths[:index])
+        def persist(root:, paths:, task_id:, payload:, path:)
+          rebuild = IndexWriter.rebuild(root: root, tasks_root: paths[:tasks], index_path: paths[:index])
           return rebuild if rebuild.err?
 
           Archive::ClaimResetter.delete_if_present(local_state_root: paths[:local_state], task_id: task_id)

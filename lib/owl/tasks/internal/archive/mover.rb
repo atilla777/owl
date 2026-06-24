@@ -5,7 +5,7 @@ require 'pathname'
 
 require_relative '../../../result'
 require_relative '../atomic_yaml_writer'
-require_relative '../index_rebuilder'
+require_relative '../index_writer'
 require_relative 'path_rename'
 
 module Owl
@@ -16,14 +16,15 @@ module Owl
           module_function
 
           def call(source_dir:, destination_path:, archived_payload:, task_yaml_relative:,
-                   tasks_root:, index_path:, task_id:)
+                   tasks_root:, index_path:, task_id:, root:)
             state = build_state(
               source_dir: source_dir,
               destination_path: destination_path,
               task_yaml_relative: task_yaml_relative,
               tasks_root: tasks_root,
               index_path: index_path,
-              task_id: task_id
+              task_id: task_id,
+              root: root
             )
 
             write_archived_yaml(state, archived_payload)
@@ -38,7 +39,7 @@ module Owl
           end
 
           def build_state(source_dir:, destination_path:, task_yaml_relative:,
-                          tasks_root:, index_path:, task_id:)
+                          tasks_root:, index_path:, task_id:, root:)
             source = Pathname.new(source_dir.to_s)
             {
               source: source,
@@ -47,7 +48,8 @@ module Owl
               previous_task_yaml_bytes: nil,
               tasks_root: tasks_root,
               index_path: index_path,
-              task_id: task_id
+              task_id: task_id,
+              root: root
             }
           end
 
@@ -74,17 +76,23 @@ module Owl
           end
 
           def rebuild_index(state)
-            Owl::Tasks::Internal::IndexRebuilder.rebuild(
-              tasks_root: state[:tasks_root], index_path: state[:index_path]
+            result = Owl::Tasks::Internal::IndexWriter.rebuild(
+              root: state[:root], tasks_root: state[:tasks_root], index_path: state[:index_path]
             )
+            return archive_index_failed(state, result.message) if result.err?
+
             nil
           rescue StandardError => e
+            archive_index_failed(state, e.message, error_class: e.class.name)
+          end
+
+          def archive_index_failed(state, reason, error_class: nil)
             rollback_rename(state)
             restore_task_yaml(state)
             Result.err(
               code: :archive_index_rebuild_failed,
-              message: "Failed to rebuild index after archive: #{e.message}",
-              details: { reason: e.message, error_class: e.class.name }
+              message: "Failed to rebuild index after archive: #{reason}",
+              details: { reason: reason, error_class: error_class }
             )
           end
 

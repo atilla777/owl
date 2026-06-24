@@ -5,7 +5,7 @@ require 'pathname'
 
 require_relative '../../result'
 require_relative 'archive/claim_resetter'
-require_relative 'index_rebuilder'
+require_relative 'index_writer'
 require_relative 'paths'
 
 module Owl
@@ -29,7 +29,8 @@ module Owl
 
           FileUtils.rm_rf(task_dir.to_s)
 
-          rebuild = IndexRebuilder.rebuild(
+          rebuild = IndexWriter.rebuild(
+            root: root,
             tasks_root: paths_result.value[:tasks],
             index_path: paths_result.value[:index]
           )

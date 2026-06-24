@@ -1,0 +1,104 @@
+---
+id: TASK-0021
+title: Защитить запись tasks/index.yaml локом (гонки create/archive)
+workflow:
+  key: hotfix
+  version: '1.0'
+  source: workflows/hotfix/workflow.yaml
+kind: task
+parent_id:
+priority: 90
+created_at: '2026-06-24T14:34:14Z'
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  creates:
+  - brief
+  default_variant: feature
+  variants:
+    feature:
+      context_file: brief.feature.context.md
+      title: Collect feature requirements
+    root_cause:
+      context_file: brief.root_cause.context.md
+      title: Find bug root cause
+    problem_inventory:
+      context_file: brief.problem_inventory.context.md
+      title: Inventory refactor problems
+  status: done
+  content_sha: 57de25b560f4746b256f60da632e7d3588374ee2aff05ba89a8a2bacf9015216
+- id: design
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: design.context.md
+  requires:
+  - brief
+  creates:
+  - design
+  status: skipped
+  skip_reason: Узкое concurrency-hardening изменение; решения в brief, детали — в
+    plan.
+- id: plan
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: plan.context.md
+  requires:
+  - brief
+  creates:
+  - plan
+  status: done
+  content_sha: 62655b5e7621d34bc5ea8a0c038bd62499bbd620cbf020af915748379d176ec3
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - plan
+  creates:
+  - verification
+  status: done
+  content_sha: 1d5f9df50e83993801d9a2a5b91b1afda87df538dd00c05ab7bfeaf8469aca7f
+- id: review_code
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: review_code.context.md
+  requires:
+  - implement
+  creates:
+  - review
+  status: done
+  content_sha: a4dc7613a4677021027e8405e82ba45ba5872761940801716171b4390d28c19c
+- id: merge_docs
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  publishes: true
+  context_file: merge_docs.context.md
+  requires:
+  - review_code
+  status: done
+- id: archive
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: archive.context.md
+  requires:
+  - merge_docs
+  status: done
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - archive
+  status: done
+artifacts: []
+status: archived
+archived_at: '2026-06-24T15:24:39Z'
