@@ -4,6 +4,17 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.16.1] - 2026-06-25
+
+### Fixed
+- **`owl step reset` now clears the active-step lock (TASK-0031).** Resetting a
+  running step moved its status back to `pending` but left the per-task
+  active-step lock (`.owl/local/active_steps/<TASK>.yaml`) pointing at the reset
+  step, wedging the task: any later `step start` / `step complete` of another
+  step was rejected with `active-step lock relates to a different step`. The
+  reset command now releases the lock (mirroring `step complete`), but only when
+  the lock refers to the step being reset; it is a no-op when no lock is present.
+
 ## [0.16.0] - 2026-06-25
 
 ### Changed

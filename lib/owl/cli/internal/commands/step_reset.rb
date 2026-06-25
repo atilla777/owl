@@ -3,6 +3,7 @@
 require 'optparse'
 
 require_relative '../../../steps/api'
+require_relative '../../../steps/internal/active_step_lock'
 require_relative '../json_printer'
 require_relative 'step_id_resolver'
 require_relative 'task_support'
@@ -30,6 +31,8 @@ module Owl
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
+            clear_active_step_lock(root: root, options: options)
+
             payload = {
               ok: true,
               task_id: options[:task_id],
@@ -42,6 +45,21 @@ module Owl
             JsonPrinter.success(stdout, payload)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
+          end
+
+          # Release the per-task active-step lock so the reset task is free for
+          # the next `step start`/`step complete`. Mirrors `step complete`, which
+          # clears the lock after a successful state change. Only clears when the
+          # lock refers to the step just reset, so a lock for a different step is
+          # left untouched; a no-op when no lock exists.
+          def clear_active_step_lock(root:, options:)
+            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root, task_id: options[:task_id])
+            return unless lock.ok? && lock.value
+            return unless Owl::Steps::Internal::ActiveStepLock.matches?(
+              lock.value, task_id: options[:task_id], step_id: options[:step_id]
+            )
+
+            Owl::Steps::Internal::ActiveStepLock.clear(root: root, task_id: options[:task_id])
           end
 
           def parse_options(argv)

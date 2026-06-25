@@ -229,6 +229,59 @@ RSpec.describe 'owl step ... and owl task ready-steps CLI subcommands' do
         expect(error['details']['locked_step_id']).to eq('a')
       end
     end
+
+    it 'reset releases the active-step lock so the task is free again' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        lock = Pathname.new("#{root}/.owl/local/active_steps/#{task_id}.yaml")
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(lock).to exist
+
+        reset_code, = run(['step', 'reset', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(reset_code).to eq(0)
+        expect(lock).not_to exist
+
+        # The task is no longer wedged: a fresh `step start` succeeds.
+        start_code, out, = run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(start_code).to eq(0)
+        expect(JSON.parse(out).dig('step', 'status')).to eq('running')
+      end
+    end
+
+    it 'reset succeeds when no active-step lock is present (no-op clear)' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        lock = Pathname.new("#{root}/.owl/local/active_steps/#{task_id}.yaml")
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        lock.delete # simulate a lock-less running step
+
+        reset_code, = run(['step', 'reset', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(reset_code).to eq(0)
+        expect(lock).not_to exist
+      end
+    end
+
+    it 'reset leaves a lock that refers to a different step untouched' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        lock = Pathname.new("#{root}/.owl/local/active_steps/#{task_id}.yaml")
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        # Simulate a drifted lock that points at a different step.
+        write(lock.to_s, <<~YAML)
+          ---
+          schema_version: 1
+          task_id: #{task_id}
+          step_id: b
+          session_type: execution
+          declared_at: '2026-06-25T00:00:00Z'
+        YAML
+
+        reset_code, = run(['step', 'reset', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(reset_code).to eq(0)
+        expect(lock).to exist
+        expect(YAML.safe_load(lock.read)['step_id']).to eq('b')
+      end
+    end
   end
 
   describe 'unknown step subcommand' do
