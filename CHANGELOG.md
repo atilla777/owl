@@ -4,6 +4,27 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.18.0] - 2026-06-25
+
+### Changed
+- **Per-task mutation lock serializes every `task.yaml` read-modify-write
+  (TASK-0035).** Tracker operations (`set-status`, label add/remove, dependency
+  add/remove, abandon, priority, step-variant, plan approve/clear) do not take
+  the per-task claim lease, so they could race a concurrent step mutation of the
+  SAME task from another session and silently lose an update (last-write-wins).
+  Every mutator now wraps its whole read-modify-write of `tasks/<id>/task.yaml`
+  in a new `Owl::Tasks::Internal::TaskMutationLock` keyed by a repo-scoped
+  `Owl::Locks` lock named `task-<id>` (blocking acquire built from the
+  non-blocking primitive, 10s deadline with 20ms backoff). The read always
+  observes the previous writer's committed state, so the lost update is
+  prevented. Mutations of DIFFERENT tasks use distinct lock names and still run
+  fully in parallel. Lock ordering is `task-lock -> index-lock` (the inner
+  `IndexWriter.rebuild` runs from inside the task-lock), and same-task
+  sequential updates (e.g. `reopen --cascade`) each take and release the lock in
+  turn — never nested — so the non-reentrant FileLock cannot self-deadlock.
+  Single-threaded behavior is unchanged (the lock is taken and dropped
+  instantly).
+
 ## [0.17.2] - 2026-06-25
 
 ### Added

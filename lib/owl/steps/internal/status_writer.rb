@@ -2,15 +2,29 @@
 
 require_relative '../../result'
 require_relative '../../tasks/internal/atomic_yaml_writer'
+require_relative '../../tasks/internal/task_mutation_lock'
 require_relative '../../tasks/internal/task_reader'
 
 module Owl
   module Steps
     module Internal
+      # Writes a single step's status/attributes into the owning task.yaml. The
+      # read-modify-write of the whole `steps` array runs under the per-task
+      # mutation lock (keyed by `root` + `task_id`) so a concurrent tracker
+      # mutation (set-status/label/dep/...) of the same task cannot clobber the
+      # step update, and vice-versa. Sequential same-task updates (e.g. a
+      # `reopen --cascade`) each take and release the lock in turn — never
+      # nested — so they do not self-deadlock the non-reentrant FileLock.
       module StatusWriter
         module_function
 
-        def update(tasks_root:, task_id:, step_id:, attributes:)
+        def update(root:, tasks_root:, task_id:, step_id:, attributes:)
+          Owl::Tasks::Internal::TaskMutationLock.with_lock(root: root, task_id: task_id) do
+            locked_update(tasks_root: tasks_root, task_id: task_id, step_id: step_id, attributes: attributes)
+          end
+        end
+
+        def locked_update(tasks_root:, task_id:, step_id:, attributes:)
           read = Owl::Tasks::Internal::TaskReader.read(tasks_root: tasks_root, task_id: task_id)
           return read if read.err?
 

@@ -59,6 +59,7 @@ module Owl
         end
 
         strip_local(Internal::StatusWriter.update(
+                      root: root,
                       tasks_root: paths.value[:tasks],
                       task_id: task_id,
                       step_id: step_id,
@@ -108,6 +109,7 @@ module Owl
         attributes['content_sha'] = sha_result.value if sha_result.ok? && !sha_result.value.nil?
 
         write = strip_local(Internal::StatusWriter.update(
+                              root: root,
                               tasks_root: paths.value[:tasks],
                               task_id: task_id,
                               step_id: step_id,
@@ -163,6 +165,7 @@ module Owl
           next unless target_status == 'done'
 
           write_result = Internal::StatusWriter.update(
+            root: root,
             tasks_root: paths.value[:tasks],
             task_id: task_id,
             step_id: target_id,
@@ -176,7 +179,7 @@ module Owl
         # Reopening the `plan` step (directly or via cascade) invalidates any
         # recorded plan approval so a stale plan cannot pass the plan_approved gate.
         if reopened.include?(Owl::Tasks::Internal::PlanApproval::PLAN_STEP_ID)
-          Owl::Tasks::Internal::PlanApproval.clear(tasks_root: paths.value[:tasks], task_id: task_id)
+          Owl::Tasks::Internal::PlanApproval.clear(root: root, task_id: task_id)
         end
 
         Result.ok(task_id: task_id.to_s, reopened: reopened)
@@ -258,6 +261,7 @@ module Owl
         end
 
         strip_local(Internal::StatusWriter.update(
+                      root: root,
                       tasks_root: paths.value[:tasks],
                       task_id: task_id,
                       step_id: step_id,
@@ -287,6 +291,7 @@ module Owl
         end
 
         strip_local(Internal::StatusWriter.update(
+                      root: root,
                       tasks_root: paths.value[:tasks],
                       task_id: task_id,
                       step_id: step_id,
@@ -326,6 +331,7 @@ module Owl
         end
 
         strip_local(Internal::StatusWriter.update(
+                      root: root,
                       tasks_root: paths.value[:tasks],
                       task_id: task_id,
                       step_id: step_id,

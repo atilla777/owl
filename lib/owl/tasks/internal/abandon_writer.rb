@@ -7,6 +7,7 @@ require_relative 'archive/claim_resetter'
 require_relative 'atomic_yaml_writer'
 require_relative 'index_writer'
 require_relative 'paths'
+require_relative 'task_mutation_lock'
 require_relative 'task_reader'
 
 module Owl
@@ -19,7 +20,13 @@ module Owl
           paths_result = Paths.resolve(root: root)
           return paths_result if paths_result.err?
 
-          read = TaskReader.read(tasks_root: paths_result.value[:tasks], task_id: task_id)
+          TaskMutationLock.with_lock(root: root, task_id: task_id) do
+            locked_call(root: root, paths: paths_result.value, task_id: task_id, reason: reason, now: now)
+          end
+        end
+
+        def locked_call(root:, paths:, task_id:, reason:, now:)
+          read = TaskReader.read(tasks_root: paths[:tasks], task_id: task_id)
           return read if read.err?
 
           payload = read.value[:payload]
@@ -39,7 +46,7 @@ module Owl
           payload['abandon_reason'] = reason unless reason.nil?
 
           AtomicYamlWriter.write(path: read.value[:path], payload: payload)
-          persist(root: root, paths: paths_result.value, task_id: task_id, payload: payload, path: read.value[:path])
+          persist(root: root, paths: paths, task_id: task_id, payload: payload, path: read.value[:path])
         end
 
         def persist(root:, paths:, task_id:, payload:, path:)

@@ -107,6 +107,7 @@ module Owl
           attributes['content_sha'] = sha_result.value if sha_result.ok? && !sha_result.value.nil?
 
           Owl::Steps::Internal::StatusWriter.update(
+            root: root,
             tasks_root: tasks_root,
             task_id: task_id,
             step_id: BRIEF_STEP_ID,

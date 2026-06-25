@@ -6,6 +6,7 @@ require_relative '../../result'
 require_relative 'claim_paths'
 require_relative 'exclusive_lease'
 require_relative 'paths'
+require_relative 'task_mutation_lock'
 require_relative 'task_reader'
 require_relative 'task_writer'
 
@@ -45,17 +46,23 @@ module Owl
           paths = Paths.resolve(root: root)
           return paths if paths.err?
 
-          read_result = TaskReader.read(tasks_root: paths.value[:tasks], task_id: task_id)
+          TaskMutationLock.with_lock(root: root, task_id: task_id) do
+            locked_approve(root: root, paths: paths.value, task_id: task_id, token: token, now: now)
+          end
+        end
+
+        def locked_approve(root:, paths:, task_id:, token:, now:)
+          read_result = TaskReader.read(tasks_root: paths[:tasks], task_id: task_id)
           return unknown_task(task_id) if read_result.err?
 
           payload = read_result.value[:payload]
           plan_check = ensure_plan_completed(payload, task_id)
           return plan_check if plan_check
 
-          lease_check = ensure_lease_free(paths: paths.value, task_id: task_id, token: token, now: now)
+          lease_check = ensure_lease_free(paths: paths, task_id: task_id, token: token, now: now)
           return lease_check if lease_check
 
-          finalize_approval(root: root, paths: paths.value, task_id: task_id, payload: payload, now: now)
+          finalize_approval(root: root, paths: paths, task_id: task_id, payload: payload, now: now)
         end
 
         def status(root:, task_id:)
@@ -77,7 +84,18 @@ module Owl
         end
 
         # Drop a recorded approval. Idempotent: a no-op when none is present.
-        def clear(tasks_root:, task_id:)
+        # Takes `root:` (not `tasks_root:`) so the read-modify-write can run under
+        # the per-task mutation lock, consistent with `approve`.
+        def clear(root:, task_id:)
+          paths = Paths.resolve(root: root)
+          return paths if paths.err?
+
+          TaskMutationLock.with_lock(root: root, task_id: task_id) do
+            locked_clear(tasks_root: paths.value[:tasks], task_id: task_id)
+          end
+        end
+
+        def locked_clear(tasks_root:, task_id:)
           read_result = TaskReader.read(tasks_root: tasks_root, task_id: task_id)
           return read_result if read_result.err?
 

@@ -6,6 +6,7 @@ require_relative 'atomic_yaml_writer'
 require_relative 'index_reader'
 require_relative 'index_writer'
 require_relative 'paths'
+require_relative 'task_mutation_lock'
 require_relative 'task_reader'
 require_relative 'task_schema'
 
@@ -31,19 +32,24 @@ module Owl
           paths_result = Paths.resolve(root: root)
           return paths_result if paths_result.err?
 
-          context = read_pair(paths: paths_result.value, task_id: task_id, depends_on: depends_on)
+          TaskMutationLock.with_lock(root: root, task_id: task_id) do
+            locked_add(root: root, paths: paths_result.value, task_id: task_id, depends_on: depends_on)
+          end
+        end
+
+        def locked_add(root:, paths:, task_id:, depends_on:)
+          context = read_pair(paths: paths, task_id: task_id, depends_on: depends_on)
           return context if context.is_a?(Owl::Result::Err)
 
           read, blocked_by = context
           return Result.ok(task_id: task_id, blocked_by: blocked_by) if blocked_by.include?(depends_on)
 
-          cycle = guard_acyclic(paths: paths_result.value, task_id: task_id, depends_on: depends_on,
-                                blocked_by: blocked_by)
+          cycle = guard_acyclic(paths: paths, task_id: task_id, depends_on: depends_on, blocked_by: blocked_by)
           return cycle if cycle
 
           payload = read.value[:payload]
           payload['blocked_by'] = blocked_by + [depends_on]
-          persist(root: root, paths: paths_result.value, read: read, payload: payload)
+          persist(root: root, paths: paths, read: read, payload: payload)
         end
 
         def remove(root:, task_id:, depends_on:)
@@ -53,7 +59,13 @@ module Owl
           paths_result = Paths.resolve(root: root)
           return paths_result if paths_result.err?
 
-          read = TaskReader.read(tasks_root: paths_result.value[:tasks], task_id: task_id)
+          TaskMutationLock.with_lock(root: root, task_id: task_id) do
+            locked_remove(root: root, paths: paths_result.value, task_id: task_id, depends_on: depends_on)
+          end
+        end
+
+        def locked_remove(root:, paths:, task_id:, depends_on:)
+          read = TaskReader.read(tasks_root: paths[:tasks], task_id: task_id)
           return read if read.err?
 
           payload = read.value[:payload]
@@ -61,7 +73,7 @@ module Owl
           return Result.ok(task_id: task_id, blocked_by: blocked_by) unless blocked_by.include?(depends_on)
 
           payload['blocked_by'] = blocked_by - [depends_on]
-          persist(root: root, paths: paths_result.value, read: read, payload: payload)
+          persist(root: root, paths: paths, read: read, payload: payload)
         end
 
         def dependencies(root:, task_id:)

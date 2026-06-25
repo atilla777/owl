@@ -23,6 +23,7 @@ require_relative '../internal/parent_resolver'
 require_relative '../internal/paths'
 require_relative '../internal/query'
 require_relative '../internal/status_writer'
+require_relative '../internal/task_mutation_lock'
 require_relative '../internal/task_reader'
 require_relative '../internal/task_writer'
 require_relative '../internal/tree_builder'
@@ -128,6 +129,12 @@ module Owl
           return paths_result if paths_result.err?
 
           tasks_root = paths_result.value[:tasks]
+          Internal::TaskMutationLock.with_lock(root: @root, task_id: task_id) do
+            locked_set_step_variant(tasks_root: tasks_root, task_id: task_id, step_id: step_id, variant: variant)
+          end
+        end
+
+        def locked_set_step_variant(tasks_root:, task_id:, step_id:, variant:)
           read = Internal::TaskReader.read(tasks_root: tasks_root, task_id: task_id)
           return read if read.err?
 
@@ -377,6 +384,12 @@ module Owl
         end
 
         def write_priority(paths:, task_id:, priority:)
+          Internal::TaskMutationLock.with_lock(root: @root, task_id: task_id) do
+            locked_write_priority(paths: paths, task_id: task_id, priority: priority)
+          end
+        end
+
+        def locked_write_priority(paths:, task_id:, priority:)
           read = Internal::TaskReader.read(tasks_root: paths[:tasks], task_id: task_id)
           return read if read.err?
 

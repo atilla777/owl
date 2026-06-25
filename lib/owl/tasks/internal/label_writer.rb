@@ -4,6 +4,7 @@ require_relative '../../result'
 require_relative 'atomic_yaml_writer'
 require_relative 'index_writer'
 require_relative 'paths'
+require_relative 'task_mutation_lock'
 require_relative 'task_reader'
 require_relative 'task_schema'
 
@@ -30,17 +31,23 @@ module Owl
           end
         end
 
-        def mutate(root:, task_id:)
+        def mutate(root:, task_id:, &block)
           paths_result = Paths.resolve(root: root)
           return paths_result if paths_result.err?
 
-          read = TaskReader.read(tasks_root: paths_result.value[:tasks], task_id: task_id)
+          TaskMutationLock.with_lock(root: root, task_id: task_id) do
+            locked_mutate(root: root, paths: paths_result.value, task_id: task_id, &block)
+          end
+        end
+
+        def locked_mutate(root:, paths:, task_id:)
+          read = TaskReader.read(tasks_root: paths[:tasks], task_id: task_id)
           return read if read.err?
 
           payload = read.value[:payload]
           payload['labels'] = yield(normalize(payload['labels']))
 
-          persist(root: root, paths: paths_result.value, read: read, payload: payload)
+          persist(root: root, paths: paths, read: read, payload: payload)
         end
 
         def persist(root:, paths:, read:, payload:)

@@ -10,6 +10,7 @@ require_relative 'atomic_yaml_writer'
 require_relative 'id_generator'
 require_relative 'index_writer'
 require_relative 'paths'
+require_relative 'task_mutation_lock'
 require_relative 'task_reader'
 
 module Owl
@@ -32,7 +33,7 @@ module Owl
           end
 
           FileUtils.rm_rf(task_dir.to_s)
-          clean_dangling_refs(tasks_root: paths_result.value[:tasks], deleted_id: task_id.to_s)
+          clean_dangling_refs(root: root, tasks_root: paths_result.value[:tasks], deleted_id: task_id.to_s)
 
           rebuild = IndexWriter.rebuild(
             root: root,
@@ -56,14 +57,19 @@ module Owl
         # dangling dependency edge survives the delete (preferred over leaving
         # references that downstream readers must defensively ignore). Runs
         # before the index rebuild so the refreshed index reflects the cleanup.
-        def clean_dangling_refs(tasks_root:, deleted_id:)
+        def clean_dangling_refs(root:, tasks_root:, deleted_id:)
           dir = Pathname.new(tasks_root.to_s)
           return unless dir.directory?
 
           dir.children.each do |child|
             next unless child.directory? && IdGenerator.parse(child.basename.to_s)
 
-            scrub_task_blocked_by(child.join(TaskReader::TASK_FILENAME), deleted_id)
+            # Each affected task is scrubbed under ITS OWN per-task mutation lock,
+            # one at a time (never holding two), so a concurrent edit of that task
+            # from another session cannot lose the dependency cleanup.
+            TaskMutationLock.with_lock(root: root, task_id: child.basename.to_s) do
+              scrub_task_blocked_by(child.join(TaskReader::TASK_FILENAME), deleted_id)
+            end
           end
         end
 
