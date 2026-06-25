@@ -4,6 +4,19 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.17.2] - 2026-06-25
+
+### Added
+- **CLI surfaces spec-merge `unchanged` (no-op) counts (TASK-0034).** Completes
+  the TASK-0029 honest-counts work: the idempotent-merge engine counted
+  `unchanged: { added, modified, removed }`, but the CLI never showed them.
+  Now `owl spec apply --json` includes `unchanged` in its payload; `owl spec
+  merge --json` exposes `unchanged` at the top level (alongside the existing
+  nested `merge.unchanged`); and `owl spec merge --no-json` prints an
+  `unchanged: added … modified … removed …` summary line next to the `delta:`
+  line. Additive and behavior-preserving — the merge/apply engine is unchanged,
+  and a graceful no-op merge (`no_spec_delta`) prints no unchanged line.
+
 ## [0.17.1] - 2026-06-25
 
 ### Changed

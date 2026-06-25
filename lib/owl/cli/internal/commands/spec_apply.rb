@@ -44,6 +44,7 @@ module Owl
                                   created: value[:created],
                                   dry_run: value[:dry_run],
                                   applied: value[:applied],
+                                  unchanged: value[:unchanged],
                                   unified_diff: value[:unified_diff]
                                 })
           end

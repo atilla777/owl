@@ -109,7 +109,24 @@ RSpec.describe 'owl spec apply/diff CLI' do
         expect(body['ok']).to be(true)
         expect(body['dry_run']).to be(false)
         expect(body['applied']).to eq('added' => 1, 'modified' => 0, 'removed' => 0)
+        expect(body['unchanged']).to eq('added' => 0, 'modified' => 0, 'removed' => 0)
         expect(Pathname.new("#{root}/specs/billing/spec.md").read).to include('### Requirement: Late fees')
+      end
+    end
+
+    it 'reports unchanged counts in JSON when a delta is re-applied (idempotent)' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_spec(root)
+        add_delta(root)
+        argv = ['spec', 'apply', 'billing', '--delta', "#{root}/d.md", '--root', root.to_s, '--json']
+        run(argv, cwd: root) # first apply
+
+        exit_code, stdout, = run(argv, cwd: root) # re-apply: identical ADDED is a no-op
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body['applied']).to eq('added' => 0, 'modified' => 0, 'removed' => 0)
+        expect(body['unchanged']).to eq('added' => 1, 'modified' => 0, 'removed' => 0)
       end
     end
 

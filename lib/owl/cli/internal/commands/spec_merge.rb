@@ -50,6 +50,7 @@ module Owl
             {
               ok: value[:ok],
               applied: value[:applied],
+              unchanged: value.dig(:merge, :unchanged),
               reason: value[:reason],
               domain: value[:domain],
               merge: value[:merge],
@@ -65,6 +66,7 @@ module Owl
 
             stdout.puts("spec merge #{value[:domain]} (applied: #{value[:applied]})")
             print_merge(stdout, value[:merge])
+            print_unchanged(stdout, value[:merge])
             print_trace(stdout, value[:trace])
             value[:ok] ? 0 : 1
           end
@@ -75,6 +77,16 @@ module Owl
             counts = merge[:applied] || {}
             stdout.puts(
               format('  delta: added %<added>d  modified %<modified>d  removed %<removed>d',
+                     added: counts[:added].to_i, modified: counts[:modified].to_i, removed: counts[:removed].to_i)
+            )
+          end
+
+          def print_unchanged(stdout, merge)
+            return unless merge.is_a?(Hash)
+
+            counts = merge[:unchanged] || {}
+            stdout.puts(
+              format('  unchanged: added %<added>d  modified %<modified>d  removed %<removed>d',
                      added: counts[:added].to_i, modified: counts[:modified].to_i, removed: counts[:removed].to_i)
             )
           end

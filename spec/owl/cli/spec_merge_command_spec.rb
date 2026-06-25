@@ -104,6 +104,7 @@ RSpec.describe 'owl spec merge CLI' do
       body = JSON.parse(stdout)
       expect(body['ok']).to be(true)
       expect(body['applied']).to be(true)
+      expect(body['unchanged']).to eq('added' => 0, 'modified' => 0, 'removed' => 0)
       expect(body['domain']).to eq('billing')
     end
   end
@@ -188,6 +189,7 @@ RSpec.describe 'owl spec merge CLI' do
       expect(exit_code).to eq(0)
       expect(stdout).to include('spec merge billing')
       expect(stdout).to include('delta: added 1')
+      expect(stdout).to include('unchanged: added 0  modified 0  removed 0')
       expect(stdout).to include('trace: valid=true')
     end
   end
