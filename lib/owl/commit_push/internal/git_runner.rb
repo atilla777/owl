@@ -19,6 +19,26 @@ module Owl
           run(%w[git add -A], root)
         end
 
+        # Stage everything except the given pathspecs. With an empty `exclude`
+        # this is identical to `add_all` (`git add -A`, full back-compat). With
+        # exclusions it uses magic `:(exclude)` pathspecs so the named paths
+        # (e.g. other active tasks' `tasks/<id>/` dirs) are kept out of the
+        # delivery commit. Each pathspec is its own argv element — no shell.
+        def add_scoped(root:, exclude: [])
+          return run(%w[git add -A], root) if exclude.nil? || exclude.empty?
+
+          run(['git', 'add', '-A', '--', '.', *exclude.map { |p| ":(exclude)#{p}" }], root)
+        end
+
+        # Probe the staged index, not the working tree. `git diff --cached
+        # --quiet` exits 0 when the index is EMPTY (no staged changes) and 1
+        # otherwise, so the returned `Outcome#ok` is `true` ⇔ the index is empty.
+        # (We keep `ok = status.success?` like every other method; the caller
+        # interprets it.)
+        def index_dirty?(root:)
+          run(['git', 'diff', '--cached', '--quiet'], root)
+        end
+
         def commit(root:, message:)
           run(['git', 'commit', '-m', message.to_s], root)
         end

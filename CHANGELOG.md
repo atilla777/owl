@@ -4,6 +4,27 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.17.0] - 2026-06-25
+
+### Changed
+- **`owl commit-push` now stages scoped (TASK-0032).** The delivery commit no
+  longer sweeps in the `tasks/<id>/` directories of *other* active tasks. The
+  staging step excludes every active task dir except the one being delivered
+  (via `git add -A -- . :(exclude)tasks/<id>` magic pathspecs), so a concurrent
+  task's backlog never rides into another task's commit. The current task's
+  delivery — code changes, `docs/`, its own archived task dir,
+  `tasks/index.yaml`, version/CHANGELOG — is preserved.
+- **Empty-delivery guard and idempotent retry now read the index, not the whole
+  tree.** The `nothing_to_commit` guard and the post-push retry idempotency
+  check were keyed on "the entire working tree is clean" (`git status
+  --porcelain`). With an untracked task backlog in the tree that was never
+  empty, breaking both invariants. They now read the staged-index state
+  (`git diff --cached --quiet`), so an untracked backlog no longer masks a true
+  no-op or a legitimate retry.
+- Known limitation: code changes belonging to other tasks that live *outside*
+  `tasks/` are not detected and still ride into the delivery commit — arbitrary
+  code cannot be attributed to a task.
+
 ## [0.16.1] - 2026-06-25
 
 ### Fixed

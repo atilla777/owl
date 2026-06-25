@@ -8,10 +8,15 @@ RSpec.describe 'owl commit-push locking' do
     Owl::CommitPush::Internal::GitRunner::Outcome.new(true, stdout, '')
   end
 
+  def dirty_index_outcome
+    # ok=false ⇒ `git diff --cached --quiet` exited non-zero ⇒ index has changes.
+    Owl::CommitPush::Internal::GitRunner::Outcome.new(false, '', '')
+  end
+
   def happy_git
     object_double(
       Owl::CommitPush::Internal::GitRunner,
-      add_all: ok_outcome, status_porcelain: ok_outcome(" M lib/foo.rb\n"), unpushed?: ok_outcome("0\n"),
+      add_scoped: ok_outcome, index_dirty?: dirty_index_outcome, unpushed?: ok_outcome("0\n"),
       commit: ok_outcome, pull_rebase: ok_outcome, push: ok_outcome, head_sha: ok_outcome("abc123\n")
     )
   end

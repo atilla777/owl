@@ -26,25 +26,28 @@ module Owl
 
         module_function
 
-        def call(root:, task_id:, step_id:, message:, git:, locks:, steps:)
+        def call(root:, task_id:, step_id:, message:, git:, locks:, steps:, exclude: [])
           retrying = retry?(git: git, steps: steps, root: root, task_id: task_id, step_id: step_id)
 
           unless retrying
-            guard = stage_and_guard(git: git, root: root, task_id: task_id)
+            guard = stage_and_guard(git: git, root: root, task_id: task_id, exclude: exclude)
             return guard if guard.is_a?(Owl::Result::Err)
           end
 
-          publish(git: git, locks: locks, steps: steps, root: root,
-                  task_id: task_id, step_id: step_id, message: message, retrying: retrying)
+          publish(git: git, locks: locks, steps: steps, root: root, task_id: task_id,
+                  step_id: step_id, message: message, retrying: retrying, exclude: exclude)
         end
 
-        # Stage the working tree and fail fast on an empty delivery — BEFORE the
-        # lock and BEFORE any step mutation, so a no-op delivery never touches
-        # the push lock or the step status. Staging is idempotent. Returns `nil`
-        # on success or a `nothing_to_commit` error.
-        def stage_and_guard(git:, root:, task_id:)
-          git.add_all(root: root)
-          return nothing_to_commit(task_id) if clean_tree?(git, root)
+        # Scoped-stage the delivery and fail fast on an empty delivery — BEFORE
+        # the lock and BEFORE any step mutation, so a no-op delivery never
+        # touches the push lock or the step status. Staging is idempotent. The
+        # empty-delivery check reads the INDEX state (`git diff --cached`), not
+        # the whole working tree, so an untracked task backlog (`?? tasks/...`)
+        # left behind by `add_scoped` exclusions never masks a true no-op.
+        # Returns `nil` on success or a `nothing_to_commit` error.
+        def stage_and_guard(git:, root:, task_id:, exclude:)
+          git.add_scoped(root: root, exclude: exclude)
+          return nothing_to_commit(task_id) if index_empty?(git, root)
 
           nil
         end
@@ -55,14 +58,17 @@ module Owl
         # The flip + re-stage happen under the lock so the flip still rides in
         # the same commit. (Staging + the empty-delivery guard already ran
         # before the lock in `stage_and_guard`.)
-        def publish(git:, locks:, steps:, root:, task_id:, step_id:, message:, retrying:)
+        # rubocop:disable Metrics/ParameterLists -- threads the same facade +
+        # task-coordinate kwargs the rest of the transaction passes around.
+        def publish(git:, locks:, steps:, root:, task_id:, step_id:, message:, retrying:, exclude:)
           lock = locks.acquire(root: root, name: LOCK_NAME)
           return lock if lock.err?
 
           token = lock.value[:token]
 
           unless retrying
-            flip = flip_done(git: git, steps: steps, root: root, task_id: task_id, step_id: step_id)
+            flip = flip_done(git: git, steps: steps, root: root,
+                             task_id: task_id, step_id: step_id, exclude: exclude)
             return flip if flip.is_a?(Owl::Result::Err)
           end
 
@@ -74,15 +80,17 @@ module Owl
         ensure
           locks.release(root: root, name: LOCK_NAME, token: token) if token
         end
+        # rubocop:enable Metrics/ParameterLists
 
         # Under the lock: flip the step to `done` and re-stage so the flip rides
-        # in the same commit. Returns `nil` on success or the `Err` from a failed
-        # `complete` (which leaves the step at `running`).
-        def flip_done(git:, steps:, root:, task_id:, step_id:)
+        # in the same commit. The re-stage is scoped the same way as the first
+        # one so the other-task exclusions still hold. Returns `nil` on success
+        # or the `Err` from a failed `complete` (which leaves the step running).
+        def flip_done(git:, steps:, root:, task_id:, step_id:, exclude:)
           flip = steps.complete(root: root, task_id: task_id, step_id: step_id)
           return flip if flip.err?
 
-          git.add_all(root: root)
+          git.add_scoped(root: root, exclude: exclude)
           nil
         end
 
@@ -111,7 +119,7 @@ module Owl
 
         def retry?(git:, steps:, root:, task_id:, step_id:)
           step_done?(steps, root, task_id, step_id) &&
-            clean_tree?(git, root) &&
+            index_empty?(git, root) &&
             unpushed?(git, root)
         end
 
@@ -120,9 +128,11 @@ module Owl
           res.ok? && res.value[:status].to_s == 'done'
         end
 
-        def clean_tree?(git, root)
-          out = git.status_porcelain(root: root)
-          out.ok && out.stdout.strip.empty?
+        # True when the staged index carries no changes. Reads `git diff
+        # --cached --quiet` (ok ⇔ empty index), so a leftover untracked backlog
+        # never reads as "dirty" the way `git status --porcelain` would.
+        def index_empty?(git, root)
+          git.index_dirty?(root: root).ok
         end
 
         def unpushed?(git, root)
