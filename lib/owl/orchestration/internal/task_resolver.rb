@@ -15,9 +15,9 @@ module Owl
       module TaskResolver
         module_function
 
-        # Full ladder: explicit task_id -> current pointer -> top auto-select
-        # candidate. Returns a plain hash { task_id:, source:, reason: } where
-        # `task_id` is nil (source 'none') when nothing is runnable.
+        # Full ladder: explicit task_id -> current pointer -> top dep-aware ready
+        # auto-select candidate. Returns a plain hash { task_id:, source:, reason: }
+        # where `task_id` is nil (source 'none') when nothing is runnable.
         def resolve(root:, task_id: nil)
           return explicit(task_id) if task_id
 
@@ -35,8 +35,10 @@ module Owl
           { task_id: task_id.to_s, source: 'current_pointer', reason: 'resolved from current task pointer' }
         end
 
+        # Top of the deps+status-aware ready set — never advises a task whose
+        # `blocked_by` deps are incomplete or whose own status is parked/terminal.
         def auto_select(root:)
-          available = Owl::Tasks::Api.available(root: root)
+          available = Owl::Tasks::Api.available(root: root, dep_aware: true)
           top = available.ok? ? Array(available.value[:available]).first : nil
           return none_resolution unless top
 

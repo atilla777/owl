@@ -6,11 +6,11 @@ require 'time'
 require_relative '../../config/api'
 require_relative '../../result'
 require_relative '../../workflows/api'
-require_relative 'availability_scanner'
 require_relative 'claim_paths'
 require_relative 'current_pointer'
 require_relative 'exclusive_lease'
 require_relative 'paths'
+require_relative 'ready_availability_scanner'
 require_relative 'task_reader'
 
 module Owl
@@ -18,7 +18,9 @@ module Owl
     module Internal
       # Atomic task claiming on top of ExclusiveLease. A claim marks a task as
       # owned by one session for `ttl` seconds; `--next` picks the best runnable
-      # task via AvailabilityScanner and retries on contention.
+      # task via ReadyAvailabilityScanner (deps+status-aware: never auto-claims a
+      # task with incomplete `blocked_by` deps or a parked status) and retries on
+      # contention.
       module ClaimService
         # Config key for the default lease TTL. Explicit `--ttl` always wins;
         # this is consulted only when no TTL is passed, falling back in turn to
@@ -81,7 +83,7 @@ module Owl
         end
 
         def claim_next(root:, paths:, opts:)
-          scan = AvailabilityScanner.scan(root: root, now: opts[:now])
+          scan = ReadyAvailabilityScanner.scan(root: root, now: opts[:now])
           return scan if scan.err?
 
           candidates = scan.value[:available]

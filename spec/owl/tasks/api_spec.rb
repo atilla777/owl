@@ -664,6 +664,32 @@ RSpec.describe Owl::Tasks::Api do
       end
     end
 
+    it 'does not auto-claim a dep-blocked task with --next' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'dep')
+        described_class.create(root: root, workflow: 'feature', title: 'blocked', priority: 5)
+        described_class.add_dependency(root: root, task_id: 'TASK-0002', depends_on: 'TASK-0001')
+        result = described_class.claim(root: root, next_: true)
+        expect(result).to be_ok
+        expect(result.value[:task_id]).to eq('TASK-0001')
+      end
+    end
+
+    it 'does not auto-claim an on_hold task with --next' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'parked', priority: 5)
+        described_class.create(root: root, workflow: 'feature', title: 'live')
+        described_class.set_status(root: root, task_id: 'TASK-0001', status: 'on_hold')
+        result = described_class.claim(root: root, next_: true)
+        expect(result).to be_ok
+        expect(result.value[:task_id]).to eq('TASK-0002')
+      end
+    end
+
     it 'steals a live claim with steal: true and reports the displaced holder' do
       with_tmp_project do |root|
         seed_one(root)
@@ -859,6 +885,69 @@ RSpec.describe Owl::Tasks::Api do
         described_class.abandon(root: root, task_id: 'TASK-0001')
         result = described_class.available(root: root)
         expect(result.value[:available]).to eq([])
+      end
+    end
+
+    it 'stays dependency-blind by default: a dep-blocked task is still present' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'dep')
+        described_class.create(root: root, workflow: 'feature', title: 'blocked')
+        described_class.add_dependency(root: root, task_id: 'TASK-0002', depends_on: 'TASK-0001')
+        result = described_class.available(root: root)
+        expect(result.value[:available].map { |c| c[:task_id] }).to include('TASK-0002')
+      end
+    end
+
+    it 'stays dependency-blind by default: an on_hold task is still present' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_feature_workflow(root)
+        described_class.create(root: root, workflow: 'feature', title: 'parked')
+        described_class.set_status(root: root, task_id: 'TASK-0001', status: 'on_hold')
+        result = described_class.available(root: root)
+        expect(result.value[:available].map { |c| c[:task_id] }).to include('TASK-0001')
+      end
+    end
+
+    context 'with dep_aware: true' do
+      it 'excludes a dep-blocked task while its dependency is unfinished' do
+        with_tmp_project do |root|
+          init_project(root)
+          seed_feature_workflow(root)
+          described_class.create(root: root, workflow: 'feature', title: 'dep')
+          described_class.create(root: root, workflow: 'feature', title: 'blocked')
+          described_class.add_dependency(root: root, task_id: 'TASK-0002', depends_on: 'TASK-0001')
+          ids = described_class.available(root: root, dep_aware: true).value[:available].map { |c| c[:task_id] }
+          expect(ids).to include('TASK-0001')
+          expect(ids).not_to include('TASK-0002')
+        end
+      end
+
+      it 'excludes an on_hold task' do
+        with_tmp_project do |root|
+          init_project(root)
+          seed_feature_workflow(root)
+          described_class.create(root: root, workflow: 'feature', title: 'parked')
+          described_class.create(root: root, workflow: 'feature', title: 'live')
+          described_class.set_status(root: root, task_id: 'TASK-0001', status: 'on_hold')
+          ids = described_class.available(root: root, dep_aware: true).value[:available].map { |c| c[:task_id] }
+          expect(ids).not_to include('TASK-0001')
+          expect(ids).to include('TASK-0002')
+        end
+      end
+
+      it 'preserves the "has a ready step" filter and the candidate hash shape' do
+        with_tmp_project do |root|
+          init_project(root)
+          seed_feature_workflow(root)
+          described_class.create(root: root, workflow: 'feature', title: 'normal')
+          candidate = described_class.available(root: root, dep_aware: true).value[:available].first
+          expect(candidate[:task_id]).to eq('TASK-0001')
+          expect(candidate[:ready_step_ids]).to eq(['noop'])
+          expect(candidate[:reason]).to be_a(String)
+        end
       end
     end
   end

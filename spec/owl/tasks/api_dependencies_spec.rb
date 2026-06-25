@@ -259,6 +259,37 @@ RSpec.describe Owl::Tasks::Api, '.add_dependency / .remove_dependency / .depende
         expect(ids).not_to include('TASK-0001')
       end
     end
+
+    it 'excludes a task whose own status is on_hold' do
+      with_tmp_project do |root|
+        create_two(root)
+        described_class.set_status(root: root, task_id: 'TASK-0001', status: 'on_hold')
+        ids = described_class.ready(root: root).value[:ready].map { |e| e['id'] }
+        expect(ids).not_to include('TASK-0001')
+        expect(ids).to include('TASK-0002')
+      end
+    end
+
+    it 'excludes a task whose own status is blocked' do
+      with_tmp_project do |root|
+        create_two(root)
+        described_class.set_status(root: root, task_id: 'TASK-0001', status: 'blocked')
+        ids = described_class.ready(root: root).value[:ready].map { |e| e['id'] }
+        expect(ids).not_to include('TASK-0001')
+        expect(ids).to include('TASK-0002')
+      end
+    end
+
+    it 'keeps priority/age sort order when filtering' do
+      with_tmp_project do |root|
+        setup_project(root)
+        create_task(root, title: 'low')
+        create_task(root, title: 'high')
+        described_class.set_priority(root: root, task_id: 'TASK-0002', priority: 5)
+        ids = described_class.ready(root: root).value[:ready].map { |e| e['id'] }
+        expect(ids).to eq(%w[TASK-0002 TASK-0001])
+      end
+    end
   end
 
   describe '.delete dangling-ref cleanup' do

@@ -4,6 +4,29 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.16.0] - 2026-06-25
+
+### Changed
+- **Auto-selection is now deps+status-aware (TASK-0030).** Both task
+  auto-selection sites — orchestration auto-select (`owl next` / `owl
+  instructions`) and `owl task claim --next` — now intersect the
+  available-candidate set (a task with a dispatchable workflow step and no live
+  claim) with the deps+status-aware ready set. They will never advise or claim a
+  task whose `blocked_by` dependencies are not all complete, or whose own status
+  is `on_hold` / `blocked` / terminal (`done` / `archived` / `abandoned`). The
+  "has a ready workflow step" filter is preserved, so a dep-clear task with no
+  dispatchable step is still not advised.
+- **`owl task ready` now also hides `on_hold` and `blocked` tasks.** A task's own
+  parked status removes it from the ready-work pool alongside the terminal
+  statuses. Dependency-satisfaction semantics are unchanged: a dependency still
+  counts as complete only when `done` / `archived`.
+
+### Compatibility
+- **`owl task available` is unchanged — still dependency-blind.** It continues to
+  list every task with a dispatchable step and no live claim regardless of
+  `blocked_by` deps or parked status. The new behavior is opt-in via the internal
+  `Owl::Tasks::Api.available(dep_aware: true)` keyword (default `false`).
+
 ## [0.15.1] - 2026-06-24
 
 ### Fixed

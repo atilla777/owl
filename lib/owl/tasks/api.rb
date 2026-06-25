@@ -6,6 +6,7 @@ require_relative 'backend'
 require_relative 'backends/filesystem'
 require_relative 'internal/dependency_writer'
 require_relative 'internal/plan_approval'
+require_relative 'internal/ready_availability_scanner'
 require_relative 'internal/ready_scanner'
 require_relative 'local'
 
@@ -96,7 +97,15 @@ module Owl
         with_backend(root, &:claims)
       end
 
-      def available(root:)
+      # Runnable, unclaimed tasks ranked best-first. Default is dependency-blind
+      # (back-compat): a task is available as soon as it has a dispatchable
+      # workflow step and no live claim, regardless of `blocked_by` deps or its
+      # own on_hold/blocked status. Pass `dep_aware: true` to intersect that set
+      # with the deps+status-aware ready set (ReadyScanner) so a task with
+      # incomplete dependencies or a parked status is filtered out.
+      def available(root:, dep_aware: false)
+        return Internal::ReadyAvailabilityScanner.scan(root: root) if dep_aware
+
         with_backend(root, &:available)
       end
 

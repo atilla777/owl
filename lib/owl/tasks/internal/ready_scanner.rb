@@ -13,12 +13,20 @@ module Owl
     module Internal
       # Dependency-aware readiness scan: returns the index entries whose every
       # `blocked_by` dependency is complete, that carry no live claim, and whose
-      # own status is non-terminal. This is the cross-task counterpart to
+      # own status is ready for work. This is the cross-task counterpart to
       # AvailabilityScanner — `available` stays dependency-blind by design;
-      # `ready` is the new dep-aware command.
+      # `ready` is the new dep-aware command. A task whose own status is terminal
+      # (done/archived/abandoned) or parked (on_hold/blocked) is excluded from the
+      # ready-work pool even when its dependencies are all complete.
       module ReadyScanner
-        # A task's own status that removes it from the ready pool.
+        # A task's own status that takes it out of the ready pool because the
+        # work is finished or cancelled.
         TERMINAL_STATUSES = %w[done archived abandoned].freeze
+        # A task's own status that takes it out of the ready pool — terminal plus
+        # the explicitly-parked statuses (on_hold/blocked). These gate the task's
+        # OWN readiness only; they say nothing about whether it satisfies another
+        # task's dependency (see DEP_COMPLETE_STATUSES).
+        NON_READY_STATUSES = (TERMINAL_STATUSES + %w[on_hold blocked]).freeze
         # A dependency status that counts as satisfied. An archived dependency
         # leaves the index entirely, so it surfaces as a missing id and is also
         # treated as complete (see `deps_complete?`).
@@ -51,7 +59,7 @@ module Owl
 
         def ready_entry?(entry:, status_by_id:, paths:, now:)
           return false unless entry.is_a?(Hash)
-          return false if TERMINAL_STATUSES.include?(entry['status'].to_s)
+          return false if NON_READY_STATUSES.include?(entry['status'].to_s)
           return false unless deps_complete?(entry, status_by_id)
 
           !live_claim?(paths: paths, task_id: entry['id'].to_s, now: now)
