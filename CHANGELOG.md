@@ -4,6 +4,22 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.19.0] - 2026-06-25
+
+### Changed
+- **`owl task delete` takes the deleted task's mutation lock around `rm_rf`
+  (TASK-0036).** Follow-up to the TASK-0035 per-task mutation lock: the delete
+  path removed `tasks/<id>/` without holding that task's `task-<id>` lock, so a
+  concurrent writer of the SAME task could have its `task.yaml` removed
+  mid-write (delete-while-in-use). The `FileUtils.rm_rf` now runs inside
+  `TaskMutationLock.with_lock`, so delete and any concurrent mutator of the same
+  task are mutually exclusive. Only the `rm_rf` is wrapped — the dangling-ref
+  cleanup (which locks each OTHER task in turn) and the index rebuild stay
+  outside that lock, so two parallel deletes can never nest
+  `lock(deleted) -> lock(child)` into a lock-ordering deadlock. A delete blocked
+  past the acquire deadline surfaces a recoverable `lock_held` rather than
+  removing a task out from under a live writer.
+
 ## [0.18.0] - 2026-06-25
 
 ### Changed

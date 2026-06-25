@@ -6,6 +6,8 @@ require 'yaml'
 
 require 'owl/cli/api'
 require 'owl/tasks/api'
+require 'owl/tasks/internal/deleter'
+require 'owl/locks/api'
 
 RSpec.describe Owl::Tasks::Api, '.delete' do
   def cli(argv, root)
@@ -70,6 +72,28 @@ RSpec.describe Owl::Tasks::Api, '.delete' do
       result = described_class.delete(root: root, task_id: 'TASK-9999')
       expect(result).to be_err
       expect(result.code).to eq(:task_not_found)
+    end
+  end
+
+  it 'holds the deleted task lock for rm_rf and surfaces lock_held without removing the dir' do
+    with_tmp_project do |root|
+      task_id = setup_project(root)
+      # A foreign session holds the deleted task's mutation lock and never
+      # releases it; with the clock already past the acquire deadline, delete
+      # gives up with a recoverable lock_held and must NOT remove the directory.
+      Owl::Locks::Api.acquire(root: root, name: "task-#{task_id}", token: 'foreign')
+      clock = class_double(Time)
+      now = Time.now
+      allow(clock).to receive(:now)
+        .and_return(now, now + Owl::Tasks::Internal::TaskMutationLock::ACQUIRE_TIMEOUT_SECONDS + 1)
+
+      result = Owl::Tasks::Internal::Deleter.call(
+        root: root, task_id: task_id, clock: clock, sleeper: ->(_s) {}
+      )
+
+      expect(result).to be_err
+      expect(result.code).to eq(:lock_held)
+      expect(Pathname.new("#{root}/tasks/#{task_id}").exist?).to be(true)
     end
   end
 end

@@ -1,0 +1,106 @@
+---
+id: TASK-0036
+title: Deleter takes task-lock before rm_rf (delete-while-in-use)
+workflow:
+  key: feature
+  version: '1.0'
+  source: workflows/feature/workflow.yaml
+kind: task
+parent_id:
+priority: 5
+created_at: '2026-06-25T09:24:05Z'
+status: archived
+labels: []
+blocked_by: []
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  creates:
+  - brief
+  default_variant: feature
+  variants:
+    feature:
+      context_file: brief.feature.context.md
+      title: Collect feature requirements
+    root_cause:
+      context_file: brief.root_cause.context.md
+      title: Find bug root cause
+    problem_inventory:
+      context_file: brief.problem_inventory.context.md
+      title: Inventory refactor problems
+  status: done
+  content_sha: 4efee875db31c0b0339c05ce937c5daa6e4723743bf63518aca4a13732d9624d
+- id: design
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: design.context.md
+  requires:
+  - brief
+  creates:
+  - design
+  status: done
+  content_sha: 92104bc658918950f9ff0f8e3734a9b16065a6ca83b17f3657f90e6eeaedf653
+- id: plan
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: plan.context.md
+  requires:
+  - brief
+  creates:
+  - plan
+  status: done
+  content_sha: 50a9ec0ee9d12f03f1a8ad14b839cbd761d79b0bce2040226e99b2b656d06025
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - plan
+  status: done
+- id: review_code
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  verify: true
+  context_file: review_code.context.md
+  requires:
+  - implement
+  creates:
+  - review
+  - verification
+  status: done
+  content_sha:
+    review: c5c991c2b5c490b5c567d9d05f3fdd0f65c747f95f2313595f08ac0d79ad9e81
+    verification: 4856101771d9a1a384837aa91e7c11dccc15e7b54576c8bc9299c3a44157bf34
+- id: merge_docs
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  publishes: true
+  context_file: merge_docs.context.md
+  requires:
+  - review_code
+  status: done
+- id: archive
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: archive.context.md
+  requires:
+  - merge_docs
+  status: done
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - archive
+  status: done
+artifacts: []
+archived_at: '2026-06-25T09:36:21Z'

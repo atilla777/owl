@@ -19,7 +19,7 @@ module Owl
       module Deleter
         module_function
 
-        def call(root:, task_id:)
+        def call(root:, task_id:, locks: Owl::Locks::Api, clock: Time, sleeper: ->(seconds) { sleep(seconds) })
           paths_result = Paths.resolve(root: root)
           return paths_result if paths_result.err?
 
@@ -32,7 +32,11 @@ module Owl
             )
           end
 
-          FileUtils.rm_rf(task_dir.to_s)
+          removed = remove_dir_locked(
+            root: root, task_id: task_id, task_dir: task_dir, locks: locks, clock: clock, sleeper: sleeper
+          )
+          return removed if removed.err?
+
           clean_dangling_refs(root: root, tasks_root: paths_result.value[:tasks], deleted_id: task_id.to_s)
 
           rebuild = IndexWriter.rebuild(
@@ -51,6 +55,21 @@ module Owl
             removed: true,
             deleted_path: task_dir.to_s
           )
+        end
+
+        # Hold the deleted task's own mutation lock for the rm_rf only, so a
+        # concurrent writer of the SAME task cannot have its task.yaml removed
+        # mid-write. The caller runs `clean_dangling_refs` (which locks each
+        # OTHER task in turn) and the index rebuild AFTER this returns, outside
+        # this lock, so two parallel deletes can never nest `lock(deleted) ->
+        # lock(child)` into a lock-ordering deadlock.
+        def remove_dir_locked(root:, task_id:, task_dir:, locks:, clock:, sleeper:)
+          TaskMutationLock.with_lock(
+            root: root, task_id: task_id.to_s, locks: locks, clock: clock, sleeper: sleeper
+          ) do
+            FileUtils.rm_rf(task_dir.to_s)
+            Result.ok(:removed)
+          end
         end
 
         # Strip the deleted id from every other live task's `blocked_by` so no
