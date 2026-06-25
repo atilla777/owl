@@ -16,7 +16,7 @@ RSpec.describe 'owl commit-push locking' do
   def happy_git
     object_double(
       Owl::CommitPush::Internal::GitRunner,
-      add_scoped: ok_outcome, index_dirty?: dirty_index_outcome, unpushed?: ok_outcome("0\n"),
+      add_scoped: ok_outcome, index_clean?: dirty_index_outcome, unpushed?: ok_outcome("0\n"),
       commit: ok_outcome, pull_rebase: ok_outcome, push: ok_outcome, head_sha: ok_outcome("abc123\n")
     )
   end

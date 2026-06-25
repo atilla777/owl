@@ -132,7 +132,7 @@ module Owl
         # --cached --quiet` (ok ⇔ empty index), so a leftover untracked backlog
         # never reads as "dirty" the way `git status --porcelain` would.
         def index_empty?(git, root)
-          git.index_dirty?(root: root).ok
+          git.index_clean?(root: root).ok
         end
 
         def unpushed?(git, root)

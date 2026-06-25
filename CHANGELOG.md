@@ -4,6 +4,17 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.17.1] - 2026-06-25
+
+### Changed
+- **GitRunner cleanup (TASK-0033, internal, no behavior change).** Removed the
+  dead `Owl::CommitPush::Internal::GitRunner#status_porcelain` and `#add_all`
+  methods, unused since `commit-push` moved to scoped staging in 0.17.0. Renamed
+  `#index_dirty?` to `#index_clean?` so the predicate reads with its meaning —
+  `Outcome#ok == true` means the staged index is clean (empty). The
+  implementation (`git diff --cached --quiet`) and the transaction's
+  guard/retry behavior are unchanged.
+
 ## [0.17.0] - 2026-06-25
 
 ### Changed

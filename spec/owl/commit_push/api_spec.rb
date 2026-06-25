@@ -13,12 +13,12 @@ RSpec.describe Owl::CommitPush::Api do
   end
 
   # A fully-stubbed git facade; pass overrides per scenario. By default the
-  # index is non-empty (`index_dirty?` fails ⇒ there are staged changes), i.e.
+  # index is non-empty (`index_clean?` fails ⇒ there are staged changes), i.e.
   # there is something to deliver.
   def fake_git(overrides = {})
     defaults = {
       add_scoped: ok_outcome,
-      index_dirty?: fail_outcome,
+      index_clean?: fail_outcome,
       unpushed?: ok_outcome("0\n"),
       commit: ok_outcome,
       pull_rebase: ok_outcome,
@@ -64,7 +64,7 @@ RSpec.describe Owl::CommitPush::Api do
 
   describe '.commit_push nothing_to_commit' do
     it 'returns nothing_to_commit without flipping done or locking' do
-      git = fake_git(index_dirty?: ok_outcome(''))
+      git = fake_git(index_clean?: ok_outcome(''))
       steps = fake_steps(status: 'running')
       locks = fake_locks
       result = call(git: git, steps: steps, locks: locks)
@@ -118,7 +118,7 @@ RSpec.describe Owl::CommitPush::Api do
 
   describe '.commit_push idempotent retry' do
     it 'skips staging/commit and only re-attempts pull + push' do
-      git = fake_git(index_dirty?: ok_outcome(''), unpushed?: ok_outcome("1\n"))
+      git = fake_git(index_clean?: ok_outcome(''), unpushed?: ok_outcome("1\n"))
       steps = fake_steps(status: 'done')
       locks = fake_locks
       result = call(git: git, steps: steps, locks: locks)
@@ -132,7 +132,7 @@ RSpec.describe Owl::CommitPush::Api do
     end
 
     it 'reports push_retryable when the retry push still fails' do
-      git = fake_git(index_dirty?: ok_outcome(''), unpushed?: ok_outcome("1\n"),
+      git = fake_git(index_clean?: ok_outcome(''), unpushed?: ok_outcome("1\n"),
                      push: fail_outcome('still rejected'))
       steps = fake_steps(status: 'done')
       result = call(git: git, steps: steps, locks: fake_locks)

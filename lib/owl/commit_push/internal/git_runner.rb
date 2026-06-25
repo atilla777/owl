@@ -15,15 +15,11 @@ module Owl
 
         module_function
 
-        def add_all(root:)
-          run(%w[git add -A], root)
-        end
-
         # Stage everything except the given pathspecs. With an empty `exclude`
-        # this is identical to `add_all` (`git add -A`, full back-compat). With
-        # exclusions it uses magic `:(exclude)` pathspecs so the named paths
-        # (e.g. other active tasks' `tasks/<id>/` dirs) are kept out of the
-        # delivery commit. Each pathspec is its own argv element — no shell.
+        # this is a plain `git add -A` (full back-compat). With exclusions it
+        # uses magic `:(exclude)` pathspecs so the named paths (e.g. other active
+        # tasks' `tasks/<id>/` dirs) are kept out of the delivery commit. Each
+        # pathspec is its own argv element — no shell.
         def add_scoped(root:, exclude: [])
           return run(%w[git add -A], root) if exclude.nil? || exclude.empty?
 
@@ -32,10 +28,10 @@ module Owl
 
         # Probe the staged index, not the working tree. `git diff --cached
         # --quiet` exits 0 when the index is EMPTY (no staged changes) and 1
-        # otherwise, so the returned `Outcome#ok` is `true` ⇔ the index is empty.
+        # otherwise, so the returned `Outcome#ok` is `true` ⇔ the index is clean.
         # (We keep `ok = status.success?` like every other method; the caller
         # interprets it.)
-        def index_dirty?(root:)
+        def index_clean?(root:)
           run(['git', 'diff', '--cached', '--quiet'], root)
         end
 
@@ -49,10 +45,6 @@ module Owl
 
         def push(root:)
           run(%w[git push], root)
-        end
-
-        def status_porcelain(root:)
-          run(%w[git status --porcelain], root)
         end
 
         # Commits ahead of the upstream branch. `stdout` carries the count from

@@ -71,18 +71,18 @@ RSpec.describe Owl::CommitPush::Internal::GitRunner do
     end
   end
 
-  describe '.index_dirty?' do
+  describe '.index_clean?' do
     it 'reports ok=true (empty index) when nothing is staged' do
       write(repo, 'lib/foo.rb') # untracked, NOT staged
 
-      expect(described_class.index_dirty?(root: repo).ok).to be(true)
+      expect(described_class.index_clean?(root: repo).ok).to be(true)
     end
 
     it 'reports ok=false (non-empty index) when something is staged' do
       write(repo, 'lib/foo.rb')
       run_git(repo.to_s, 'add', 'lib/foo.rb')
 
-      expect(described_class.index_dirty?(root: repo).ok).to be(false)
+      expect(described_class.index_clean?(root: repo).ok).to be(false)
     end
   end
 end
