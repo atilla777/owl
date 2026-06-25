@@ -4,6 +4,22 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.20.0] - 2026-06-25
+
+### Changed
+- **Conditional-skip steps count toward task availability (TASK-0037).**
+  Auto-selection (`owl next` without a current pointer, `owl task claim --next`)
+  and `owl task available` gated availability on a task having a dispatchable
+  `ready` step. But a step with a false `when:` predicate (TASK-0028) is held
+  out of `ready` into a `conditional_skip` bucket, which the orchestrator
+  advances via `skip_conditional_step`. So a task whose only next move was a
+  conditional skip was actionable via `owl next` (with an explicit/current task)
+  yet invisible to auto-select. Availability now keys on the union
+  `ready ∪ conditional_skip` (both from the single `ready_steps` call), so such
+  a task is auto-selected and advanced. Tasks merely waiting
+  (`blocked_by_children` / `awaiting_plan_approval`) are still NOT available, and
+  tasks with a `ready` step are unchanged.
+
 ## [0.19.0] - 2026-06-25
 
 ### Changed

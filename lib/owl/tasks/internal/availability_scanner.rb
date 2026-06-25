@@ -55,10 +55,10 @@ module Owl
           task_id = entry['id'].to_s
           return nil if live_claim?(paths: paths, task_id: task_id, now: now)
 
-          ready_ids = ready_step_ids(root: root, task_id: task_id)
-          return nil if ready_ids.empty?
+          actionable_ids = actionable_step_ids(root: root, task_id: task_id)
+          return nil if actionable_ids.empty?
 
-          candidate_hash(entry: entry, task_id: task_id, ready_ids: ready_ids)
+          candidate_hash(entry: entry, task_id: task_id, ready_ids: actionable_ids)
         end
 
         def candidate_hash(entry:, task_id:, ready_ids:)
@@ -69,6 +69,10 @@ module Owl
             kind: entry['kind'],
             priority: priority,
             created_at: entry['created_at'],
+            # Steps the task can advance on RIGHT NOW: dispatchable `ready` steps
+            # plus `conditional_skip` steps (a false `when:` predicate the
+            # orchestrator advances via `skip_conditional_step`). Both make the
+            # task actionable for auto-select.
             ready_step_ids: ready_ids,
             reason: "priority=#{priority}; oldest ready task"
           }
@@ -84,11 +88,20 @@ module Owl
           existing.is_a?(Hash) && !ExclusiveLease.expired?(existing, now)
         end
 
-        def ready_step_ids(root:, task_id:)
+        # Steps the task can act on now: `ready` (dispatchable) plus
+        # `conditional_skip` (false `when:` predicate — the orchestrator advances
+        # it via `skip_conditional_step`). A task whose only next move is a
+        # conditional skip is still actionable, so it must be auto-selectable.
+        # `blocked_by_children` / `awaiting_plan_approval` are waiting, not
+        # actionable, so they are deliberately excluded. Both buckets come from
+        # the single `ready_steps` call.
+        def actionable_step_ids(root:, task_id:)
           result = Owl::Workflows::Api.ready_steps(root: root, task_id: task_id)
           return [] if result.err?
 
-          Array(result.value[:ready]).map { |step| step[:id] }
+          ready = Array(result.value[:ready]).map { |step| step[:id] }
+          conditional = Array(result.value[:conditional_skip]).map { |step| step[:id] }
+          ready + conditional
         end
 
         def priority_of(entry)
