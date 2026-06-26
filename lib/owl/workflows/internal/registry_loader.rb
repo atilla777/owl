@@ -1,48 +1,30 @@
 # frozen_string_literal: true
 
-require 'pathname'
-require 'yaml'
-
+require_relative '../../internal/registry_loader'
 require_relative 'cache'
 
 module Owl
   module Workflows
     module Internal
+      # Thin per-domain wrapper over Owl::Internal::RegistryLoader, supplying the
+      # workflow registry path/namespace, the extra top-level `default_workflow`
+      # field, and the workflow per-entry field mapping.
       module RegistryLoader
         REGISTRY_PATH = '.owl/workflows.yaml'
 
         module_function
 
         def load(root:)
-          registry_path = Pathname.new(root.to_s) + REGISTRY_PATH
-
-          unless registry_path.exist?
-            return [:err, :workflows_registry_missing,
-                    "Workflows registry not found at #{registry_path}",
-                    { path: registry_path.to_s }]
-          end
-
-          raw = Cache.fetch_yaml(registry_path) do
-            YAML.safe_load(registry_path.read, aliases: false)
-          end
-          unless raw.is_a?(Hash)
-            return [:err, :workflows_registry_invalid,
-                    "Workflows registry is not a YAML mapping: #{registry_path}",
-                    { path: registry_path.to_s }]
-          end
-
-          workflows = raw['workflows'] || {}
-          entries = workflows.map do |key, body|
-            normalize(key, body || {})
-          end
-
-          [:ok, {
-            schema_version: raw['schema_version'],
-            default_workflow: raw['default_workflow'],
-            entries: entries
-          }]
-        rescue Psych::SyntaxError => e
-          [:err, :workflows_registry_invalid_yaml, e.message, { path: registry_path.to_s }]
+          Owl::Internal::RegistryLoader.load(
+            root: root,
+            registry_path: REGISTRY_PATH,
+            prefix: Cache::KEY_PREFIX,
+            collection_key: 'workflows',
+            namespace: 'workflows',
+            label: 'Workflows',
+            top_level: { default_workflow: 'default_workflow' },
+            normalize: method(:normalize)
+          )
         end
 
         def normalize(key, body)

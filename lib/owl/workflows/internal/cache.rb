@@ -1,20 +1,19 @@
 # frozen_string_literal: true
 
-require_relative '../../internal/cache'
+require_relative '../../internal/yaml_cache'
 
 module Owl
   module Workflows
     module Internal
+      # Thin per-domain wrapper over Owl::Internal::YamlCache, binding the
+      # workflow cache-key namespace.
       module Cache
         KEY_PREFIX = 'workflow'
 
         module_function
 
-        def fetch_yaml(path)
-          absolute = File.expand_path(path.to_s)
-          stat = File.stat(absolute)
-          token = [stat.mtime.to_r, stat.size]
-          Owl::Internal::Cache.fetch("#{KEY_PREFIX}:#{absolute}", version_token: token) { yield }
+        def fetch_yaml(path, &)
+          Owl::Internal::YamlCache.fetch_yaml(path, prefix: KEY_PREFIX, &)
         end
       end
     end

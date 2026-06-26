@@ -71,6 +71,9 @@ module OwlConstitutionFixtures
     workflows/internal/source_loader.rb
     internal/backend_resolver.rb
     internal/gem_assets.rb
+    internal/yaml_cache.rb
+    internal/source_loader.rb
+    internal/registry_loader.rb
     cli/internal/user_file_reader.rb
     init/internal/scaffolder.rb
     internal/paths.rb
