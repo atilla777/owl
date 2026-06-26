@@ -187,7 +187,8 @@ RSpec.describe Owl::Tasks::Api do
         described_class.create(root: root, workflow: 'feature', title: 'first')
         described_class.create(root: root, workflow: 'feature', title: 'second')
         result = described_class.list(root: root)
-        expect(result.value[:tasks].map { |t| t['id'] }).to eq(%w[TASK-0001 TASK-0002])
+        expect(result.value[:tasks].map { |t| t['task_id'] }).to eq(%w[TASK-0001 TASK-0002])
+        expect(result.value[:tasks].first).not_to have_key('id')
       end
     end
 
@@ -861,7 +862,7 @@ RSpec.describe Owl::Tasks::Api do
         described_class.create(root: root, workflow: 'feature', title: 'high', priority: 5)
         result = described_class.available(root: root)
         expect(result).to be_ok
-        expect(result.value[:available].map { |c| c[:task_id] }).to eq(%w[TASK-0002 TASK-0001])
+        expect(result.value[:available].map { |c| c['task_id'] }).to eq(%w[TASK-0002 TASK-0001])
       end
     end
 
@@ -873,7 +874,7 @@ RSpec.describe Owl::Tasks::Api do
         described_class.create(root: root, workflow: 'feature', title: 'two')
         described_class.claim(root: root, task_id: 'TASK-0001')
         result = described_class.available(root: root)
-        expect(result.value[:available].map { |c| c[:task_id] }).to eq(['TASK-0002'])
+        expect(result.value[:available].map { |c| c['task_id'] }).to eq(['TASK-0002'])
       end
     end
 
@@ -896,7 +897,7 @@ RSpec.describe Owl::Tasks::Api do
         described_class.create(root: root, workflow: 'feature', title: 'blocked')
         described_class.add_dependency(root: root, task_id: 'TASK-0002', depends_on: 'TASK-0001')
         result = described_class.available(root: root)
-        expect(result.value[:available].map { |c| c[:task_id] }).to include('TASK-0002')
+        expect(result.value[:available].map { |c| c['task_id'] }).to include('TASK-0002')
       end
     end
 
@@ -907,7 +908,7 @@ RSpec.describe Owl::Tasks::Api do
         described_class.create(root: root, workflow: 'feature', title: 'parked')
         described_class.set_status(root: root, task_id: 'TASK-0001', status: 'on_hold')
         result = described_class.available(root: root)
-        expect(result.value[:available].map { |c| c[:task_id] }).to include('TASK-0001')
+        expect(result.value[:available].map { |c| c['task_id'] }).to include('TASK-0001')
       end
     end
 
@@ -919,7 +920,7 @@ RSpec.describe Owl::Tasks::Api do
           described_class.create(root: root, workflow: 'feature', title: 'dep')
           described_class.create(root: root, workflow: 'feature', title: 'blocked')
           described_class.add_dependency(root: root, task_id: 'TASK-0002', depends_on: 'TASK-0001')
-          ids = described_class.available(root: root, dep_aware: true).value[:available].map { |c| c[:task_id] }
+          ids = described_class.available(root: root, dep_aware: true).value[:available].map { |c| c['task_id'] }
           expect(ids).to include('TASK-0001')
           expect(ids).not_to include('TASK-0002')
         end
@@ -932,7 +933,7 @@ RSpec.describe Owl::Tasks::Api do
           described_class.create(root: root, workflow: 'feature', title: 'parked')
           described_class.create(root: root, workflow: 'feature', title: 'live')
           described_class.set_status(root: root, task_id: 'TASK-0001', status: 'on_hold')
-          ids = described_class.available(root: root, dep_aware: true).value[:available].map { |c| c[:task_id] }
+          ids = described_class.available(root: root, dep_aware: true).value[:available].map { |c| c['task_id'] }
           expect(ids).not_to include('TASK-0001')
           expect(ids).to include('TASK-0002')
         end
@@ -944,9 +945,14 @@ RSpec.describe Owl::Tasks::Api do
           seed_feature_workflow(root)
           described_class.create(root: root, workflow: 'feature', title: 'normal')
           candidate = described_class.available(root: root, dep_aware: true).value[:available].first
-          expect(candidate[:task_id]).to eq('TASK-0001')
-          expect(candidate[:ready_step_ids]).to eq(['noop'])
-          expect(candidate[:reason]).to be_a(String)
+          expect(candidate['task_id']).to eq('TASK-0001')
+          expect(candidate['ready_step_ids']).to eq(['noop'])
+          expect(candidate['reason']).to be_a(String)
+          # dep-aware shares the unified contract with plain available.
+          expect(candidate.keys).to eq(
+            %w[task_id title kind priority created_at status workflow ready_step_ids reason]
+          )
+          expect(candidate).not_to have_key('id')
         end
       end
     end

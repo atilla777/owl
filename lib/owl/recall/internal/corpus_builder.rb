@@ -69,7 +69,7 @@ module Owl
           return [] if listing.err?
 
           active_entries(listing.value[:tasks]).map do |entry|
-            task_id = entry['id'].to_s
+            task_id = entry['task_id'].to_s
             document(
               task_id: task_id,
               title: entry['title'].to_s,

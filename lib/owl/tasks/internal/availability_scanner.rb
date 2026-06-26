@@ -9,6 +9,7 @@ require_relative 'exclusive_lease'
 require_relative 'index_reader'
 require_relative 'paths'
 require_relative 'task_statuses'
+require_relative 'task_summary'
 
 module Owl
   module Tasks
@@ -60,24 +61,25 @@ module Owl
           actionable_ids = actionable_step_ids(root: root, task_id: task_id)
           return nil if actionable_ids.empty?
 
-          candidate_hash(entry: entry, task_id: task_id, ready_ids: actionable_ids)
+          candidate_hash(entry: entry, ready_ids: actionable_ids)
         end
 
-        def candidate_hash(entry:, task_id:, ready_ids:)
+        # Projects the raw index entry into the unified list-element contract
+        # (task_id + core fields) via TaskSummary and layers the ranking-specific
+        # extras on top: `ready_step_ids` (steps the task can advance on RIGHT NOW
+        # — dispatchable `ready` steps plus `conditional_skip` steps the
+        # orchestrator advances via `skip_conditional_step`) and a human `reason`.
+        # Going through TaskSummary is what gives `available` the `status` and
+        # `workflow` core fields it previously lacked.
+        def candidate_hash(entry:, ready_ids:)
           priority = priority_of(entry)
-          {
-            task_id: task_id,
-            title: entry['title'],
-            kind: entry['kind'],
-            priority: priority,
-            created_at: entry['created_at'],
-            # Steps the task can advance on RIGHT NOW: dispatchable `ready` steps
-            # plus `conditional_skip` steps (a false `when:` predicate the
-            # orchestrator advances via `skip_conditional_step`). Both make the
-            # task actionable for auto-select.
-            ready_step_ids: ready_ids,
-            reason: "priority=#{priority}; oldest ready task"
-          }
+          TaskSummary.project(
+            entry,
+            extra: {
+              'ready_step_ids' => ready_ids,
+              'reason' => "priority=#{priority}; oldest ready task"
+            }
+          )
         end
 
         def live_claim?(paths:, task_id:, now:)
@@ -112,7 +114,7 @@ module Owl
         end
 
         def sort_candidates(candidates)
-          candidates.sort_by { |c| [-c[:priority], c[:created_at].to_s, c[:task_id]] }
+          candidates.sort_by { |c| [-c['priority'], c['created_at'].to_s, c['task_id']] }
         end
       end
     end

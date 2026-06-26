@@ -54,7 +54,7 @@ module Owl
         end
 
         def child_view(root:, child_summary:)
-          child_id = child_summary['id'].to_s
+          child_id = child_summary['task_id'].to_s
           inspect_result = Owl::Tasks::Api.inspect(root: root, task_id: child_id)
           if inspect_result.err?
             return {

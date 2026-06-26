@@ -67,7 +67,14 @@ RSpec.describe Owl::Tasks::Backends::Filesystem do
 
         list_result = backend.list
         expect(list_result).to be_ok
-        expect(list_result.value[:tasks].map { |t| t['id'] }).to eq(['TASK-0001'])
+        # list projects to the unified output contract: identity under `task_id`,
+        # never the storage key `id`.
+        expect(list_result.value[:tasks].map { |t| t['task_id'] }).to eq(['TASK-0001'])
+        expect(list_result.value[:tasks].first).not_to have_key('id')
+
+        # The on-disk index keeps its storage `id` key (output-only rename).
+        on_disk = YAML.safe_load(Pathname.new("#{root}/tasks/index.yaml").read)
+        expect(on_disk['tasks'].map { |t| t['id'] }).to eq(['TASK-0001'])
 
         inspect_result = backend.inspect_task(task_id: 'TASK-0001')
         expect(inspect_result).to be_ok

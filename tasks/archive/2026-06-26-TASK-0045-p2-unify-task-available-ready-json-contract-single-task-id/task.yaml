@@ -10,7 +10,7 @@ kind: task
 parent_id:
 priority: 6
 created_at: '2026-06-26T14:56:16Z'
-status: open
+status: archived
 labels:
 - health-review-2026-06-26
 blocked_by: []
@@ -32,7 +32,8 @@ steps:
     problem_inventory:
       context_file: brief.problem_inventory.context.md
       title: Inventory refactor problems
-  status: pending
+  status: done
+  content_sha: de38924541693c251d711a86c2bf7ebe8ee307180fea172cd2e781671846d03f
 - id: design
   skill: owl-step-discussion
   session_type: discussion
@@ -42,7 +43,8 @@ steps:
   - brief
   creates:
   - design
-  status: pending
+  status: done
+  content_sha: 3f5695b71d60986533954aae178537077b1fed636842c10d3c9ddb01bbf9654b
 - id: plan
   skill: owl-step-discussion
   session_type: discussion
@@ -52,7 +54,8 @@ steps:
   - brief
   creates:
   - plan
-  status: pending
+  status: done
+  content_sha: 90a135eeef4acb2cdd7f2c22146bad6de64446b7e6ae2ac54726ba22611012a5
 - id: implement
   skill: owl-step-execution
   session_type: execution
@@ -62,7 +65,8 @@ steps:
   - plan
   creates:
   - verification
-  status: pending
+  status: done
+  content_sha: 35bbee5055b832487ea6b0b5eae0b1c57091e1e938426023c5de8c9a8379f5c1
 - id: review_code
   skill: owl-step-execution
   session_type: execution
@@ -72,7 +76,8 @@ steps:
   - implement
   creates:
   - review
-  status: pending
+  status: done
+  content_sha: 6f086db2baf2f9d1bdfc3d8768da58eec214b0878ea05a905b48f8a2d55a8206
 - id: merge_docs
   skill: owl-step-execution
   session_type: execution
@@ -81,7 +86,7 @@ steps:
   context_file: merge_docs.context.md
   requires:
   - review_code
-  status: pending
+  status: done
 - id: archive
   skill: owl-step-execution
   session_type: execution
@@ -89,7 +94,7 @@ steps:
   context_file: archive.context.md
   requires:
   - merge_docs
-  status: pending
+  status: done
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
@@ -97,5 +102,6 @@ steps:
   context_file: commit_push.context.md
   requires:
   - archive
-  status: pending
+  status: done
 artifacts: []
+archived_at: '2026-06-26T18:00:13Z'

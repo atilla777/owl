@@ -152,9 +152,11 @@ RSpec.describe 'owl task dep / ready CLI subcommands' do
         run(['task', 'dep', 'add', 'TASK-0002', '--on', 'TASK-0001', '--root', root.to_s], cwd: root)
         exit_code, stdout, = run(['task', 'ready', '--root', root.to_s, '--json'], cwd: root)
         expect(exit_code).to eq(0)
-        ids = JSON.parse(stdout)['ready'].map { |e| e['id'] }
+        ready = JSON.parse(stdout)['ready']
+        ids = ready.map { |e| e['task_id'] }
         expect(ids).to include('TASK-0001')
         expect(ids).not_to include('TASK-0002')
+        expect(ready.first).not_to have_key('id')
       end
     end
 

@@ -31,13 +31,15 @@ module Owl
 
           ready_ids = ready_id_set(ready_result.value[:ready])
           candidates = Array(available_result.value[:available])
-                       .select { |candidate| ready_ids.include?(candidate[:task_id].to_s) }
+                       .select { |candidate| ready_ids.include?(candidate['task_id'].to_s) }
           Result.ok(available: candidates)
         end
 
+        # Both scanners now emit the unified contract (identity under `task_id`),
+        # so the intersection keys off `task_id` on both sides.
         def ready_id_set(entries)
           Array(entries).each_with_object(Set.new) do |entry, acc|
-            acc << entry['id'].to_s if entry.is_a?(Hash)
+            acc << entry['task_id'].to_s if entry.is_a?(Hash)
           end
         end
       end

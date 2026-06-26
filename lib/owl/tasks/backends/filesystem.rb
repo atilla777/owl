@@ -25,6 +25,7 @@ require_relative '../internal/query'
 require_relative '../internal/status_writer'
 require_relative '../internal/task_mutation_lock'
 require_relative '../internal/task_reader'
+require_relative '../internal/task_summary'
 require_relative '../internal/task_writer'
 require_relative '../internal/tree_builder'
 require_relative '../internal/workflow_snapshot'
@@ -49,9 +50,29 @@ module Owl
           Result.ok(
             index_path: paths_result.value[:index].to_s,
             schema_version: index_result.value[:schema_version],
-            tasks: index_result.value[:tasks],
+            tasks: project_entries(index_result.value[:tasks]),
             local: { index: Owl::Tasks::Local::Index.new(index_path: paths_result.value[:index].to_s) }
           )
+        end
+
+        # Project each raw index entry into the unified list-element contract
+        # (identity under `task_id` + shared core + tracker fields). Output-only —
+        # the on-disk index keeps its `id` key. Index order is preserved.
+        def project_entries(entries)
+          Array(entries).map do |entry|
+            next entry unless entry.is_a?(Hash)
+
+            Internal::TaskSummary.project(entry, extra: list_tracker_extra(entry))
+          end
+        end
+
+        def list_tracker_extra(entry)
+          {
+            'parent_id' => entry['parent_id'],
+            'labels' => Array(entry['labels']),
+            'blocked_by' => Array(entry['blocked_by']),
+            'archived_at' => entry['archived_at']
+          }
         end
 
         def inspect_task(task_id:)

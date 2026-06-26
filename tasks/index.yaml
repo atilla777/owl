@@ -14,19 +14,6 @@ tasks:
   - health-review-2026-06-26
   blocked_by: []
   archived_at:
-- id: TASK-0045
-  title: 'P2: unify task available/ready JSON contract (single task_id key + shared
-    core fields)'
-  workflow: refactor
-  kind: task
-  parent_id:
-  priority: 6
-  created_at: '2026-06-26T14:56:16Z'
-  status: open
-  labels:
-  - health-review-2026-06-26
-  blocked_by: []
-  archived_at:
 - id: TASK-0046
   title: 'P2: sync owl.version into .owl/config.yaml on upgrade/init and expose it
     via CLI (config get version is null)'

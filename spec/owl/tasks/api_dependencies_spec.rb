@@ -203,11 +203,25 @@ RSpec.describe Owl::Tasks::Api, '.add_dependency / .remove_dependency / .depende
   end
 
   describe '.ready' do
+    it 'emits the unified contract: task_id + core + tracker fields, no id key' do
+      with_tmp_project do |root|
+        create_two(root)
+        described_class.add_dependency(root: root, task_id: 'TASK-0002', depends_on: 'TASK-0001')
+        entry = described_class.ready(root: root).value[:ready].find { |e| e['task_id'] == 'TASK-0001' }
+        expect(entry.keys).to eq(
+          %w[task_id title kind priority created_at status workflow parent_id labels blocked_by archived_at]
+        )
+        expect(entry).not_to have_key('id')
+        expect(entry['status']).to eq('open')
+        expect(entry['blocked_by']).to eq([])
+      end
+    end
+
     it 'excludes a task while its dependency is unfinished' do
       with_tmp_project do |root|
         create_two(root)
         described_class.add_dependency(root: root, task_id: 'TASK-0002', depends_on: 'TASK-0001')
-        ids = described_class.ready(root: root).value[:ready].map { |e| e['id'] }
+        ids = described_class.ready(root: root).value[:ready].map { |e| e['task_id'] }
         expect(ids).to include('TASK-0001')
         expect(ids).not_to include('TASK-0002')
       end
@@ -218,7 +232,7 @@ RSpec.describe Owl::Tasks::Api, '.add_dependency / .remove_dependency / .depende
         create_two(root)
         described_class.add_dependency(root: root, task_id: 'TASK-0002', depends_on: 'TASK-0001')
         described_class.set_status(root: root, task_id: 'TASK-0001', status: 'done')
-        ids = described_class.ready(root: root).value[:ready].map { |e| e['id'] }
+        ids = described_class.ready(root: root).value[:ready].map { |e| e['task_id'] }
         expect(ids).to include('TASK-0002')
         expect(ids).not_to include('TASK-0001') # done is terminal for its own readiness
       end
@@ -233,7 +247,7 @@ RSpec.describe Owl::Tasks::Api, '.add_dependency / .remove_dependency / .depende
         payload['status'] = 'archived'
         write("#{root}/tasks/TASK-0001/task.yaml", payload.to_yaml)
         described_class.rebuild_index(root: root)
-        ids = described_class.ready(root: root).value[:ready].map { |e| e['id'] }
+        ids = described_class.ready(root: root).value[:ready].map { |e| e['task_id'] }
         expect(ids).to include('TASK-0002')
       end
     end
@@ -247,7 +261,7 @@ RSpec.describe Owl::Tasks::Api, '.add_dependency / .remove_dependency / .depende
         described_class.rebuild_index(root: root)
         result = described_class.ready(root: root)
         expect(result).to be_ok
-        expect(result.value[:ready].map { |e| e['id'] }).to include('TASK-0002')
+        expect(result.value[:ready].map { |e| e['task_id'] }).to include('TASK-0002')
       end
     end
 
@@ -255,7 +269,7 @@ RSpec.describe Owl::Tasks::Api, '.add_dependency / .remove_dependency / .depende
       with_tmp_project do |root|
         create_two(root)
         described_class.claim(root: root, task_id: 'TASK-0001')
-        ids = described_class.ready(root: root).value[:ready].map { |e| e['id'] }
+        ids = described_class.ready(root: root).value[:ready].map { |e| e['task_id'] }
         expect(ids).not_to include('TASK-0001')
       end
     end
@@ -264,7 +278,7 @@ RSpec.describe Owl::Tasks::Api, '.add_dependency / .remove_dependency / .depende
       with_tmp_project do |root|
         create_two(root)
         described_class.set_status(root: root, task_id: 'TASK-0001', status: 'on_hold')
-        ids = described_class.ready(root: root).value[:ready].map { |e| e['id'] }
+        ids = described_class.ready(root: root).value[:ready].map { |e| e['task_id'] }
         expect(ids).not_to include('TASK-0001')
         expect(ids).to include('TASK-0002')
       end
@@ -274,7 +288,7 @@ RSpec.describe Owl::Tasks::Api, '.add_dependency / .remove_dependency / .depende
       with_tmp_project do |root|
         create_two(root)
         described_class.set_status(root: root, task_id: 'TASK-0001', status: 'blocked')
-        ids = described_class.ready(root: root).value[:ready].map { |e| e['id'] }
+        ids = described_class.ready(root: root).value[:ready].map { |e| e['task_id'] }
         expect(ids).not_to include('TASK-0001')
         expect(ids).to include('TASK-0002')
       end
@@ -286,7 +300,7 @@ RSpec.describe Owl::Tasks::Api, '.add_dependency / .remove_dependency / .depende
         create_task(root, title: 'low')
         create_task(root, title: 'high')
         described_class.set_priority(root: root, task_id: 'TASK-0002', priority: 5)
-        ids = described_class.ready(root: root).value[:ready].map { |e| e['id'] }
+        ids = described_class.ready(root: root).value[:ready].map { |e| e['task_id'] }
         expect(ids).to eq(%w[TASK-0002 TASK-0001])
       end
     end
@@ -302,7 +316,7 @@ RSpec.describe Owl::Tasks::Api, '.add_dependency / .remove_dependency / .depende
         expect(index_entry(root, 'TASK-0002')['blocked_by']).to eq([])
         result = described_class.ready(root: root)
         expect(result).to be_ok
-        expect(result.value[:ready].map { |e| e['id'] }).to include('TASK-0002')
+        expect(result.value[:ready].map { |e| e['task_id'] }).to include('TASK-0002')
       end
     end
   end

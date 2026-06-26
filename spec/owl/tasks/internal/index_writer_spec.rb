@@ -45,7 +45,7 @@ RSpec.describe Owl::Tasks::Internal::IndexWriter do
   end
 
   def task_ids(root)
-    Owl::Tasks::Api.list(root: root).value[:tasks].map { |task| task['id'] }
+    Owl::Tasks::Api.list(root: root).value[:tasks].map { |task| task['task_id'] }
   end
 
   describe '.rebuild' do

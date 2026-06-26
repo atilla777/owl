@@ -94,7 +94,7 @@ module Owl
 
         def claim_first_available(root:, paths:, candidates:, opts:)
           candidates.each do |candidate|
-            attempt = attempt_claim(root: root, paths: paths, task_id: candidate[:task_id], opts: opts)
+            attempt = attempt_claim(root: root, paths: paths, task_id: candidate['task_id'], opts: opts)
             return attempt if attempt.ok?
             return attempt unless attempt.code == :lease_held
           end

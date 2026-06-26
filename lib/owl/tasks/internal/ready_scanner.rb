@@ -8,6 +8,7 @@ require_relative 'exclusive_lease'
 require_relative 'index_reader'
 require_relative 'paths'
 require_relative 'task_statuses'
+require_relative 'task_summary'
 
 module Owl
   module Tasks
@@ -48,7 +49,19 @@ module Owl
           ready = entries.select do |entry|
             ready_entry?(entry: entry, status_by_id: status_by_id, paths: paths_result.value, now: now)
           end
-          Result.ok(ready: sort_entries(ready))
+          # Sort on the raw entries (string-key `id`), then project each into the
+          # unified list-element contract as the final step before returning.
+          Result.ok(ready: sort_entries(ready).map { |entry| TaskSummary.project(entry, extra: tracker_extra(entry)) })
+        end
+
+        # Tracker fields layered on top of the shared core for `ready`/`list`.
+        def tracker_extra(entry)
+          {
+            'parent_id' => entry['parent_id'],
+            'labels' => Array(entry['labels']),
+            'blocked_by' => Array(entry['blocked_by']),
+            'archived_at' => entry['archived_at']
+          }
         end
 
         def status_map(entries)

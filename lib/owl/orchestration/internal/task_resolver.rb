@@ -55,9 +55,9 @@ module Owl
           return none_resolution unless top
 
           {
-            task_id: top[:task_id].to_s,
+            task_id: top['task_id'].to_s,
             source: 'auto_select',
-            reason: top[:reason] || 'highest-priority runnable task'
+            reason: top['reason'] || 'highest-priority runnable task'
           }
         end
 

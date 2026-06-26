@@ -146,7 +146,7 @@ module Owl
           list_result.value[:tasks].filter_map do |entry|
             next unless entry.is_a?(Hash)
 
-            entry['id'].to_s if entry['parent_id'].to_s == parent_id.to_s
+            entry['task_id'].to_s if entry['parent_id'].to_s == parent_id.to_s
           end
         end
 

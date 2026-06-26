@@ -34,7 +34,7 @@ RSpec.describe Owl::Tasks::Internal::ReadyAvailabilityScanner do
   end
 
   def scan_ids(root)
-    described_class.scan(root: root).value[:available].map { |c| c[:task_id] }
+    described_class.scan(root: root).value[:available].map { |c| c['task_id'] }
   end
 
   it 'includes a normal task with its ready_step_ids and reason intact' do
@@ -42,9 +42,9 @@ RSpec.describe Owl::Tasks::Internal::ReadyAvailabilityScanner do
       setup_project(root)
       create_task(root, title: 'normal')
       candidate = described_class.scan(root: root).value[:available].first
-      expect(candidate[:task_id]).to eq('TASK-0001')
-      expect(candidate[:ready_step_ids]).to eq(['a'])
-      expect(candidate[:reason]).to be_a(String)
+      expect(candidate['task_id']).to eq('TASK-0001')
+      expect(candidate['ready_step_ids']).to eq(['a'])
+      expect(candidate['reason']).to be_a(String)
     end
   end
 

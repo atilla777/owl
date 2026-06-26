@@ -39,7 +39,7 @@ module Owl
         return [] if listing.err?
 
         Array(listing.value[:tasks])
-          .filter_map { |task| task['id'].to_s if task.is_a?(Hash) }
+          .filter_map { |task| task['task_id'].to_s if task.is_a?(Hash) }
           .reject { |id| id.empty? || id == task_id.to_s }
           .map { |id| "tasks/#{id}" }
       end

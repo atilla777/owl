@@ -114,7 +114,7 @@ RSpec.describe 'Owl claim-lease internals (time-based branches)' do
         t0 = Time.utc(2026, 1, 1, 12, 0, 0)
         Owl::Tasks::Internal::ClaimService.claim(root: root, task_id: 'TASK-0001', ttl: 60, now: t0)
         scan = described_class.scan(root: root, now: t0 + 3600)
-        expect(scan.value[:available].map { |c| c[:task_id] }).to eq(['TASK-0001'])
+        expect(scan.value[:available].map { |c| c['task_id'] }).to eq(['TASK-0001'])
       end
     end
   end

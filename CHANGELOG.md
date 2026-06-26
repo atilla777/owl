@@ -4,6 +4,31 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.0.0] - 2026-06-26
+
+### Changed (BREAKING)
+- **Unified the JSON contract of `owl task available` / `owl task ready` /
+  `owl task list` (TASK-0045).** Every list element now carries the task
+  identity under a single key `task_id` (previously `id` in `ready`/`list`,
+  `task_id` in `available`) plus a shared core field set — `task_id`, `title`,
+  `kind`, `priority`, `created_at`, `status`, `workflow` — with command-specific
+  fields layered on top (`available` → `ready_step_ids`, `reason`;
+  `ready`/`list` → `parent_id`, `labels`, `blocked_by`, `archived_at`).
+  - **Breaking**: `owl task ready` and `owl task list` no longer emit `id` as the
+    task identity; consumers must read `task_id`. `owl task available` is
+    unchanged for the identity key but now also includes the `status` and
+    `workflow` core fields it previously lacked. `--dep-aware` `available`
+    (`owl next` auto-select) emits the same unified element.
+  - The on-disk `tasks/index.yaml` / `task.yaml` storage format is **unchanged**
+    (still keyed by `id`); the rename is output-only, applied by the new
+    `Tasks::Internal::TaskSummary` projection. `schemas/task.json` (which
+    documents the on-disk payload) is unchanged.
+  - All in-repo `lib/owl` consumers of these outputs (claim-next, `owl next`
+    auto-select, status children view, commit-push task-dir exclusion, recall
+    corpus, child-id lookup) were updated to read `task_id`; the `owl-*`
+    skills/commands already referenced the task identity via `task_id`. Consumer
+    projects pick this up via `owl upgrade`.
+
 ## [0.23.1] - 2026-06-26
 
 ### Fixed

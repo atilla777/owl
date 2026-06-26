@@ -145,7 +145,7 @@ RSpec.describe Owl::CommitPush::Api do
   describe '.commit_push default dependencies' do
     it 'delegates to the transaction with the real git/locks/steps facades and scoped exclusions' do
       allow(Owl::Tasks::Api).to receive(:list).and_return(
-        Owl::Result.ok(tasks: [{ 'id' => 'TASK-0001' }, { 'id' => 'TASK-0042' }])
+        Owl::Result.ok(tasks: [{ 'task_id' => 'TASK-0001' }, { 'task_id' => 'TASK-0042' }])
       )
       allow(Owl::CommitPush::Internal::Transaction).to receive(:call).and_return(Owl::Result.ok(pushed: true))
 
@@ -174,13 +174,15 @@ RSpec.describe Owl::CommitPush::Api do
 
     it 'excludes the dirs of other active tasks but keeps the current one' do
       listing = Owl::Result.ok(tasks: [
-                                 { 'id' => 'TASK-0001' }, { 'id' => 'TASK-0002' }, { 'id' => 'TASK-0003' }
+                                 { 'task_id' => 'TASK-0001' },
+                                 { 'task_id' => 'TASK-0002' },
+                                 { 'task_id' => 'TASK-0003' }
                                ])
       expect(exclude_for(listing: listing)).to eq(['tasks/TASK-0002', 'tasks/TASK-0003'])
     end
 
     it 'yields an empty exclusion list when the current task is the only active one' do
-      listing = Owl::Result.ok(tasks: [{ 'id' => 'TASK-0001' }])
+      listing = Owl::Result.ok(tasks: [{ 'task_id' => 'TASK-0001' }])
       expect(exclude_for(listing: listing)).to eq([])
     end
 
@@ -190,7 +192,7 @@ RSpec.describe Owl::CommitPush::Api do
     end
 
     it 'ignores blank ids and non-hash entries in the listing' do
-      listing = Owl::Result.ok(tasks: [{ 'id' => '' }, 'garbage', { 'id' => 'TASK-0009' }])
+      listing = Owl::Result.ok(tasks: [{ 'task_id' => '' }, 'garbage', { 'task_id' => 'TASK-0009' }])
       expect(exclude_for(listing: listing)).to eq(['tasks/TASK-0009'])
     end
   end

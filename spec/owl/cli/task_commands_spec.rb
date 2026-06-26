@@ -131,8 +131,9 @@ RSpec.describe 'owl task ... CLI subcommands' do
         run(['task', 'create', '--workflow', 'feature', '--title', 'a', '--root', root.to_s], cwd: root)
         run(['task', 'create', '--workflow', 'feature', '--title', 'b', '--root', root.to_s], cwd: root)
         _exit, stdout, _stderr = run(['task', 'list', '--root', root.to_s, '--json'], cwd: root)
-        ids = JSON.parse(stdout)['tasks'].map { |t| t['id'] }
-        expect(ids).to eq(%w[TASK-0001 TASK-0002])
+        tasks = JSON.parse(stdout)['tasks']
+        expect(tasks.map { |t| t['task_id'] }).to eq(%w[TASK-0001 TASK-0002])
+        expect(tasks.first).not_to have_key('id')
       end
     end
   end
@@ -352,7 +353,7 @@ RSpec.describe 'owl task ... CLI subcommands' do
         setup_with_abandon(root)
         exit_code, stdout, = run(['task', 'list', '--root', root.to_s, '--json'], cwd: root)
         expect(exit_code).to eq(0)
-        ids = JSON.parse(stdout)['tasks'].map { |t| t['id'] }
+        ids = JSON.parse(stdout)['tasks'].map { |t| t['task_id'] }
         expect(ids).to eq(['TASK-0002'])
       end
     end
@@ -362,7 +363,7 @@ RSpec.describe 'owl task ... CLI subcommands' do
         setup_with_abandon(root)
         exit_code, stdout, = run(['task', 'list', '--include-abandoned', '--root', root.to_s, '--json'], cwd: root)
         expect(exit_code).to eq(0)
-        ids = JSON.parse(stdout)['tasks'].map { |t| t['id'] }
+        ids = JSON.parse(stdout)['tasks'].map { |t| t['task_id'] }
         expect(ids).to contain_exactly('TASK-0001', 'TASK-0002')
       end
     end

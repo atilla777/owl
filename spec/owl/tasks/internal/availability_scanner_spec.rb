@@ -39,7 +39,7 @@ RSpec.describe Owl::Tasks::Internal::AvailabilityScanner do
   end
 
   def available_ids(root)
-    described_class.scan(root: root).value[:available].map { |c| c[:task_id] }
+    described_class.scan(root: root).value[:available].map { |c| c['task_id'] }
   end
 
   it 'includes a task whose only actionable step is a conditional_skip step' do
@@ -49,8 +49,8 @@ RSpec.describe Owl::Tasks::Internal::AvailabilityScanner do
       # conditional_skip — the orchestrator can still advance it via skip.
       stub_ready_steps(ready: [], conditional_skip: [{ id: 'design', reason: 'condition_unmet' }])
       candidate = described_class.scan(root: root).value[:available].first
-      expect(candidate[:task_id]).to eq('TASK-0001')
-      expect(candidate[:ready_step_ids]).to eq(['design'])
+      expect(candidate['task_id']).to eq('TASK-0001')
+      expect(candidate['ready_step_ids']).to eq(['design'])
     end
   end
 
@@ -67,8 +67,8 @@ RSpec.describe Owl::Tasks::Internal::AvailabilityScanner do
       setup_project(root)
       stub_ready_steps(ready: [{ id: 'a' }], conditional_skip: [])
       candidate = described_class.scan(root: root).value[:available].first
-      expect(candidate[:task_id]).to eq('TASK-0001')
-      expect(candidate[:ready_step_ids]).to eq(['a'])
+      expect(candidate['task_id']).to eq('TASK-0001')
+      expect(candidate['ready_step_ids']).to eq(['a'])
     end
   end
 
@@ -77,7 +77,22 @@ RSpec.describe Owl::Tasks::Internal::AvailabilityScanner do
       setup_project(root)
       stub_ready_steps(ready: [{ id: 'a' }], conditional_skip: [{ id: 'design' }])
       candidate = described_class.scan(root: root).value[:available].first
-      expect(candidate[:ready_step_ids]).to eq(%w[a design])
+      expect(candidate['ready_step_ids']).to eq(%w[a design])
+    end
+  end
+
+  it 'emits the unified contract: task_id + core (incl. status/workflow) + ranking extras, no id key' do
+    with_tmp_project do |root|
+      setup_project(root)
+      stub_ready_steps(ready: [{ id: 'a' }], conditional_skip: [])
+      candidate = described_class.scan(root: root).value[:available].first
+      expect(candidate.keys).to eq(
+        %w[task_id title kind priority created_at status workflow ready_step_ids reason]
+      )
+      expect(candidate).not_to have_key('id')
+      expect(candidate).not_to have_key(:task_id)
+      expect(candidate['status']).to eq('open')
+      expect(candidate['workflow']).to eq('feature')
     end
   end
 end
