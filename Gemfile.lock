@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    owl-cli (0.23.0)
+    owl-cli (0.23.1)
 
 GEM
   remote: https://rubygems.org/

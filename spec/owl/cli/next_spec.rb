@@ -173,13 +173,37 @@ RSpec.describe 'owl next CLI subcommand' do
       end
     end
 
-    it 'returns done when the terminal step is complete' do
+    it 'rejects an auto-closed task with task_terminal once its terminal step completes' do
       with_tmp_project do |root|
         init_project(root)
         seed_single_step(root)
         run(['task', 'create', '--workflow', 'tiny', '--title', 't', '--root', root.to_s], cwd: root)
         run(['step', 'start', 'TASK-0001', 'only', '--root', root.to_s], cwd: root)
         run(['step', 'complete', 'TASK-0001', 'only', '--root', root.to_s], cwd: root)
+
+        # Completing the terminal step auto-closes the task to `done`
+        # (TASK-0044), so an explicit `next TASK-X` is now a terminal reject
+        # rather than the `done` advisory (consistent with the TASK-0043 guard).
+        exit_code, _stdout, stderr = run(['next', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).not_to eq(0)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('task_terminal')
+      end
+    end
+
+    it 'returns the done action for a workflow-complete task whose status is still non-terminal' do
+      with_tmp_project do |root|
+        init_project(root)
+        seed_single_step(root)
+        run(['task', 'create', '--workflow', 'tiny', '--title', 't', '--root', root.to_s], cwd: root)
+        run(['step', 'start', 'TASK-0001', 'only', '--root', root.to_s], cwd: root)
+        run(['step', 'complete', 'TASK-0001', 'only', '--root', root.to_s], cwd: root)
+
+        # Force the status back to non-terminal to exercise the resolver's
+        # `done` advisory branch (the state auto-close normally prevents).
+        path = "#{root}/tasks/TASK-0001/task.yaml"
+        payload = YAML.safe_load_file(path)
+        payload['status'] = 'open'
+        File.write(path, YAML.dump(payload))
 
         exit_code, stdout, _stderr = run(['next', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
         expect(exit_code).to eq(0)

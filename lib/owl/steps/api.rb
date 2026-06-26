@@ -9,7 +9,6 @@ require_relative '../verification/api'
 require_relative '../workflows/api'
 require_relative '../workflows/internal/graph_builder'
 require_relative 'internal/active_step_lock'
-require_relative 'internal/archive_finalizer'
 require_relative 'internal/artifact_sha_collector'
 require_relative 'internal/bundle_builder'
 require_relative 'internal/drift_detector'
@@ -18,6 +17,7 @@ require_relative 'internal/invocation_builder'
 require_relative 'internal/output_validator'
 require_relative 'internal/statuses'
 require_relative 'internal/status_writer'
+require_relative 'internal/task_finalizer'
 
 module Owl
   module Steps
@@ -87,7 +87,7 @@ module Owl
           # Re-completing a `done` step is an idempotent no-op (no task.yaml
           # rewrite), so `commit_push` can self-complete before it commits and
           # the orchestrator's safety-net re-complete stays harmless.
-          return idempotent_complete(paths.value, task_id, step_id) if current == 'done'
+          return idempotent_complete(root, paths.value, task_id, step_id) if current == 'done'
 
           return Result.err(
             code: :step_not_running,
@@ -120,8 +120,9 @@ module Owl
                             ))
         return write if write.err?
 
-        Internal::ArchiveFinalizer.call(
-          tasks_root: paths.value[:tasks], local_state_root: paths.value[:local_state], task_id: task_id
+        Internal::TaskFinalizer.call(
+          root: root, tasks_root: paths.value[:tasks],
+          local_state_root: paths.value[:local_state], task_id: task_id
         )
         with_gate_warnings(write, gate)
       end
@@ -397,11 +398,13 @@ module Owl
         step && (step['status'] || step[:status] || Internal::Statuses::DEFAULT).to_s
       end
 
-      # Release the archive pointer if the workflow is terminal, then report
-      # success without touching task.yaml.
-      def idempotent_complete(paths, task_id, step_id)
-        Internal::ArchiveFinalizer.call(
-          tasks_root: paths[:tasks], local_state_root: paths[:local_state], task_id: task_id
+      # Run task finalization if the workflow is terminal, then report success
+      # without touching task.yaml. For an already-`done` task this is a clean
+      # no-op (no status rewrite); the archive path still releases the pointer.
+      def idempotent_complete(root, paths, task_id, step_id)
+        Internal::TaskFinalizer.call(
+          root: root, tasks_root: paths[:tasks],
+          local_state_root: paths[:local_state], task_id: task_id
         )
         Result.ok(step: { 'id' => step_id.to_s, 'status' => 'done' }, already_done: true)
       end

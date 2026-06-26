@@ -187,6 +187,74 @@ RSpec.describe Owl::Steps::Api do
         expect(step).not_to have_key('content_sha')
       end
     end
+
+    it 'auto-closes the task to done when completing the final step' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        # Finish `a`, then complete the terminal `b`: the task (archive-less
+        # workflow) must flip from open to done.
+        described_class.start(root: root, task_id: task_id, step_id: 'a')
+        described_class.complete(root: root, task_id: task_id, step_id: 'a')
+        expect(task_yaml(root, task_id)['status']).to eq('open')
+
+        described_class.start(root: root, task_id: task_id, step_id: 'b')
+        described_class.complete(root: root, task_id: task_id, step_id: 'b')
+
+        expect(task_yaml(root, task_id)['status']).to eq('done')
+      end
+    end
+
+    it 'leaves the task open while non-terminal steps remain' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        described_class.start(root: root, task_id: task_id, step_id: 'a')
+        described_class.complete(root: root, task_id: task_id, step_id: 'a')
+
+        # `b` is still pending — the task must not be auto-closed.
+        expect(task_yaml(root, task_id)['status']).to eq('open')
+      end
+    end
+
+    it 'keeps a done task done on an idempotent re-complete of the final step' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        described_class.start(root: root, task_id: task_id, step_id: 'a')
+        described_class.complete(root: root, task_id: task_id, step_id: 'a')
+        described_class.start(root: root, task_id: task_id, step_id: 'b')
+        described_class.complete(root: root, task_id: task_id, step_id: 'b')
+
+        path = "#{root}/tasks/#{task_id}/task.yaml"
+        before = File.binread(path)
+        result = described_class.complete(root: root, task_id: task_id, step_id: 'b')
+
+        expect(result).to be_ok
+        expect(result.value[:already_done]).to be(true)
+        expect(task_yaml(root, task_id)['status']).to eq('done')
+        # Idempotent: no task.yaml rewrite on the second complete.
+        expect(File.binread(path)).to eq(before)
+      end
+    end
+
+    it 'leaves an archived task archived when its final step completes' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        described_class.start(root: root, task_id: task_id, step_id: 'a')
+        described_class.complete(root: root, task_id: task_id, step_id: 'a')
+        # Simulate the archive step having parked the task at `archived` before
+        # the terminal step runs. `archived` is owned by `owl archive` (not
+        # settable via set_status), so write it straight into task.yaml.
+        path = "#{root}/tasks/#{task_id}/task.yaml"
+        parked = YAML.safe_load_file(path)
+        parked['status'] = 'archived'
+        File.write(path, YAML.dump(parked))
+
+        described_class.start(root: root, task_id: task_id, step_id: 'b')
+        described_class.complete(root: root, task_id: task_id, step_id: 'b')
+
+        # Archive path: status stays archived, NOT overwritten to done.
+        expect(task_yaml(root, task_id)['status']).to eq('archived')
+      end
+    end
   end
 
   describe '.skip' do

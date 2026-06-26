@@ -111,28 +111,51 @@ RSpec.describe 'owl instructions CLI subcommand' do
       end
     end
 
-    it 'fails with no_ready_steps when all workflow steps are done' do
+    def seed_tiny_done_task(root)
+      init_project(root)
+      write("#{root}/.owl/workflows.yaml", <<~YAML)
+        schema_version: 1
+        workflows:
+          tiny:
+            enabled: true
+            source: "workflows/tiny/workflow.yaml"
+      YAML
+      write("#{root}/.owl/workflows/tiny/workflow.yaml", <<~YAML)
+        id: tiny
+        kind: task
+        steps:
+          - id: only
+            skill: owl-step-discussion
+            session_type: discussion
+        artifacts: []
+      YAML
+      run(['task', 'create', '--workflow', 'tiny', '--title', 't', '--root', root.to_s], cwd: root)
+      run(['step', 'start', 'TASK-0001', 'only', '--root', root.to_s], cwd: root)
+      run(['step', 'complete', 'TASK-0001', 'only', '--root', root.to_s], cwd: root)
+    end
+
+    it 'fails with task_terminal once the auto-closed task has all steps done' do
       with_tmp_project do |root|
-        init_project(root)
-        write("#{root}/.owl/workflows.yaml", <<~YAML)
-          schema_version: 1
-          workflows:
-            tiny:
-              enabled: true
-              source: "workflows/tiny/workflow.yaml"
-        YAML
-        write("#{root}/.owl/workflows/tiny/workflow.yaml", <<~YAML)
-          id: tiny
-          kind: task
-          steps:
-            - id: only
-              skill: owl-step-discussion
-              session_type: discussion
-          artifacts: []
-        YAML
-        run(['task', 'create', '--workflow', 'tiny', '--title', 't', '--root', root.to_s], cwd: root)
-        run(['step', 'start', 'TASK-0001', 'only', '--root', root.to_s], cwd: root)
-        run(['step', 'complete', 'TASK-0001', 'only', '--root', root.to_s], cwd: root)
+        seed_tiny_done_task(root)
+
+        # Completing the last step auto-closes the task to `done` (TASK-0044),
+        # so an explicit `instructions TASK-X` is a terminal reject.
+        exit_code, _stdout, stderr = run(['instructions', 'TASK-0001', '--root', root.to_s], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('task_terminal')
+      end
+    end
+
+    it 'fails with no_ready_steps when all steps are done but the status is still non-terminal' do
+      with_tmp_project do |root|
+        seed_tiny_done_task(root)
+
+        # Force a non-terminal status to exercise the `no_ready_steps` path
+        # (the state auto-close normally prevents).
+        path = "#{root}/tasks/TASK-0001/task.yaml"
+        payload = YAML.safe_load_file(path)
+        payload['status'] = 'open'
+        File.write(path, YAML.dump(payload))
 
         exit_code, _stdout, stderr = run(['instructions', 'TASK-0001', '--root', root.to_s], cwd: root)
         expect(exit_code).to eq(1)

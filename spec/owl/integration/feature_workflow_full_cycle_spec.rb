@@ -228,9 +228,12 @@ RSpec.describe 'seeded feature workflow happy-path full cycle (end-to-end)' do
         expect(JSON.parse(out).dig('step', 'status')).to eq('done')
       end
 
-      ec, out, err = cli(%W[task ready-steps #{task_id} --root #{root} --json], root)
-      expect_ok(ec, out, err, 'task ready-steps after commit_push')
-      expect(JSON.parse(out)['ready']).to eq([])
+      # Completing the terminal `commit_push` step auto-closes the task to
+      # `done` (TASK-0044), so an explicit `task ready-steps` is now a terminal
+      # reject rather than an empty ready set.
+      ec, _out, err = cli(%W[task ready-steps #{task_id} --root #{root} --json], root)
+      expect(ec).to eq(1)
+      expect(JSON.parse(err).dig('error', 'code')).to eq('task_terminal')
 
       ec, out, err = cli(%W[task inspect #{task_id} --root #{root} --json], root)
       expect_ok(ec, out, err, 'task inspect (final)')

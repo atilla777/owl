@@ -4,6 +4,27 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.23.1] - 2026-06-26
+
+### Fixed
+- **Completing the final step now auto-closes the task (TASK-0044).** A workflow
+  without an `archive` step (e.g. `quick`) used to leave the task at a
+  non-terminal status forever once its last step was `done`/`skipped` — leaking
+  it into `available`/`ready` scans and never releasing the current-task pointer.
+  `Steps::Api.complete` now runs a generalized `Steps::Internal::TaskFinalizer`
+  (replacing the archive-only `ArchiveFinalizer`): when the completed step was
+  the last non-terminal one, a non-terminal task is promoted to `status: done`
+  and the current pointer is released. The archive path is unchanged — an
+  `archived` task is left `archived` (not overwritten to `done`), only its
+  pointer is released — and re-completing a `done` step stays an idempotent
+  no-op that never rewrites task.yaml.
+
+### Added
+- **`owl step complete` JSON gains an optional `task_status` field (TASK-0044).**
+  Additive and backward-compatible: present with the task's terminal status
+  (`done`/`archived`) when completing the step finalized the task; absent while
+  the task is still in progress.
+
 ## [0.23.0] - 2026-06-26
 
 ### Added

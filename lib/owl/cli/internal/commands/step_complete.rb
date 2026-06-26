@@ -4,6 +4,8 @@ require 'json'
 require 'optparse'
 
 require_relative '../../../steps/api'
+require_relative '../../../tasks/api'
+require_relative '../../../tasks/internal/task_statuses'
 require_relative '../json_printer'
 require_relative 'drift_warning_printer'
 require_relative 'step_id_resolver'
@@ -56,7 +58,23 @@ module Owl
             }
             paths = Owl::Steps::Api.local_paths(root: root, task_id: options[:task_id])
             payload[:task_path] = paths.value[:task_file].task_path if paths.ok?
+            status = terminal_task_status(root: root, task_id: options[:task_id])
+            payload[:task_status] = status if status
             JsonPrinter.success(stdout, payload)
+          end
+
+          # The task's status after finalization, surfaced only when it is
+          # terminal (the step just auto-closed the task to `done`, or the
+          # archive path left it `archived`). Absent while the task is still in
+          # progress — an additive, backward-compatible field.
+          def terminal_task_status(root:, task_id:)
+            inspected = Owl::Tasks::Api.inspect(root: root, task_id: task_id)
+            return nil unless inspected.ok?
+
+            status = inspected.value[:payload]['status'].to_s
+            return nil unless Owl::Tasks::Internal::TaskStatuses::TERMINAL.include?(status)
+
+            status
           end
 
           def handle_drift(root:, options:, stderr:)

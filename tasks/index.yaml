@@ -14,19 +14,6 @@ tasks:
   - health-review-2026-06-26
   blocked_by: []
   archived_at:
-- id: TASK-0044
-  title: 'P2: auto-close task on final workflow step (fixes quick-never-terminal +
-    done-but-open lingering in ready/available)'
-  workflow: feature
-  kind: task
-  parent_id:
-  priority: 8
-  created_at: '2026-06-26T14:56:15Z'
-  status: open
-  labels:
-  - health-review-2026-06-26
-  blocked_by: []
-  archived_at:
 - id: TASK-0045
   title: 'P2: unify task available/ready JSON contract (single task_id key + shared
     core fields)'
