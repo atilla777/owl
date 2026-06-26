@@ -5,6 +5,9 @@
 # Claude Code local memory / session store (per-user agent state, not shared)
 .claude/projects/
 
+# Claude Code review lock/state (per-clone transient, not shared)
+.claude/reviews/
+
 # Ruby / bundler
 .bundle/
 vendor/bundle/
