@@ -1,0 +1,44 @@
+---
+id: TASK-0041
+title: Resolve task ready/available overlap; sync config version; clear current pointer
+  on delete
+workflow:
+  key: quick
+  version:
+  source: workflows/quick/workflow.yaml
+kind: task
+parent_id:
+priority: 5
+created_at: '2026-06-26T05:42:55Z'
+status: open
+labels:
+- health-review-2026-06-26
+blocked_by: []
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: brief.context.md
+  creates:
+  - brief
+  status: pending
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - brief
+  creates:
+  - verification
+  status: pending
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - implement
+  status: pending
+artifacts: []
