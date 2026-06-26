@@ -14,3 +14,93 @@ tasks:
   - health-review-2026-06-26
   blocked_by: []
   archived_at:
+- id: TASK-0042
+  title: 'Add owl self-update: machine-level command to rebuild+install the gem from
+    a configured source'
+  workflow: feature
+  kind: task
+  parent_id:
+  priority: 0
+  created_at: '2026-06-26T14:24:00Z'
+  status: abandoned
+  labels: []
+  blocked_by: []
+  archived_at:
+- id: TASK-0043
+  title: 'P1: terminal-status safety — abandon clears current pointer; next/ready-steps/status/instructions
+    reject terminal tasks; unify TERMINAL_STATUSES'
+  workflow: hotfix
+  kind: task
+  parent_id:
+  priority: 10
+  created_at: '2026-06-26T14:56:15Z'
+  status: open
+  labels:
+  - health-review-2026-06-26
+  blocked_by: []
+  archived_at:
+- id: TASK-0044
+  title: 'P2: auto-close task on final workflow step (fixes quick-never-terminal +
+    done-but-open lingering in ready/available)'
+  workflow: feature
+  kind: task
+  parent_id:
+  priority: 8
+  created_at: '2026-06-26T14:56:15Z'
+  status: open
+  labels:
+  - health-review-2026-06-26
+  blocked_by: []
+  archived_at:
+- id: TASK-0045
+  title: 'P2: unify task available/ready JSON contract (single task_id key + shared
+    core fields)'
+  workflow: refactor
+  kind: task
+  parent_id:
+  priority: 6
+  created_at: '2026-06-26T14:56:16Z'
+  status: open
+  labels:
+  - health-review-2026-06-26
+  blocked_by: []
+  archived_at:
+- id: TASK-0046
+  title: 'P2: sync owl.version into .owl/config.yaml on upgrade/init and expose it
+    via CLI (config get version is null)'
+  workflow: feature
+  kind: task
+  parent_id:
+  priority: 5
+  created_at: '2026-06-26T14:56:16Z'
+  status: open
+  labels:
+  - health-review-2026-06-26
+  blocked_by: []
+  archived_at:
+- id: TASK-0047
+  title: 'P2: fix owl-* skill contradictions — replace ''pick first ready step'' with
+    owl next; orchestrator minimal-loop; disambiguate done; surface review_code reset'
+  workflow: refactor
+  kind: task
+  parent_id:
+  priority: 5
+  created_at: '2026-06-26T14:56:16Z'
+  status: open
+  labels:
+  - health-review-2026-06-26
+  blocked_by: []
+  archived_at:
+- id: TASK-0048
+  title: 'P3: build health — rubocop autocorrect + minimal CI + fix SimpleCov gate
+    firing exit1 on partial rspec runs'
+  workflow: refactor
+  kind: task
+  parent_id:
+  priority: 4
+  created_at: '2026-06-26T14:56:16Z'
+  status: open
+  labels:
+  - health-review-2026-06-26
+  blocked_by: []
+  archived_at:

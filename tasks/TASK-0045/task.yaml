@@ -1,0 +1,101 @@
+---
+id: TASK-0045
+title: 'P2: unify task available/ready JSON contract (single task_id key + shared
+  core fields)'
+workflow:
+  key: refactor
+  version: '1.0'
+  source: workflows/refactor/workflow.yaml
+kind: task
+parent_id:
+priority: 6
+created_at: '2026-06-26T14:56:16Z'
+status: open
+labels:
+- health-review-2026-06-26
+blocked_by: []
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  creates:
+  - brief
+  default_variant: feature
+  variants:
+    feature:
+      context_file: brief.feature.context.md
+      title: Collect feature requirements
+    root_cause:
+      context_file: brief.root_cause.context.md
+      title: Find bug root cause
+    problem_inventory:
+      context_file: brief.problem_inventory.context.md
+      title: Inventory refactor problems
+  status: pending
+- id: design
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: design.context.md
+  requires:
+  - brief
+  creates:
+  - design
+  status: pending
+- id: plan
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: plan.context.md
+  requires:
+  - brief
+  creates:
+  - plan
+  status: pending
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - plan
+  creates:
+  - verification
+  status: pending
+- id: review_code
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: review_code.context.md
+  requires:
+  - implement
+  creates:
+  - review
+  status: pending
+- id: merge_docs
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  publishes: true
+  context_file: merge_docs.context.md
+  requires:
+  - review_code
+  status: pending
+- id: archive
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: archive.context.md
+  requires:
+  - merge_docs
+  status: pending
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - archive
+  status: pending
+artifacts: []
