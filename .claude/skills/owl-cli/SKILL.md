@@ -96,7 +96,10 @@ Concurrency, plan-approval, and delivery surface (needed by `owl-orchestrator` f
 - `owl task release TASK-ID --token T` — release a held lease immediately.
 - `owl task heartbeat TASK-ID --token T [--ttl N]` — extend a held lease before it expires.
 - `owl task adopt TASK-ID [--token T] --json` — steal a lease and reset the task's `running` steps to pending.
-- `owl task claims --json` / `owl task available --json` / `owl task ready --json` — list live leases / runnable-unclaimed / dependency-ready tasks.
+- `owl task claims --json` / `owl task available --json` / `owl task ready --json` — list live leases / runnable-unclaimed / dependency-ready tasks. **`available` vs `ready` — pick by intent (both exclude claimed + terminal tasks; neither is an alias for the other):**
+  - `owl task available` is the **workflow-dispatchability selector**: "which unclaimed tasks have at least one runnable workflow step right now?" It is dependency-blind and parked-status-blind by design — it does not consult `blocked_by` edges or `on_hold`/`blocked` status. Use it to find tasks that have actionable steps.
+  - `owl task ready` is the **dependency-DAG view** (added in TASK-0026 for blocks/blocked-by edges): "which unclaimed, non-parked tasks have *all* their `blocked_by` dependencies complete?" It is the cross-task counterpart to `available`: it consults the dependency graph and parked status but ignores whether a workflow step is currently dispatchable. Use it to inspect/debug dependency readiness.
+  - For *"what should I actually pick up next?"* prefer `owl next` (or `owl task claim --next`), which uses the **intersection** of both scanners (a candidate must be workflow-dispatchable AND dependency-ready) plus status/priority ordering. Use `available`/`ready` directly when you specifically want one of the two narrower views.
 - `owl plan approve TASK-ID [--token T]` / `owl plan status TASK-ID --json` — opt-in plan-approval gate.
 - `owl commit-push TASK-ID --message "..."` — transactional stage→complete→commit→push for the `commit_push` step.
 - `owl git lock [--name N] [--ttl N] [--steal]` / `owl git unlock --token T [--name N]` — repo-scoped push lock.

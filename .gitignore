@@ -2,6 +2,9 @@
 .claude/settings.local.json
 .claude/**/*.local.*
 
+# Claude Code local memory / session store (per-user agent state, not shared)
+.claude/projects/
+
 # Ruby / bundler
 .bundle/
 vendor/bundle/

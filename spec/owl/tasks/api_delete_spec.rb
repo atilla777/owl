@@ -75,6 +75,35 @@ RSpec.describe Owl::Tasks::Api, '.delete' do
     end
   end
 
+  it 'clears the current pointer when the deleted task is current' do
+    with_tmp_project do |root|
+      task_id = setup_project(root)
+      cli(['task', 'use', task_id, '--root', root.to_s, '--json'], root)
+
+      described_class.delete(root: root, task_id: task_id)
+
+      current = described_class.current(root: root)
+      expect(current).to be_err
+      expect(current.code).to eq(:no_current_task)
+      expect(Pathname.new("#{root}/.owl/local/current.yaml").exist?).to be(false)
+    end
+  end
+
+  it 'leaves the current pointer untouched when a non-current task is deleted' do
+    with_tmp_project do |root|
+      current_id = setup_project(root)
+      cli(['task', 'create', '--workflow', 'feature', '--title', 'other', '--root', root.to_s, '--json'], root)
+      other_id = 'TASK-0002'
+      cli(['task', 'use', current_id, '--root', root.to_s, '--json'], root)
+
+      described_class.delete(root: root, task_id: other_id)
+
+      current = described_class.current(root: root)
+      expect(current).to be_ok
+      expect(current.value[:task_id]).to eq(current_id)
+    end
+  end
+
   it 'holds the deleted task lock for rm_rf and surfaces lock_held without removing the dir' do
     with_tmp_project do |root|
       task_id = setup_project(root)

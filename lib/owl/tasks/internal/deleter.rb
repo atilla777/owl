@@ -6,6 +6,7 @@ require 'yaml'
 
 require_relative '../../result'
 require_relative 'archive/claim_resetter'
+require_relative 'archive/current_resetter'
 require_relative 'atomic_yaml_writer'
 require_relative 'id_generator'
 require_relative 'index_writer'
@@ -47,6 +48,14 @@ module Owl
           return rebuild if rebuild.err?
 
           Archive::ClaimResetter.delete_if_present(
+            local_state_root: paths_result.value[:local_state], task_id: task_id
+          )
+
+          # Drop the current-task pointer iff it named the deleted task, so
+          # `owl task current` reports "no current task" rather than chasing a
+          # now-missing directory (`task_not_found`). Deleting a non-current
+          # task leaves the pointer untouched.
+          Archive::CurrentResetter.reset_if_matches(
             local_state_root: paths_result.value[:local_state], task_id: task_id
           )
 

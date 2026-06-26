@@ -22,7 +22,8 @@ steps:
   context_file: brief.context.md
   creates:
   - brief
-  status: pending
+  status: done
+  content_sha: 0b9a3c6bd11f66bec053011202217f922fe5dca0c9a199f3518df3be97641e01
 - id: implement
   skill: owl-step-execution
   session_type: execution
@@ -32,7 +33,8 @@ steps:
   - brief
   creates:
   - verification
-  status: pending
+  status: done
+  content_sha: d5944f6207d4949a5fa2957275ed2cd317eb56ed4ba12e5021350c9ac64ff3f8
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
@@ -40,5 +42,5 @@ steps:
   context_file: commit_push.context.md
   requires:
   - implement
-  status: pending
+  status: done
 artifacts: []

@@ -4,6 +4,28 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.22.1] - 2026-06-26
+
+### Fixed
+- **`owl task delete <current>` clears the current-task pointer (TASK-0041).**
+  Deleting the current task now drops `.owl/local/current.yaml` (via the existing
+  `Archive::CurrentResetter`), so `owl task current` reports "no current task"
+  instead of `task_not_found`. Deleting a non-current task leaves the pointer
+  untouched.
+
+### Documentation
+- **Disambiguated `owl task available` vs `owl task ready` (TASK-0041).** The
+  `owl-cli` skill now states when to use each: `available` is the
+  workflow-dispatchability selector (dependency-/parked-status-blind), `ready`
+  (TASK-0026) is the dependency-DAG view; `owl next`/`claim --next` use the
+  intersection. Neither command was removed. Also propagated to the materialized
+  `.claude/skills/owl-cli/SKILL.md`.
+
+### Notes
+- `owl upgrade` already syncs `.owl/config.yaml owl.version` to `Owl::VERSION`
+  (added in 0.21.x); TASK-0041 adds regression specs confirming upgrade syncs the
+  version and that non-upgrade commands do not rewrite it.
+
 ## [0.22.0] - 2026-06-26
 
 ### Changed

@@ -4,6 +4,8 @@ require 'json'
 require 'stringio'
 
 require 'owl/cli/api'
+require 'owl/config/api'
+require 'owl/version'
 
 RSpec.describe 'owl upgrade / self-update CLI' do
   def run(argv, cwd:)
@@ -43,6 +45,29 @@ RSpec.describe 'owl upgrade / self-update CLI' do
         code, _, err = run(['upgrade', '--bogus', '--root', root.to_s], cwd: root)
         expect(code).to eq(1)
         expect(JSON.parse(err).dig('error', 'code')).to eq('invalid_arguments')
+      end
+    end
+
+    it 'syncs .owl/config.yaml owl.version to Owl::VERSION' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        Owl::Config::Api.write_key(root: root.to_s, key: 'owl.version', value: '0.0.1')
+        run(['upgrade', '--root', root.to_s, '--json'], cwd: root)
+        expect(Owl::Config::Api.read_key(root: root.to_s, key: 'owl.version').value[:value])
+          .to eq(Owl::VERSION)
+      end
+    end
+  end
+
+  describe 'non-upgrade commands' do
+    it 'do not rewrite owl.version in .owl/config.yaml' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        Owl::Config::Api.write_key(root: root.to_s, key: 'owl.version', value: '0.0.1')
+        run(['task', 'create', '--workflow', 'feature', '--title', 't', '--root', root.to_s, '--json'], cwd: root)
+        run(['status', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
+        expect(Owl::Config::Api.read_key(root: root.to_s, key: 'owl.version').value[:value])
+          .to eq('0.0.1')
       end
     end
   end
