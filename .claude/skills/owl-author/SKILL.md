@@ -26,7 +26,7 @@ The skill has three modes:
 
 Do not use this skill for:
 
-- editing task-scoped artifacts (use `owl-step-run` instead — those are per-task artifact files in `tasks/`).
+- editing task-scoped artifacts (use `owl-step-discussion` / `owl-step-execution` instead — those are per-task artifact files in `tasks/`).
 - mid-stream renames of an existing definition that already has child tasks bound to it (out of scope for v1; flag as a separate task).
 - configuring runtime settings (`settings.*`) — that's `owl-init` for bootstrap and `owl config set` for ongoing edits.
 
@@ -58,7 +58,7 @@ Do not use this skill for:
 3. **Q3 — `title`**: ask for a human-readable title (in `settings.language.artifacts`).
 4. **Q4 — `description`**: ask for a one-paragraph description (in `settings.language.artifacts`).
 5. **Q5 — artifacts**: iterative loop. For each artifact: ask `key`, `type` (must exist in `owl artifact-type list` results — if not, suggest running Mode B first), and `storage.path` (default: `{{task.id}}/<key>.md`). Stop the loop when the user says "no more".
-6. **Q6 — steps**: iterative loop. For each step: ask `id`, optional `requires` (comma-separated list of earlier step ids), optional `creates` (comma-separated list of artifact keys declared above), optional `context_file` (default: `<step_id>.context.md`). The skill auto-fills `skill: owl-step-run` for every step unless the user names a different `owl-step-<x>` skill explicitly.
+6. **Q6 — steps**: iterative loop. For each step: ask `id`, `session_type` (`discussion | execution`), optional `requires` (comma-separated list of earlier step ids), optional `creates` (comma-separated list of artifact keys declared above), optional `context_file` (default: `<step_id>.context.md`). The skill auto-fills the step `skill` from `session_type`: `skill: owl-step-discussion` when `session_type: discussion`, `skill: owl-step-execution` when `session_type: execution` — unless the user names a different `owl-step-<x>` skill explicitly (preserve that verbatim). Every emitted step carries both `session_type:` and a matching `skill:`, mirroring the seeded `feature` workflow.
 7. **Q7 — confirm**: show the assembled YAML and ask for confirmation.
 8. **Persist**: pipe the body into `owl workflow new --id <id> --kind <kind> --body -`. On success, run `owl workflow validate <id-or-path> --json`. On `ok: true`, summarize for the user; on failure, surface errors and ask whether to fix interactively (loop back to the relevant Q) or abort.
 9. **Registry reminder**: print "To enable this workflow project-wide, add it to `.owl/workflows.yaml` (see existing entries)."

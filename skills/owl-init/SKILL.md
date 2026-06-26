@@ -108,7 +108,7 @@ Do not use this skill to:
 - SKILL.md content is English (canonical contract; constitution 5.16).
 - **Before Q1 is answered**, the wizard speaks **English** to the user: the communication language is not yet known.
 - **After Q1**: the wizard switches to `settings.language.communication` for all subsequent prompts, status messages, and the final summary.
-- Downstream Owl skills (`owl-orchestrator`, `owl-step-run`) read `settings.language.communication` through `owl step show --json` or `owl config show --json` and respect it for their own user-facing reports.
+- Downstream Owl skills (`owl-orchestrator`, `owl-step-discussion`, `owl-step-execution`) read `settings.language.communication` through `owl step show --json` or `owl config show --json` and respect it for their own user-facing reports.
 - `required_sections` literal headings in artifact templates remain English regardless of `settings.language.artifacts` (template identity is part of schema validation).
 
 ## Stop Conditions

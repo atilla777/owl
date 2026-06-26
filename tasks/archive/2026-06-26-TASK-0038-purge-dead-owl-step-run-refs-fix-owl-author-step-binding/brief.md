@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 summary: Remove dead `owl-step-run` references and fix owl-author to bind steps by session_type.
 ---
 

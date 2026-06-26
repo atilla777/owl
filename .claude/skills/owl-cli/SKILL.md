@@ -8,7 +8,7 @@ triggers: ["owl cli", "bin/owl", "owl command", "owl task", "owl step", "owl art
 
 ## Purpose
 
-`owl-cli` is the shared technical skill for calling `bin/owl` from other Owl-owned skills (`owl-orchestrator`, `owl-step-run`).
+`owl-cli` is the shared technical skill for calling `bin/owl` from other Owl-owned skills (`owl-orchestrator`, `owl-step-discussion`, `owl-step-execution`).
 
 Use it to keep skills focused on their scoped work instead of rebuilding CLI argument shapes, JSON response keys, error semantics, and the no-direct-filesystem-access invariant.
 
@@ -29,7 +29,7 @@ Use this skill when another skill needs to:
 - get the next-step instructions packet for an agent
 - report workflow status for a task
 
-Do not use this skill to decide what workflow stage runs next, what spec to write, whether an artifact is semantically correct, or whether to commit/push. Those decisions belong to the orchestrator and to `owl-step-run`.
+Do not use this skill to decide what workflow stage runs next, what spec to write, whether an artifact is semantically correct, or whether to commit/push. Those decisions belong to the orchestrator and to `owl-step-discussion` / `owl-step-execution`.
 
 ## Source Of Truth
 
@@ -107,7 +107,7 @@ A few endpoints return shapes that have surprised agents in the past — always 
 
 ### Project bootstrap
 
-- `owl init` — materialise `.owl/`, seeded workflows (each step bound to `owl-step-run` with a per-step `.context.md`), seeded skills (`owl-step-run`, `owl-orchestrator`, `owl-cli`, `owl-task-*` slash commands), and starter artifact templates. Use `--force` to overwrite previously materialised files.
+- `owl init` — materialise `.owl/`, seeded workflows (each step bound to the step skill matching its `session_type` — `owl-step-discussion` or `owl-step-execution` — with a per-step `.context.md`), seeded skills (`owl-step-discussion`, `owl-step-execution`, `owl-orchestrator`, `owl-cli`, `owl-task-*` slash commands), and starter artifact templates. Use `--force` to overwrite previously materialised files.
 - `owl config validate --json` — validate `.owl/config.yaml` against the JSON Schema; returns `{ok: bool, errors: [...]}`.
 
 ### Workflow discovery
@@ -132,7 +132,7 @@ A few endpoints return shapes that have surprised agents in the past — always 
 
 - `owl task ready-steps TASK-ID --json` — compute the next ready steps from the workflow graph.
 - `owl step invocation TASK-ID STEP-ID --json` — full StepInvocation: paths, templates, validation rules, matching skill id.
-- `owl step show TASK-ID STEP-ID --json` — merged step + context + artifact_template + task bundle (preferred for `owl-step-run`).
+- `owl step show TASK-ID STEP-ID --json` — merged step + context + artifact_template + task bundle (preferred for `owl-step-discussion` / `owl-step-execution`).
 - `owl step start TASK-ID STEP-ID [--variant NAME] [--ignore-modification]` — mark a ready step as running; `--variant` is required when the step declares `variants:` and no choice was made at task-create time (or to override one). `--ignore-modification` suppresses the `artifact_modified_after_complete` warning printed to stderr when the artifact file was changed outside the sequencer since the last `step complete`.
 - `owl step complete TASK-ID STEP-ID [--ignore-modification]` — mark a running step as done; re-runs artifact validation as a safety net. On success, records `content_sha` (sha256 hex of the artifact file) per artifact in `task.yaml`. `--ignore-modification` suppresses drift warning.
 - `owl step reopen TASK-ID STEP-ID [--cascade]` — move a done step back to `pending`. With `--cascade`, also pendifies every step that transitively requires the reopened one. Fails with `step_not_completed` if the step is not done, or `artifact_missing` if the artifact file has been deleted.

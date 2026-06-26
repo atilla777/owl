@@ -4,6 +4,22 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.20.1] - 2026-06-26
+
+### Fixed
+- **Purge dead `owl-step-run` references; owl-author binds steps by
+  `session_type` (TASK-0038).** The executor skill was split into
+  `owl-step-discussion` + `owl-step-execution`, but the retired `owl-step-run`
+  name still appeared 9× across `skills/owl-cli/SKILL.md`,
+  `skills/owl-init/SKILL.md`, `skills/owl-orchestrator/SKILL.md`,
+  `skills/owl-author/SKILL.md`, and `commands/owl-task-next.md`. All references
+  are replaced with the two real step skills. The functionally dangerous one was
+  `owl-author` Mode A Q6, which auto-filled `skill: owl-step-run` for every step
+  it wrote, binding authored workflows to a non-existent skill. Q6 now also asks
+  `session_type` (`discussion | execution`) and binds `skill: owl-step-discussion`
+  / `owl-step-execution` to match, unless the user names a different
+  `owl-step-<x>` skill explicitly. No CLI/JSON contract or seeded-workflow change.
+
 ## [0.20.0] - 2026-06-25
 
 ### Changed

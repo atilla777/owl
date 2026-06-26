@@ -9,7 +9,7 @@ kind: task
 parent_id:
 priority: 30
 created_at: '2026-06-26T05:42:55Z'
-status: open
+status: archived
 labels:
 - health-review-2026-06-26
 blocked_by: []
@@ -31,7 +31,8 @@ steps:
     problem_inventory:
       context_file: brief.problem_inventory.context.md
       title: Inventory refactor problems
-  status: pending
+  status: done
+  content_sha: 810ef74787887c6444a957779c3f6dd13f3cc94b1eb02cfbd8ef8360de7d1b4a
 - id: design
   skill: owl-step-discussion
   session_type: discussion
@@ -41,7 +42,9 @@ steps:
   - brief
   creates:
   - design
-  status: pending
+  status: skipped
+  skip_reason: 'Mechanical doc-cleanup hotfix: delete dead owl-step-run refs and fix
+    one author binding rule; no architectural choice to make.'
 - id: plan
   skill: owl-step-discussion
   session_type: discussion
@@ -51,7 +54,8 @@ steps:
   - brief
   creates:
   - plan
-  status: pending
+  status: done
+  content_sha: 0cafab7c9e8deac7ad7163af27c697e8965bc8b9b2b8977d0fe155073fa9bca2
 - id: implement
   skill: owl-step-execution
   session_type: execution
@@ -61,7 +65,8 @@ steps:
   - plan
   creates:
   - verification
-  status: pending
+  status: done
+  content_sha: 3fdca624859265094660c657e8f732fa6b9d7a3eeaf190aac2814e6a3527617a
 - id: review_code
   skill: owl-step-execution
   session_type: execution
@@ -71,7 +76,8 @@ steps:
   - implement
   creates:
   - review
-  status: pending
+  status: done
+  content_sha: 69a1e2e783f0071e88ef4855e80921c7c87ebc6804d663ef8e5774c992313734
 - id: merge_docs
   skill: owl-step-execution
   session_type: execution
@@ -80,7 +86,7 @@ steps:
   context_file: merge_docs.context.md
   requires:
   - review_code
-  status: pending
+  status: done
 - id: archive
   skill: owl-step-execution
   session_type: execution
@@ -88,7 +94,7 @@ steps:
   context_file: archive.context.md
   requires:
   - merge_docs
-  status: pending
+  status: done
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
@@ -96,5 +102,6 @@ steps:
   context_file: commit_push.context.md
   requires:
   - archive
-  status: pending
+  status: done
 artifacts: []
+archived_at: '2026-06-26T07:56:12Z'
