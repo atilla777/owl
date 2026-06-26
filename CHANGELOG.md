@@ -4,6 +4,29 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.1.1] - 2026-06-26
+
+### Fixed
+- **Resolve owl-* orchestration skill/command contradictions (TASK-0047).**
+  Documentation-only fixes to the consumer-materialized `skills/owl-*` and
+  `commands/owl-*` seed content (no CLI/code behavior change):
+  - Replaced the stale "pick/take the first ready step" step-selection
+    mechanism with `owl next` (`dispatch_step.step_id`) as the single canon —
+    in `owl-orchestrator` Inputs, `commands/owl-task-next.md`, and
+    `owl-step-discussion` (executors take the orchestrator-chosen **requested**
+    step, never self-select the first ready entry).
+  - Made the orchestrator loop minimal and unambiguous: it re-resolves the next
+    action via `owl next` (Workflow step 1) each iteration; the re-inspection
+    steps (status / instructions / step show) are marked OPTIONAL.
+  - Disambiguated the overloaded term "done" across `owl-orchestrator`:
+    `owl next` `action.kind: done`, step status `done`, and "terminal step
+    complete" are now distinct, consistent wordings.
+  - Surfaced the `review_code` `changes_required` rule in `owl-step-execution`:
+    the verdict leaves the step `running` (the executor does not call
+    `step complete`); re-running requires `owl step reset TASK-ID review_code`,
+    else the next dispatch hits `active_step_locked`.
+  - Refreshed materialized `.claude/` copies via `owl upgrade`.
+
 ## [1.1.0] - 2026-06-26
 
 ### Added

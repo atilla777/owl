@@ -45,7 +45,7 @@ prompts on its behalf.
 ## Inputs
 
 - `TASK-ID` (from `owl task current --json` or an explicit argument).
-- `STEP-ID` chosen from `owl task ready-steps TASK-ID --json`.
+- `STEP-ID` — the step the orchestrator chose via `owl next` and passed to this skill (not self-selected from `owl task ready-steps`).
 - The bundle returned by `owl step show TASK-ID STEP-ID --json`:
   - `step` — payload including `id`, `session_type: discussion`, optional `tier`, `creates`, etc.
   - `context` — the per-step instruction text (string or null).
@@ -67,7 +67,7 @@ prompts on its behalf.
 ## Workflow
 
 1. Resolve the task: `owl task current --json` (or use the supplied `TASK-ID`).
-2. Choose a ready step: `owl task ready-steps TASK-ID --json` and take the requested or first ready entry; do not invent steps that are not in the ready set. Verify the chosen step has `session_type: discussion`; refuse otherwise.
+2. Take the **requested** step — the one the orchestrator chose via `owl next` and passed to you; do not select it yourself and do not invent steps that are not in the ready set (cross-check against `owl task ready-steps TASK-ID --json` if unsure). Verify the chosen step has `session_type: discussion`; refuse otherwise.
 3. Mark the step started: `owl step start TASK-ID STEP-ID`.
 4. Load the bundle: `owl step show TASK-ID STEP-ID --json`. Read `step`, `context`, `overlays`, `artifact_template`, `execution_mode`, and `task`.
 5. Compose the working context (built-in `context` + overlays in returned order + relevant `task.artifacts` entries).

@@ -14,19 +14,6 @@ tasks:
   - health-review-2026-06-26
   blocked_by: []
   archived_at:
-- id: TASK-0047
-  title: 'P2: fix owl-* skill contradictions — replace ''pick first ready step'' with
-    owl next; orchestrator minimal-loop; disambiguate done; surface review_code reset'
-  workflow: refactor
-  kind: task
-  parent_id:
-  priority: 5
-  created_at: '2026-06-26T14:56:16Z'
-  status: open
-  labels:
-  - health-review-2026-06-26
-  blocked_by: []
-  archived_at:
 - id: TASK-0048
   title: 'P3: build health — rubocop autocorrect + minimal CI + fix SimpleCov gate
     firing exit1 on partial rspec runs'

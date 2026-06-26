@@ -86,6 +86,22 @@ Those belong to `owl-step-discussion`.
 8. Compose the report body (markdown-with-frontmatter as above) and write it through `owl step report --task-id TASK-ID --step-id STEP-ID --body - --validate`. Validation must pass before the session ends.
 9. Return.
 
+## Review steps (`review_code` and `changes_required`)
+
+When this skill executes a **review** step (e.g. `review_code`) and the
+review verdict is `changes_required`, do **not** call `owl step complete`
+— leave the step `running` on purpose. A `changes_required` verdict means
+the diff needs more work, so the step intentionally stays open to signal
+"redo"; record the verdict and findings in the artifact/report and return
+without completing. Re-running the review after the findings are addressed
+requires the operator/orchestrator to first clear the stuck step with
+`owl step reset TASK-ID review_code` (which returns it to `pending`);
+otherwise the next dispatch hits `active_step_locked`. Owl does **not**
+reset the step for you — this mirrors `owl-orchestrator/SKILL.md`'s
+post-delegation rule, stated here at the point where the review actually
+runs. Only an `approved` verdict completes the step normally (Workflow
+step 7).
+
 ## Env overlay note
 
 This skill describes an env-agnostic execution-session contract. The

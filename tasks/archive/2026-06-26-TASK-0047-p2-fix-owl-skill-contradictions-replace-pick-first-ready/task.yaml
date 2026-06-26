@@ -10,7 +10,7 @@ kind: task
 parent_id:
 priority: 5
 created_at: '2026-06-26T14:56:16Z'
-status: open
+status: archived
 labels:
 - health-review-2026-06-26
 blocked_by: []
@@ -32,7 +32,8 @@ steps:
     problem_inventory:
       context_file: brief.problem_inventory.context.md
       title: Inventory refactor problems
-  status: pending
+  status: done
+  content_sha: 94a4458817b123cb2545a35335590726dce12e8f740b5f0f9c39ba197512509f
 - id: design
   skill: owl-step-discussion
   session_type: discussion
@@ -42,7 +43,9 @@ steps:
   - brief
   creates:
   - design
-  status: pending
+  status: skipped
+  skip_reason: Obvious surgical doc-only path; sole alternative (full rewrite) rejected
+    in brief — no architectural choice to document.
 - id: plan
   skill: owl-step-discussion
   session_type: discussion
@@ -52,7 +55,8 @@ steps:
   - brief
   creates:
   - plan
-  status: pending
+  status: done
+  content_sha: cd5fefc0d7bdef468bfcd495179375aa8d8746620dd0d0ae71cf681a3bc517ca
 - id: implement
   skill: owl-step-execution
   session_type: execution
@@ -62,7 +66,8 @@ steps:
   - plan
   creates:
   - verification
-  status: pending
+  status: done
+  content_sha: dbd757d9662b2aee1a2148990b0997e9c089aa9cc61f077d4a94ce846cdb7428
 - id: review_code
   skill: owl-step-execution
   session_type: execution
@@ -72,7 +77,8 @@ steps:
   - implement
   creates:
   - review
-  status: pending
+  status: done
+  content_sha: 98042a762c8cf9c45d2df8002367b8272fc96e64a59ff9b6e810494f516fdb86
 - id: merge_docs
   skill: owl-step-execution
   session_type: execution
@@ -81,7 +87,7 @@ steps:
   context_file: merge_docs.context.md
   requires:
   - review_code
-  status: pending
+  status: done
 - id: archive
   skill: owl-step-execution
   session_type: execution
@@ -89,7 +95,7 @@ steps:
   context_file: archive.context.md
   requires:
   - merge_docs
-  status: pending
+  status: done
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
@@ -97,5 +103,6 @@ steps:
   context_file: commit_push.context.md
   requires:
   - archive
-  status: pending
+  status: done
 artifacts: []
+archived_at: '2026-06-26T20:07:27Z'
