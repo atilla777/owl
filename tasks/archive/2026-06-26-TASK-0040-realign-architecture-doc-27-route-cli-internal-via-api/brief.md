@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 summary: Realign architecture doc 27 with the real backend pattern, route cli->Internal via Api facades, split the workflows backend god-object, and dedup the artifacts/workflows loaders.
 ---
 
