@@ -4,6 +4,29 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.1.0] - 2026-06-26
+
+### Added
+- **Expose the stamped Owl version through the CLI (TASK-0046).** The version
+  that materialized a project is stamped into `.owl/config.yaml` under
+  `owl.version` by `owl init` / `owl upgrade`, but was previously invisible to
+  users. Three additive exposures close the gap:
+  - **`owl version`** — new command printing both the running gem version
+    (`Owl::VERSION`) and the project-stamped `owl.version`, with `up_to_date`
+    signalling drift (gem updated without re-running `owl upgrade`). The
+    `owl --version` flag (gem only) is unchanged and coexists with it.
+  - **`owl config get version`** — `version` is now a read-only alias of
+    `owl.version`, so this returns the stamped value instead of `null`. The
+    response reports the requested key (`version`). `owl config set version` is
+    rejected with `config_key_aliased` — the canonical key `owl.version` stays
+    the only write path.
+  - **`owl config show`** — output now includes the `owl` block (with
+    `version`).
+- New public module `Owl::Version::Api.info(root:)` → `{ gem:, project:,
+  up_to_date: }`; legacy projects without a stamp report `project: nil`,
+  `up_to_date: false`. The init/upgrade stamping is unchanged (covered by a new
+  regression test).
+
 ## [1.0.0] - 2026-06-26
 
 ### Changed (BREAKING)

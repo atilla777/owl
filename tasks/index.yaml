@@ -14,19 +14,6 @@ tasks:
   - health-review-2026-06-26
   blocked_by: []
   archived_at:
-- id: TASK-0046
-  title: 'P2: sync owl.version into .owl/config.yaml on upgrade/init and expose it
-    via CLI (config get version is null)'
-  workflow: feature
-  kind: task
-  parent_id:
-  priority: 5
-  created_at: '2026-06-26T14:56:16Z'
-  status: open
-  labels:
-  - health-review-2026-06-26
-  blocked_by: []
-  archived_at:
 - id: TASK-0047
   title: 'P2: fix owl-* skill contradictions — replace ''pick first ready step'' with
     owl next; orchestrator minimal-loop; disambiguate done; surface review_code reset'
@@ -48,6 +35,19 @@ tasks:
   parent_id:
   priority: 4
   created_at: '2026-06-26T14:56:16Z'
+  status: open
+  labels:
+  - health-review-2026-06-26
+  blocked_by: []
+  archived_at:
+- id: TASK-0049
+  title: Fix terminal-step gate vs harness pre-start (publish/commit-push reject running/pending
+    step)
+  workflow: quick
+  kind: task
+  parent_id:
+  priority: 4
+  created_at: '2026-06-26T19:06:13Z'
   status: open
   labels:
   - health-review-2026-06-26

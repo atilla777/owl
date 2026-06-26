@@ -10,7 +10,7 @@ kind: task
 parent_id:
 priority: 5
 created_at: '2026-06-26T14:56:16Z'
-status: open
+status: archived
 labels:
 - health-review-2026-06-26
 blocked_by: []
@@ -32,7 +32,8 @@ steps:
     problem_inventory:
       context_file: brief.problem_inventory.context.md
       title: Inventory refactor problems
-  status: pending
+  status: done
+  content_sha: '081a00a65628abc981ddaad34293bd7d882699b9c845116b9d095f9442ec1b65'
 - id: design
   skill: owl-step-discussion
   session_type: discussion
@@ -42,7 +43,8 @@ steps:
   - brief
   creates:
   - design
-  status: pending
+  status: done
+  content_sha: 5f3573641e4f65dcd86969f9caa23e3d90e16d0733e51ccd0cc74419cf01793f
 - id: plan
   skill: owl-step-discussion
   session_type: discussion
@@ -52,7 +54,8 @@ steps:
   - brief
   creates:
   - plan
-  status: pending
+  status: done
+  content_sha: 7993bc88adc8c7848a93d41ad7897ee49dfa3d238b1e18f47fa293830b071c6b
 - id: implement
   skill: owl-step-execution
   session_type: execution
@@ -60,7 +63,7 @@ steps:
   context_file: implement.context.md
   requires:
   - plan
-  status: pending
+  status: done
 - id: review_code
   skill: owl-step-execution
   session_type: execution
@@ -72,7 +75,10 @@ steps:
   creates:
   - review
   - verification
-  status: pending
+  status: done
+  content_sha:
+    review: 7849d8915a2dc9e09997c3fef325e4f55dd630b81d8501a7f0ddeb07006ff529
+    verification: 4ade951de3cff56ab92440ad6aebba0e1529e2393c1c1c6463ea904a005a7855
 - id: merge_docs
   skill: owl-step-execution
   session_type: execution
@@ -81,7 +87,7 @@ steps:
   context_file: merge_docs.context.md
   requires:
   - review_code
-  status: pending
+  status: done
 - id: archive
   skill: owl-step-execution
   session_type: execution
@@ -89,7 +95,7 @@ steps:
   context_file: archive.context.md
   requires:
   - merge_docs
-  status: pending
+  status: done
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
@@ -97,5 +103,6 @@ steps:
   context_file: commit_push.context.md
   requires:
   - archive
-  status: pending
+  status: done
 artifacts: []
+archived_at: '2026-06-26T19:31:15Z'

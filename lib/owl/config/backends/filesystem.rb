@@ -113,6 +113,7 @@ module Owl
             schema_version: document.schema_version,
             project: document.project,
             settings: document.settings_section,
+            owl: document.owl_section,
             storage: {
               active_profile: active_profile_name,
               roles_present: roles_present

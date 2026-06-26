@@ -10,7 +10,19 @@ RSpec.describe Owl::Init::Api do
     Owl::Config::Api.read_key(root: root.to_s, key: 'settings.agent_targets').value[:value]
   end
 
+  def stamped_version_in(root)
+    Owl::Config::Api.read_key(root: root.to_s, key: 'owl.version').value[:value]
+  end
+
   describe '.scaffold' do
+    it 'stamps owl.version with the running Owl::VERSION (regression: sync on init)' do
+      with_tmp_project do |root|
+        described_class.scaffold(root: root)
+
+        expect(stamped_version_in(root)).to eq(Owl::VERSION)
+      end
+    end
+
     it 'creates the canonical project layout under root and reports created paths' do
       with_tmp_project do |root|
         result = described_class.scaffold(root: root)

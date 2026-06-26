@@ -550,6 +550,7 @@ RSpec.describe Owl::Cli::Api do
         expect(body.dig('settings', 'storage', 'backend')).to eq('filesystem')
         expect(body.dig('storage', 'active_profile')).to eq('default')
         expect(body.dig('storage', 'roles_present')).to include('tasks', 'docs')
+        expect(body.dig('owl', 'version')).to eq(Owl::VERSION)
       end
     end
 
@@ -576,6 +577,60 @@ RSpec.describe Owl::Cli::Api do
         exit_code, _stdout, stderr = run(['config', 'show', '--json'], cwd: root)
         expect(exit_code).to eq(1)
         expect(JSON.parse(stderr).dig('error', 'code')).to eq('project_root_not_found')
+      end
+    end
+  end
+
+  describe 'owl version (subcommand)' do
+    it 'prints gem, project and up_to_date as JSON on a freshly initialized project' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, stdout, _stderr = run(['version', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body).to include('ok' => true, 'gem' => Owl::VERSION, 'project' => Owl::VERSION, 'up_to_date' => true)
+      end
+    end
+
+    it 'coexists with the --version gem flag (which only prints the gem)' do
+      with_tmp_project do |root|
+        exit_code, stdout, stderr = run(%w[--version], cwd: root)
+        expect(exit_code).to eq(0)
+        expect(stdout).to eq('')
+        expect(stderr).to include("owl #{Owl::VERSION}")
+      end
+    end
+
+    it 'reports project_root_not_found when no .owl/ is detectable' do
+      with_tmp_project do |root|
+        exit_code, _stdout, stderr = run(['version', '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('project_root_not_found')
+      end
+    end
+  end
+
+  describe 'owl config get version (read alias)' do
+    it 'returns the stamped owl.version instead of null' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, stdout, _stderr = run(['config', 'get', 'version', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        body = JSON.parse(stdout)
+        expect(body).to include('ok' => true, 'key' => 'version', 'value' => Owl::VERSION)
+        expect(body['value']).not_to be_nil
+      end
+    end
+  end
+
+  describe 'owl config set version (rejected alias)' do
+    it 'rejects writes to the read-only version alias with config_key_aliased' do
+      with_tmp_project do |root|
+        run(['init', '--root', root.to_s], cwd: root)
+        exit_code, stdout, stderr = run(['config', 'set', 'version', '9.9.9', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(1)
+        expect(stdout).to eq('')
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('config_key_aliased')
       end
     end
   end

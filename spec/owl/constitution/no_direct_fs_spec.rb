@@ -88,6 +88,7 @@ module OwlConstitutionFixtures
     cli/internal/commands/config_show.rb
     cli/internal/commands/config_validate.rb
     cli/internal/commands/task_support.rb
+    cli/internal/commands/version.rb
     cli/internal/commands/workflow_list.rb
     cli/internal/commands/step_report.rb
     context/internal/overlay_paths.rb

@@ -74,6 +74,7 @@ require_relative 'internal/commands/task_tree'
 require_relative 'internal/commands/task_use'
 require_relative 'internal/commands/upgrade'
 require_relative 'internal/commands/verify'
+require_relative 'internal/commands/version'
 require_relative 'internal/commands/workflow_context'
 require_relative 'internal/commands/workflow_list'
 require_relative 'internal/commands/workflow_new'
@@ -100,6 +101,7 @@ module Owl
         'status' => Internal::Commands::Status,
         'upgrade' => Internal::Commands::Upgrade,
         'verify' => Internal::Commands::Verify,
+        'version' => Internal::Commands::Version,
         'self-update' => Internal::Commands::SelfUpdate
       }.freeze
 

@@ -22,6 +22,12 @@ module Owl
     # never routes through `Owl::Config::Api` (the underlying bootstrap cycle —
     # selecting the config backend depends on reading `.owl/config.yaml`).
     module Api
+      # Read-only aliases: a convenience key resolves to a canonical storage
+      # path on read, but cannot be written through (writes target the canonical
+      # path explicitly). `version` exposes the stamped `owl.version` so users who
+      # naturally try `owl config get version` get a value instead of null.
+      READ_ALIASES = { 'version' => 'owl.version' }.freeze
+
       module_function
 
       def load(root:)
@@ -33,10 +39,24 @@ module Owl
       end
 
       def read_key(root:, key:)
-        with_backend(root) { |backend| backend.read_key(key: key) }
+        actual = READ_ALIASES.fetch(key, key)
+        result = with_backend(root) { |backend| backend.read_key(key: actual) }
+        return result if result.err? || actual == key
+
+        # Resolve through the alias but report the key the caller requested.
+        Result.ok(key: key, value: result.value[:value])
       end
 
       def write_key(root:, key:, value:)
+        if READ_ALIASES.key?(key)
+          canonical = READ_ALIASES.fetch(key)
+          return Result.err(
+            code: :config_key_aliased,
+            message: "'#{key}' is a read-only alias of '#{canonical}'; set '#{canonical}' instead.",
+            details: { key: key, canonical: canonical }
+          )
+        end
+
         with_backend(root) { |backend| backend.write_key(key: key, value: value) }
       end
 

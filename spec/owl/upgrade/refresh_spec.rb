@@ -2,11 +2,25 @@
 
 require 'owl/upgrade/api'
 require 'owl/init/api'
+require 'owl/config/api'
 require 'owl/artifacts/api'
 
 RSpec.describe Owl::Upgrade::Api, '.refresh' do
   def init_project(root)
     Owl::Init::Api.scaffold(root: root)
+  end
+
+  it 're-stamps owl.version with the running Owl::VERSION (regression: sync on upgrade)' do
+    with_tmp_project do |root|
+      init_project(root)
+      Owl::Config::Api.write_key(root: root.to_s, key: 'owl.version', value: '0.0.1')
+      expect(Owl::Config::Api.read_key(root: root.to_s, key: 'owl.version').value[:value]).to eq('0.0.1')
+
+      result = described_class.refresh(root: root)
+      expect(result).to be_ok
+      expect(result.value[:version]).to eq(from: '0.0.1', to: Owl::VERSION)
+      expect(Owl::Config::Api.read_key(root: root.to_s, key: 'owl.version').value[:value]).to eq(Owl::VERSION)
+    end
   end
 
   it 'restores a stale managed file and records a backup' do

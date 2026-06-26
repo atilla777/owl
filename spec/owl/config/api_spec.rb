@@ -364,9 +364,40 @@ RSpec.describe Owl::Config::Api do
         expect(result.code).to eq(:config_missing)
       end
     end
+
+    it "resolves the 'version' read-alias to owl.version but reports key: 'version'" do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "schema_version: 1\nproject:\n  id: sample\nowl:\n  version: '9.9.9'\n")
+        result = described_class.read_key(root: root, key: 'version')
+        expect(result).to be_ok
+        expect(result.value).to eq(key: 'version', value: '9.9.9')
+
+        canonical = described_class.read_key(root: root, key: 'owl.version')
+        expect(canonical.value[:value]).to eq('9.9.9')
+      end
+    end
+
+    it 'returns config_key_missing through the version alias on a legacy project without owl.version' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.read_key(root: root, key: 'version')
+        expect(result).to be_err
+        expect(result.code).to eq(:config_key_missing)
+      end
+    end
   end
 
   describe '.write_key' do
+    it "rejects writes to the read-only 'version' alias with config_key_aliased" do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", valid_config)
+        result = described_class.write_key(root: root, key: 'version', value: '9.9.9')
+        expect(result).to be_err
+        expect(result.code).to eq(:config_key_aliased)
+        expect(result.message).to include('owl.version')
+      end
+    end
+
     it 'writes a string value and persists it' do
       with_tmp_project do |root|
         write("#{root}/.owl/config.yaml", valid_config)
@@ -454,6 +485,16 @@ RSpec.describe Owl::Config::Api do
         expect(snapshot[:settings]['language']['communication']).to eq('en')
         expect(snapshot[:storage][:active_profile]).to eq('default')
         expect(snapshot[:storage][:roles_present]).to include('tasks', 'docs')
+        expect(snapshot[:owl]).to be_a(Hash)
+      end
+    end
+
+    it 'includes owl.version in the snapshot owl block when stamped' do
+      with_tmp_project do |root|
+        write("#{root}/.owl/config.yaml", "schema_version: 1\nproject:\n  id: sample\nowl:\n  version: '9.9.9'\n")
+        result = described_class.snapshot(root: root)
+        expect(result).to be_ok
+        expect(result.value[:owl]).to eq('version' => '9.9.9')
       end
     end
 
