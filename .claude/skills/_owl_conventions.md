@@ -51,7 +51,7 @@ Skills MUST honor both signals:
 
 Steps with `session_type: execution` NEVER prompt the user directly —
 the contract forbids it (RFC #1 §2). When an execution step needs human
-input, it finalizes with `final_state: interrupted` and surfaces the
+input, it finalizes with `status: interrupted` and surfaces the
 question in the `## Open follow-ups` section of its report
 (written via `owl step report --body -`); the orchestrator reads the
 report through `owl step report --read` and asks the user from the main
@@ -114,7 +114,7 @@ then, Owl skills run under Claude Code with the rules below.
   execution steps (`session_type: execution`) MUST NOT — the contract in
   RFC #1 §2 forbids execution sessions from interacting with the user.
   An execution step that needs human input finalizes with
-  `final_state: interrupted` and surfaces the question via
+  `status: interrupted` and surfaces the question via
   `## Open follow-ups` in its report.
 - When this skill set is later run under Codex / OpenCode / another
   runtime, do not extend §5 in place — add a new sibling section per the

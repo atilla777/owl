@@ -9,7 +9,7 @@ kind: task
 parent_id:
 priority: 20
 created_at: '2026-06-26T05:42:55Z'
-status: open
+status: archived
 labels:
 - health-review-2026-06-26
 blocked_by: []
@@ -31,7 +31,8 @@ steps:
     problem_inventory:
       context_file: brief.problem_inventory.context.md
       title: Inventory refactor problems
-  status: pending
+  status: done
+  content_sha: 637a4388814acc4b439ccd61683f5a35a254a0923222bc76fe20aca58a952f7d
 - id: design
   skill: owl-step-discussion
   session_type: discussion
@@ -41,7 +42,11 @@ steps:
   - brief
   creates:
   - design
-  status: pending
+  status: skipped
+  skip_reason: 'Doc-sync feature; brief enumerates every concrete edit. Sole judgment
+    call (report-status vocab) has an obvious direction: align prose to the canonical
+    JSON-schema ''status'' field, no schema break — no architectural alternative to
+    weigh.'
 - id: plan
   skill: owl-step-discussion
   session_type: discussion
@@ -51,7 +56,8 @@ steps:
   - brief
   creates:
   - plan
-  status: pending
+  status: done
+  content_sha: eb0e0fde0275e8a5d25084518b3a8a67d7487e774a89832e260ced530a8b4f80
 - id: implement
   skill: owl-step-execution
   session_type: execution
@@ -59,7 +65,7 @@ steps:
   context_file: implement.context.md
   requires:
   - plan
-  status: pending
+  status: done
 - id: review_code
   skill: owl-step-execution
   session_type: execution
@@ -71,7 +77,10 @@ steps:
   creates:
   - review
   - verification
-  status: pending
+  status: done
+  content_sha:
+    review: db1dde7a11f8f082c932154664cac61a5d75057e059318d612227154456bba49
+    verification: 32fa165c3100a8cb995ea408f98faec95b8c5ed40f581288d544b78135f11e2c
 - id: merge_docs
   skill: owl-step-execution
   session_type: execution
@@ -80,7 +89,7 @@ steps:
   context_file: merge_docs.context.md
   requires:
   - review_code
-  status: pending
+  status: done
 - id: archive
   skill: owl-step-execution
   session_type: execution
@@ -88,7 +97,7 @@ steps:
   context_file: archive.context.md
   requires:
   - merge_docs
-  status: pending
+  status: done
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
@@ -96,5 +105,6 @@ steps:
   context_file: commit_push.context.md
   requires:
   - archive
-  status: pending
+  status: done
 artifacts: []
+archived_at: '2026-06-26T08:59:02Z'

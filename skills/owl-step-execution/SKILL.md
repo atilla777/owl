@@ -51,7 +51,7 @@ Those belong to `owl-step-discussion`.
   The body is markdown-with-frontmatter (RFC #1 §4.3):
   ```
   ---
-  status: returned_normally|do_not_use|error
+  status: returned_normally|do_not_use|error|interrupted|budget_exceeded
   summary: "<one-line>"
   session_type: execution
   ---
@@ -72,10 +72,10 @@ Those belong to `owl-step-discussion`.
 
 ## Workflow
 
-1. Verify the step is in scope: parse the input bundle, ensure `step.session_type == "execution"`. Abort with `final_state: error` if not.
+1. Verify the step is in scope: parse the input bundle, ensure `step.session_type == "execution"`. Abort with `status: error` if not.
 2. Mark the step started: `owl step start TASK-ID STEP-ID`. Run this **before** the `owl step show` that reads the started step, and run the two **sequentially** — never dispatch `step start` and `step show` (or any mutator→reader pair) in the same parallel batch, or `step show` can return the step still `pending` (stale read). See `_owl_conventions.md` §10.
 3. Compose the working context strictly from the supplied bundle: built-in `context` + overlays in returned order + `task.artifacts`. Do not call discovery tools that read filesystem state outside `bin/owl`.
-4. NEVER prompt the user directly. If the step needs human input to proceed, finalize with `final_state: interrupted` and surface the question in the `## Open follow-ups` section of the report. The orchestrator will then ask the user from the main session.
+4. NEVER prompt the user directly. If the step needs human input to proceed, finalize with `status: interrupted` and surface the question in the `## Open follow-ups` section of the report. The orchestrator will then ask the user from the main session.
 5. If `artifact_template` is present:
    - Resolve the destination path: `owl artifact resolve TASK-ID ARTIFACT-KEY --json`.
    - Generate Markdown body covering every `artifact_template.required_sections` entry and frontmatter matching `artifact_template.frontmatter_schema`.
@@ -108,7 +108,7 @@ runtime overlay decides how the subagent is actually spawned:
 
 ## Stop Conditions
 
-Finalize with `final_state: interrupted` and surface the issue in the
+Finalize with `status: interrupted` and surface the issue in the
 report's `## Open follow-ups` section when:
 
 - the step needs human input to proceed (scope, ambiguity, validation failure that requires product judgement).
@@ -116,7 +116,7 @@ report's `## Open follow-ups` section when:
 - the step requires repository changes outside the current task's scope.
 - a verification side effect returns a non-zero exit on the second run.
 
-Finalize with `final_state: error` and explain in `error_message` when:
+Finalize with `status: error` and explain in `error_message` (a supplementary frontmatter field; the report schema's `additionalProperties: true` allows it) when:
 
 - the chosen step's `session_type` is not `execution`.
 - `owl task ready-steps` does not list the requested step.

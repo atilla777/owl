@@ -38,13 +38,14 @@ Step-level skills (invoked by `/owl-orchestrator`, not normally called by hand):
 
 For any task work, use the smallest CLI path that gives authoritative state before reading repository Markdown:
 
-1. `bin/owl task current --json` — current task pointer (`.owl/local/current.yaml`).
-2. `bin/owl task ready-steps <TASK-ID> --json` — next dispatchable steps.
-3. `bin/owl step show <TASK-ID> <STEP-ID> --json` — merged bundle: step metadata + context + artifact template + task payload.
-4. `bin/owl status <TASK-ID> --json` — progress, blockers, child summary.
-5. `bin/owl instructions --json` — current ready step packaged with its skill summary.
+1. `bin/owl next [TASK-ID] --json` — canonical "what's next?" advisor (the orchestrator's entrypoint): resolves the task and classifies `action.kind` (`dispatch_step` carries `step_id`/`session_type`/`skill`, plus `handoff_composite`/`await_plan_approval`/`stop_blocked`/`done`/`no_available_task`). Read-only — claim before acting.
+2. `bin/owl task current --json` — current task pointer (`.owl/local/current.yaml`).
+3. `bin/owl task ready-steps <TASK-ID> --json` — next dispatchable steps.
+4. `bin/owl step show <TASK-ID> <STEP-ID> --json` — merged bundle: step metadata + context + artifact template + task payload.
+5. `bin/owl status <TASK-ID> --json` — progress, blockers, child summary.
+6. `bin/owl instructions --json` — current ready step packaged with its skill summary.
 
-Mutating commands: `bin/owl task create | use | abandon | delete --force | child create`, `bin/owl step start | complete | reopen | skip | report`, `bin/owl artifact validate`, `bin/owl publish`, `bin/owl archive`.
+Mutating commands: `bin/owl task create | use | abandon | delete --force | child create`, `bin/owl task claim | release | heartbeat | adopt` (multi-session leases), `bin/owl step start | complete | reopen | reset | skip | report`, `bin/owl plan approve`, `bin/owl artifact validate`, `bin/owl publish`, `bin/owl archive`, `bin/owl commit-push`. See the `owl-cli` skill for the full surface and flags.
 
 ## Seeded Workflows
 

@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 summary: Sync agent-facing docs (CLAUDE.md, owl-cli) with the real CLI surface and collapse the redundant per-step orchestrator loop.
 ---
 

@@ -1,18 +1,6 @@
 ---
 schema_version: 1
 tasks:
-- id: TASK-0039
-  title: Sync agent-facing docs with CLI; collapse orchestrator per-step loop
-  workflow: feature
-  kind: task
-  parent_id:
-  priority: 20
-  created_at: '2026-06-26T05:42:55Z'
-  status: open
-  labels:
-  - health-review-2026-06-26
-  blocked_by: []
-  archived_at:
 - id: TASK-0040
   title: Realign architecture doc 27; route cli->Internal via Api; split workflows
     backend god-object; dedup loaders

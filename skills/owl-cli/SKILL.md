@@ -34,7 +34,7 @@ Do not use this skill to decide what workflow stage runs next, what spec to writ
 ## Source Of Truth
 
 - Treat `bin/owl` JSON responses as authoritative. Do not parse `.owl/` config, `tasks/index.yaml`, or `task.yaml` files directly.
-- Treat repository Markdown (`AGENTS.md`, `ARCHITECTURE.md`, `REQUIREMENTS.md`, `docs/historical/2026-05-implementation-plan.md`) as historical fallback after KOS migration; current workflow state lives in KOS application state.
+- Treat repository Markdown (`AGENTS.md`, `ARCHITECTURE.md`, `REQUIREMENTS.md`, `docs/historical/2026-05-implementation-plan.md`) as background/historical context only; authoritative workflow state lives in Owl state (`.owl/`, `tasks/`) and is read through `bin/owl`.
 - When `bin/owl` returns a structured error, surface its message to the caller rather than guessing recovery — the CLI is the contract.
 - Pass `--json` to every read command that supports it; agent-facing commands return stable JSON shapes designed for parsing.
 
@@ -78,6 +78,7 @@ Representative commands:
 - `owl step start TASK-ID STEP-ID [--variant NAME] [--ignore-modification]`
 - `owl step complete TASK-ID STEP-ID [--ignore-modification]`
 - `owl step reopen TASK-ID STEP-ID [--cascade]`
+- `owl step reset TASK-ID STEP-ID` (return a stuck `running` step to `pending` — claim takeover / `changes_required` re-run)
 - `owl step skip TASK-ID STEP-ID --reason "..."`
 - `owl step invocation TASK-ID STEP-ID --json`
 - `owl step show TASK-ID STEP-ID --json`
@@ -89,7 +90,18 @@ Representative commands:
 - `owl next [TASK-ID] --json`
 - `owl status TASK-ID --json`
 
-The list above is intentionally explicit so agents do not need CLI discovery for normal workflows. If a needed operation is not listed here, stop and report the missing CLI contract instead of guessing a flag.
+Concurrency, plan-approval, and delivery surface (needed by `owl-orchestrator` for the multi-session loop):
+
+- `owl task claim [TASK-ID|--next] [--ttl N] [--label L] [--steal] --json` — atomically take a task lease; returns a `token`.
+- `owl task release TASK-ID --token T` — release a held lease immediately.
+- `owl task heartbeat TASK-ID --token T [--ttl N]` — extend a held lease before it expires.
+- `owl task adopt TASK-ID [--token T] --json` — steal a lease and reset the task's `running` steps to pending.
+- `owl task claims --json` / `owl task available --json` / `owl task ready --json` — list live leases / runnable-unclaimed / dependency-ready tasks.
+- `owl plan approve TASK-ID [--token T]` / `owl plan status TASK-ID --json` — opt-in plan-approval gate.
+- `owl commit-push TASK-ID --message "..."` — transactional stage→complete→commit→push for the `commit_push` step.
+- `owl git lock [--name N] [--ttl N] [--steal]` / `owl git unlock --token T [--name N]` — repo-scoped push lock.
+
+The lists above cover the normal workflow + multi-session loop. The long tail (`owl workflow …`, `owl artifact-type …`, `owl spec …`, `owl recall`, `owl task dep|query|label|set-priority|set-status`, `owl verify`, `owl overlay …`, etc.) is reachable via `owl --help`: if an operation is not documented here, fall back to `owl --help`; only stop and report if it is absent there too.
 
 ### Response Shape Notes
 
@@ -161,7 +173,7 @@ Stop and return control to the calling skill when:
 - the CLI rejects the operation with a structured error that requires human judgment (e.g. invalid workflow key, schema mismatch)
 - a composite operation returns `composite_with_unready_children` and the caller did not ask for partial handling
 - an artifact validation fails (`ok: false`) and the calling skill cannot fix the body without scope or product input
-- the requested operation is not represented in this skill or in `owl --help` — do not invent a flag
+- the requested operation is documented neither here nor in `owl --help` — do not invent a flag (a command reachable via `owl --help` is **not** a stop; use it)
 
 ## Verification
 

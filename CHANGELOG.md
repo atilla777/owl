@@ -4,6 +4,37 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.21.0] - 2026-06-26
+
+### Changed
+- **Sync agent-instruction docs with the real `bin/owl` surface; unify the
+  execution-report status vocabulary (TASK-0039).** Documentation/instruction
+  only — no `bin/owl` Ruby, CLI, or report-JSON-schema change.
+  - `CLAUDE.md` Startup Sequence now leads with `owl next [TASK-ID] --json` (the
+    orchestrator's canonical "what's next?" entrypoint); the Mutating-commands
+    list gains the previously-omitted concurrency + delivery surface
+    (`task claim/release/heartbeat/adopt`, `step reset`, `plan approve`,
+    `commit-push`).
+  - `skills/owl-cli/SKILL.md`: removed the stale KOS source-of-truth line;
+    reworded the stop-condition so a command reachable via `owl --help` is **not**
+    a stop ("fall back to `owl --help`; only stop if absent there too"), resolving
+    the prior inconsistency between the two stop clauses; documented the
+    concurrency/claim/plan/commit-push/`step reset` surface and deferred the long
+    tail to `owl --help`.
+  - `skills/owl-orchestrator/SKILL.md`: states the executor step skill owns
+    `owl step complete` + the final `owl artifact validate`, and that an
+    orchestrator re-complete returning `step_not_running` is a safe idempotent
+    no-op re-check (not an error); trims the redundant double-resolution
+    (`owl next` already returns `session_type`/`skill`); fixed the Workflow-section
+    numbering gap (4 → 6) so steps are contiguous and updated all "Workflow step
+    9/10" cross-references.
+  - Execution-report contract now uses one canonical `status` field everywhere:
+    `skills/owl-step-execution/SKILL.md` and `skills/_owl_conventions.md` replace
+    every `final_state: <x>` with `status: <x>` from the schema enum
+    (`returned_normally|do_not_use|error|interrupted|budget_exceeded`),
+    keeping `error_message` as a supplementary field
+    (`step_report.json` `additionalProperties: true`).
+
 ## [0.20.1] - 2026-06-26
 
 ### Fixed
