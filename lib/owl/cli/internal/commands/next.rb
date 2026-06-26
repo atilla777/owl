@@ -22,6 +22,9 @@ module Owl
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
 
+            terminal = TaskSupport.reject_if_terminal(root: root, task_id: positional.first, stderr: stderr)
+            return terminal if terminal
+
             result = Owl::Orchestration::Api.next_action(root: root, task_id: positional.first)
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 

@@ -7,6 +7,7 @@ require_relative 'claim_paths'
 require_relative 'exclusive_lease'
 require_relative 'index_reader'
 require_relative 'paths'
+require_relative 'task_statuses'
 
 module Owl
   module Tasks
@@ -20,8 +21,9 @@ module Owl
       # ready-work pool even when its dependencies are all complete.
       module ReadyScanner
         # A task's own status that takes it out of the ready pool because the
-        # work is finished or cancelled.
-        TERMINAL_STATUSES = %w[done archived abandoned].freeze
+        # work is finished or cancelled. Shared with AvailabilityScanner via the
+        # single source of truth in `TaskStatuses::TERMINAL`.
+        TERMINAL_STATUSES = TaskStatuses::TERMINAL
         # A task's own status that takes it out of the ready pool — terminal plus
         # the explicitly-parked statuses (on_hold/blocked). These gate the task's
         # OWN readiness only; they say nothing about whether it satisfies another

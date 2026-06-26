@@ -4,6 +4,7 @@ require 'time'
 
 require_relative '../../result'
 require_relative 'archive/claim_resetter'
+require_relative 'archive/current_resetter'
 require_relative 'atomic_yaml_writer'
 require_relative 'index_writer'
 require_relative 'paths'
@@ -28,6 +29,13 @@ module Owl
         def locked_call(root:, paths:, task_id:, reason:, now:)
           read = TaskReader.read(tasks_root: paths[:tasks], task_id: task_id)
           return read if read.err?
+
+          # Drop the current-task pointer iff it named this task — parity with
+          # Deleter (TASK-0041). Runs BEFORE the idempotent early-return so a
+          # repeated abandon of an already-abandoned task still repairs a stale
+          # pointer left behind by an earlier session. `reset_if_matches` is a
+          # no-op when the pointer names another task or is absent.
+          Archive::CurrentResetter.reset_if_matches(local_state_root: paths[:local_state], task_id: task_id)
 
           payload = read.value[:payload]
           if payload['status'] == 'abandoned' && reason.nil?

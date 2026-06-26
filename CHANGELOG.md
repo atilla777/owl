@@ -4,6 +4,44 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.23.0] - 2026-06-26
+
+### Added
+- **Explicit access to a dead task is rejected with `task_terminal` (TASK-0043).**
+  `owl next TASK-X`, `owl status TASK-X`, `owl task ready-steps TASK-X`, and
+  `owl instructions TASK-X` invoked with an EXPLICIT task id that orchestration
+  considers dead — `abandoned` (cancelled), or a terminal `archived`/`done` task
+  whose workflow is already complete — now return
+  `{ ok: false, error: { code: "task_terminal", … } }` with a non-zero exit code,
+  instead of pretending the task is runnable. The reject applies only to
+  explicitly-passed ids. An `archived` task still mid-flow (the seeded
+  `archive → commit_push` window, where the `archive` step sets the status to
+  `archived` before the terminal `commit_push` step runs) is NOT rejected, so
+  delivery workflows keep dispatching `commit_push`.
+
+### Fixed
+- **`owl task abandon <current>` clears the current-task pointer (TASK-0043).**
+  Abandoning the current task now drops `.owl/local/current.yaml` (via the
+  existing `Archive::CurrentResetter`, parity with `owl task delete`), so
+  `owl task current` reports "no current task" instead of pointing at a dead
+  task. The clear runs before the idempotent early-return, so a repeated abandon
+  still repairs a stale pointer. Abandoning a non-current task leaves the pointer
+  untouched.
+- **`owl next` (no arg) falls through a dead current pointer (TASK-0043).**
+  When the current pointer names a task orchestration considers dead
+  (`abandoned`, or a workflow-complete `archived`/`done`), `owl next` without an
+  explicit id now silently treats it as "no current task" and falls through to
+  `auto_select` (or `no_available_task`), instead of advising `dispatch_step` on
+  the dead task. A mid-flow `archived` task is still resolved normally.
+
+### Changed
+- **Single source of truth for task-level terminal statuses (TASK-0043).** The
+  duplicated `TERMINAL_STATUSES` lists in `availability_scanner` and
+  `ready_scanner` now both reference `Tasks::Internal::TaskStatuses::TERMINAL`
+  (`%w[archived abandoned done]`). The step-level `completion_gate`
+  `TERMINAL_STATUSES` (`%w[done skipped]`) is a distinct concept and is left
+  untouched.
+
 ## [0.22.1] - 2026-06-26
 
 ### Fixed

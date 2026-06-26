@@ -22,7 +22,7 @@ module Owl
           return explicit(task_id) if task_id
 
           current = Owl::Tasks::Api.current_task_id(root: root)
-          return from_current(current.value) if current.ok?
+          return from_current(root: root, task_id: current.value) if current.ok?
 
           auto_select(root: root)
         end
@@ -31,8 +31,20 @@ module Owl
           { task_id: task_id.to_s, source: 'explicit', reason: 'explicit TASK-ID requested' }
         end
 
-        def from_current(task_id)
+        # A current pointer left on a terminal task (legacy/archived/abandoned/
+        # done) is treated as "no current task": fall through to auto_select
+        # instead of advising work on a dead task. This is the SILENT fallback
+        # path; explicit `owl next TASK-X` on a terminal id is rejected upstream
+        # (CLI `task_terminal` guard) rather than redirected.
+        def from_current(root:, task_id:)
+          return auto_select(root: root) if terminal?(root: root, task_id: task_id)
+
           { task_id: task_id.to_s, source: 'current_pointer', reason: 'resolved from current task pointer' }
+        end
+
+        def terminal?(root:, task_id:)
+          result = Owl::Tasks::Api.orchestration_terminal?(root: root, task_id: task_id)
+          result.ok? && result.value
         end
 
         # Top of the deps+status-aware ready set — never advises a task whose

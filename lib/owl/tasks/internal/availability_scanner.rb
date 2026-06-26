@@ -8,6 +8,7 @@ require_relative 'claim_paths'
 require_relative 'exclusive_lease'
 require_relative 'index_reader'
 require_relative 'paths'
+require_relative 'task_statuses'
 
 module Owl
   module Tasks
@@ -22,8 +23,9 @@ module Owl
         # written and a runnable task simply had an empty status; now `open` is
         # the create-time default, so availability keys off this terminal set
         # rather than "status is empty". `done` is terminal (logically finished,
-        # not yet archived).
-        TERMINAL_STATUSES = %w[archived abandoned done].freeze
+        # not yet archived). The set is shared with ReadyScanner via the single
+        # source of truth in `TaskStatuses::TERMINAL`.
+        TERMINAL_STATUSES = TaskStatuses::TERMINAL
 
         module_function
 

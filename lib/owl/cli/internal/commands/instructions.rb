@@ -19,6 +19,9 @@ module Owl
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
 
+            terminal = TaskSupport.reject_if_terminal(root: root, task_id: positional.first, stderr: stderr)
+            return terminal if terminal
+
             result = Owl::Instructions::Api.build_payload(
               root: root, task_id: positional.first, step_id: options[:step_id]
             )

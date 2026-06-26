@@ -107,4 +107,50 @@ RSpec.describe Owl::Tasks::Api, '.abandon' do
       expect(result.code).to eq(:task_not_found)
     end
   end
+
+  it 'clears the current pointer when the abandoned task is current (parity with delete)' do
+    with_tmp_project do |root|
+      task_id = setup_project(root)
+      cli(['task', 'use', task_id, '--root', root.to_s, '--json'], root)
+
+      described_class.abandon(root: root, task_id: task_id)
+
+      current = described_class.current(root: root)
+      expect(current).to be_err
+      expect(current.code).to eq(:no_current_task)
+      expect(Pathname.new("#{root}/.owl/local/current.yaml").exist?).to be(false)
+    end
+  end
+
+  it 'leaves the current pointer untouched when a non-current task is abandoned' do
+    with_tmp_project do |root|
+      current_id = setup_project(root)
+      cli(['task', 'create', '--workflow', 'feature', '--title', 'other', '--root', root.to_s, '--json'], root)
+      other_id = 'TASK-0002'
+      cli(['task', 'use', current_id, '--root', root.to_s, '--json'], root)
+
+      described_class.abandon(root: root, task_id: other_id)
+
+      current = described_class.current(root: root)
+      expect(current).to be_ok
+      expect(current.value[:task_id]).to eq(current_id)
+    end
+  end
+
+  it 'repairs a stale pointer on a repeat (idempotent) abandon of an already-abandoned task' do
+    with_tmp_project do |root|
+      task_id = setup_project(root)
+      described_class.abandon(root: root, task_id: task_id)
+      # Re-point the current pointer at the now-abandoned task to simulate a
+      # stale pointer left behind by an earlier session.
+      cli(['task', 'use', task_id, '--root', root.to_s, '--json'], root)
+
+      second = described_class.abandon(root: root, task_id: task_id)
+      expect(second.value[:idempotent]).to be(true)
+
+      current = described_class.current(root: root)
+      expect(current).to be_err
+      expect(current.code).to eq(:no_current_task)
+    end
+  end
 end

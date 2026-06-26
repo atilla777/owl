@@ -90,5 +90,36 @@ RSpec.describe Owl::Orchestration::Internal::TaskResolver do
         expect(result[:source]).to eq('none')
       end
     end
+
+    it 'falls through a terminal current pointer to auto-select another runnable task' do
+      with_tmp_project do |root|
+        setup_project(root)
+        create_task(root, title: 'dead')  # TASK-0001
+        create_task(root, title: 'alive') # TASK-0002
+        cli(['task', 'use', 'TASK-0001', '--root', root.to_s], root)
+        Owl::Tasks::Api.abandon(root: root, task_id: 'TASK-0001')
+        # `abandon` already clears the pointer, so re-point it at the terminal
+        # task to exercise the resolver's own terminal fallback in isolation.
+        cli(['task', 'use', 'TASK-0001', '--root', root.to_s], root)
+
+        result = described_class.resolve(root: root)
+        expect(result[:task_id]).to eq('TASK-0002')
+        expect(result[:source]).to eq('auto_select')
+      end
+    end
+
+    it 'returns none when the current pointer is terminal and nothing else is runnable' do
+      with_tmp_project do |root|
+        setup_project(root)
+        create_task(root, title: 'dead') # TASK-0001
+        cli(['task', 'use', 'TASK-0001', '--root', root.to_s], root)
+        Owl::Tasks::Api.abandon(root: root, task_id: 'TASK-0001')
+        cli(['task', 'use', 'TASK-0001', '--root', root.to_s], root)
+
+        result = described_class.resolve(root: root)
+        expect(result[:task_id]).to be_nil
+        expect(result[:source]).to eq('none')
+      end
+    end
   end
 end

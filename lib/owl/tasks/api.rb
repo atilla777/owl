@@ -10,6 +10,8 @@ require_relative 'internal/plan_approval'
 require_relative 'internal/ready_availability_scanner'
 require_relative 'internal/ready_scanner'
 require_relative 'internal/task_reader'
+require_relative 'internal/task_statuses'
+require_relative 'internal/terminal_status'
 require_relative 'local'
 
 module Owl
@@ -152,6 +154,21 @@ module Owl
 
       def current(root:)
         strip_local(with_backend(root, &:current))
+      end
+
+      # Should orchestration refuse to advise work on `task_id`? Read-only
+      # predicate delegated to `Internal::TerminalStatus`: true for a cancelled
+      # (`abandoned`) task, or a terminal (`archived`/`done`) task whose workflow
+      # is already complete; false for an `archived` task still mid-flow (the
+      # archive->commit_push window). Returns `Result.ok(true|false)`; the
+      # underlying read Err (e.g. `task_not_found`) is propagated so callers can
+      # distinguish "alive" from "could not be read". Shared by the orchestration
+      # current-pointer fallback and the explicit-id CLI guard.
+      def orchestration_terminal?(root:, task_id:)
+        result = inspect(root: root, task_id: task_id)
+        return result if result.err?
+
+        Owl::Result.ok(Internal::TerminalStatus.orchestration_terminal?(result.value[:payload]))
       end
 
       # Current-task pointer projected down to just its id. Shared primitive
