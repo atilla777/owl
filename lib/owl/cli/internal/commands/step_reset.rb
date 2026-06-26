@@ -3,7 +3,6 @@
 require 'optparse'
 
 require_relative '../../../steps/api'
-require_relative '../../../steps/internal/active_step_lock'
 require_relative '../json_printer'
 require_relative 'step_id_resolver'
 require_relative 'task_support'
@@ -53,13 +52,13 @@ module Owl
           # lock refers to the step just reset, so a lock for a different step is
           # left untouched; a no-op when no lock exists.
           def clear_active_step_lock(root:, options:)
-            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root, task_id: options[:task_id])
+            lock = Owl::Steps::Api.active_step_lock_load(root: root, task_id: options[:task_id])
             return unless lock.ok? && lock.value
-            return unless Owl::Steps::Internal::ActiveStepLock.matches?(
+            return unless Owl::Steps::Api.active_step_lock_matches?(
               lock.value, task_id: options[:task_id], step_id: options[:step_id]
             )
 
-            Owl::Steps::Internal::ActiveStepLock.clear(root: root, task_id: options[:task_id])
+            Owl::Steps::Api.active_step_lock_clear(root: root, task_id: options[:task_id])
           end
 
           def parse_options(argv)

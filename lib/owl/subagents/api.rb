@@ -3,6 +3,7 @@
 require_relative '../result'
 require_relative 'internal/filesystem_report_backend'
 require_relative 'internal/output_spec'
+require_relative 'internal/report_paths'
 require_relative 'internal/tier_map'
 
 module Owl
@@ -101,6 +102,26 @@ module Owl
 
       def default_backend(root:)
         Internal::FilesystemReportBackend.new(root: root)
+      end
+
+      # --- Report contract facades (cli adapter surface) -------------------
+      # Thin pass-throughs over Internal::OutputSpec / Internal::ReportPaths so
+      # cli commands depend on Subagents::Api, not the Internal services.
+
+      # @return [Hash] frozen copy of `schemas/step_report.json` (parsed JSON).
+      def report_schema
+        Internal::OutputSpec.schema
+      end
+
+      # Validate a markdown-with-frontmatter report body against `output_spec`
+      # (defaults to the public step_report spec). Returns a Result.
+      def validate_report(report_body, output_spec: nil)
+        Internal::OutputSpec.validate(report_body, output_spec: output_spec)
+      end
+
+      # Canonical on-disk path for a subagent report body.
+      def report_path(root:, task_id:, step_id:)
+        Internal::ReportPaths.report_path(root: root, task_id: task_id, step_id: step_id)
       end
 
       private_class_method :validate_inputs, :build_bundle, :default_backend

@@ -4,6 +4,33 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [0.22.0] - 2026-06-26
+
+### Changed
+- **Behavior-preserving maintainability refactor (TASK-0040).** No `bin/owl`
+  CLI/JSON output, exit-code, or on-disk-format change; the additive `Api`
+  methods below are the only public-surface delta (minor bump).
+  - **Doc 27 realigned** with the actual per-domain backend pattern
+    (`api → backend → backends/filesystem → internal`, `local.rb` for
+    runtime-state paths). Removed the stale "all FS I/O funnels through
+    `Owl::Storage::Api`" claim and documented the real `Owl::Internal::*`
+    bootstrap helpers plus the "`cli/` calls only `<Domain>::Api`" rule.
+  - **Loader deduplication**: collapsed the near-identical artifacts/workflows
+    loader pairs into the shared `Owl::Internal::*` helpers (`default_template`
+    left separate — genuinely divergent bodies).
+  - **`cli/` routed through domain `Api` facades, not `Internal`.** Every
+    cross-domain `<Domain>::Internal::*` reach from `lib/owl/cli/` now goes
+    through a thin additive facade, so the cli adapter depends only on public
+    `Api`. New methods: `Steps::Api.active_step_lock_{load,load_sole,write,
+    clear,matches?}`, `Steps::Api.{detect_drift,drift_policy_for}`,
+    `Subagents::Api.{report_schema,validate_report,report_path}`,
+    `Tasks::Api.{resolve_paths,read_task}`, and
+    `Workflows::Api.step_context_frontmatter_check_key`. All are
+    behavior-preserving pass-throughs over the existing Internal services.
+  - **Workflows filesystem backend decomposed** into `workflows/internal/*`
+    service objects, mirroring the `tasks` backend (public Backend method
+    signatures byte-stable).
+
 ## [0.21.0] - 2026-06-26
 
 ### Changed

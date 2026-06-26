@@ -4,10 +4,9 @@ require 'json'
 require 'optparse'
 require 'yaml'
 
-require_relative '../../../steps/internal/active_step_lock'
+require_relative '../../../steps/api'
 require_relative '../../../storage/api'
-require_relative '../../../subagents/internal/output_spec'
-require_relative '../../../subagents/internal/report_paths'
+require_relative '../../../subagents/api'
 require_relative '../json_printer'
 require_relative 'step_id_resolver'
 require_relative 'task_support'
@@ -58,14 +57,14 @@ module Owl
 
           # Dump the public step_report JSON Schema (RFC #1 §4.3, §5).
           def schema_mode(stdout:)
-            stdout.puts(JSON.pretty_generate(Owl::Subagents::Internal::OutputSpec.schema))
+            stdout.puts(JSON.pretty_generate(Owl::Subagents::Api.report_schema))
             0
           end
 
           # Print a minimal Markdown skeleton that already validates against
           # the public schema. Subagents copy/paste this and fill in the body.
           def template_mode(stdout:)
-            schema = Owl::Subagents::Internal::OutputSpec.schema
+            schema = Owl::Subagents::Api.report_schema
             default_status = schema.dig('properties', 'status', 'enum').first
             sections = schema['x-required-sections']
 
@@ -101,7 +100,7 @@ module Owl
             )
             return mismatch_result if mismatch_result
 
-            path = Owl::Subagents::Internal::ReportPaths.report_path(
+            path = Owl::Subagents::Api.report_path(
               root: root, task_id: options[:task_id], step_id: options[:step_id]
             )
             Owl::Storage::Api.mkdir_p(path: path.dirname)
@@ -122,7 +121,7 @@ module Owl
           # valid; writes a structured error to stderr and returns true
           # (caller maps to exit 2) when it is not.
           def report_validation_failed?(body:, stderr:)
-            validation = Owl::Subagents::Internal::OutputSpec.validate(body)
+            validation = Owl::Subagents::Api.validate_report(body)
             return false unless validation.err?
 
             stderr.puts(JSON.generate({
@@ -137,7 +136,7 @@ module Owl
           end
 
           def read_mode(stdout:, stderr:, root:, options:)
-            path = Owl::Subagents::Internal::ReportPaths.report_path(
+            path = Owl::Subagents::Api.report_path(
               root: root, task_id: options[:task_id], step_id: options[:step_id]
             )
             unless Owl::Storage::Api.exists?(path: path)
@@ -177,7 +176,7 @@ module Owl
           # Returns nil when no enforcement is needed, or exit code 2 +
           # writes a session_type_mismatch payload to stderr when it is.
           def check_session_type_against_lock(body:, root:, task_id:, stderr:)
-            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root, task_id: task_id)
+            lock = Owl::Steps::Api.active_step_lock_load(root: root, task_id: task_id)
             return nil if lock.err? || lock.value.nil?
 
             locked = lock.value['session_type']

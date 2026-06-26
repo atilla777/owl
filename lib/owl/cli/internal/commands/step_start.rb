@@ -4,9 +4,6 @@ require 'json'
 require 'optparse'
 
 require_relative '../../../steps/api'
-require_relative '../../../steps/internal/active_step_lock'
-require_relative '../../../steps/internal/drift_detector'
-require_relative '../../../steps/internal/drift_policy'
 require_relative '../json_printer'
 require_relative 'drift_warning_printer'
 require_relative 'step_id_resolver'
@@ -49,9 +46,9 @@ module Owl
           end
 
           def check_existing_lock(root:, options:, stderr:)
-            existing = Owl::Steps::Internal::ActiveStepLock.load(root: root, task_id: options[:task_id])
+            existing = Owl::Steps::Api.active_step_lock_load(root: root, task_id: options[:task_id])
             return nil unless existing.ok? && existing.value
-            return nil if Owl::Steps::Internal::ActiveStepLock.matches?(
+            return nil if Owl::Steps::Api.active_step_lock_matches?(
               existing.value, task_id: options[:task_id], step_id: options[:step_id]
             )
 
@@ -71,7 +68,7 @@ module Owl
 
           def write_active_step_lock(root:, options:)
             session_type = resolve_session_type(root: root, options: options)
-            Owl::Steps::Internal::ActiveStepLock.write(
+            Owl::Steps::Api.active_step_lock_write(
               root: root, task_id: options[:task_id], step_id: options[:step_id],
               session_type: session_type, variant: options[:variant]
             )
@@ -92,7 +89,7 @@ module Owl
           # continue, or an Integer exit code when policy=:block forces an
           # abort. RFC #1 §4 follow-up.
           def handle_drift(root:, options:, stderr:)
-            events = Owl::Steps::Internal::DriftDetector.call(
+            events = Owl::Steps::Api.detect_drift(
               root: root, task_id: options[:task_id], step_id: options[:step_id]
             )
             policy = resolve_drift_policy(root: root, options: options)
@@ -108,7 +105,7 @@ module Owl
               root: root, task_id: options[:task_id], step_id: options[:step_id]
             )
             step_payload = bundle.ok? ? bundle.value[:step] : nil
-            Owl::Steps::Internal::DriftPolicy.for(step_payload, override_ignore: override)
+            Owl::Steps::Api.drift_policy_for(step_payload, override_ignore: override)
           end
 
           # Pulls session_type out of the step bundle for the lock-file record.

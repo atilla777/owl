@@ -3,7 +3,6 @@
 require 'optparse'
 
 require_relative '../../../workflows/api'
-require_relative '../../../workflows/internal/step_context_frontmatter_check'
 require_relative '../json_printer'
 require_relative 'task_support'
 
@@ -57,7 +56,7 @@ module Owl
           def error_class_for(details)
             return :validation unless details.is_a?(Hash)
             return :step_context_frontmatter if details[:source].to_s ==
-                                                Owl::Workflows::Internal::StepContextFrontmatterCheck::CHECK_KEY.to_s
+                                                Owl::Workflows::Api.step_context_frontmatter_check_key.to_s
 
             :validation
           end

@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
 require_relative '../../../result'
-require_relative '../../../steps/internal/active_step_lock'
+require_relative '../../../steps/api'
 require_relative '../../../tasks/api'
-require_relative '../../../tasks/internal/paths'
-require_relative '../../../tasks/internal/task_reader'
 
 module Owl
   module Cli
@@ -33,7 +31,7 @@ module Owl
           def resolve_task_id(root:, explicit:)
             return Result.ok(task_id: explicit, source: 'explicit') if present?(explicit)
 
-            lock = Owl::Steps::Internal::ActiveStepLock.load_sole(root: root)
+            lock = Owl::Steps::Api.active_step_lock_load_sole(root: root)
             return lock if lock.err?
             if lock.value.is_a?(Hash) && present?(lock.value['task_id'])
               return Result.ok(task_id: lock.value['task_id'], source: 'active_step_lock')
@@ -74,7 +72,7 @@ module Owl
           def resolve_step_id(root:, task_id:, explicit:, allow_running_inference:)
             return Result.ok(step_id: explicit, source: 'explicit') if present?(explicit)
 
-            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root, task_id: task_id)
+            lock = Owl::Steps::Api.active_step_lock_load(root: root, task_id: task_id)
             return lock if lock.err?
             if lock.value.is_a?(Hash) && lock.value['task_id'].to_s == task_id.to_s &&
                present?(lock.value['step_id'])
@@ -92,10 +90,10 @@ module Owl
           end
 
           def infer_running_step(root:, task_id:)
-            paths = Owl::Tasks::Internal::Paths.resolve(root: root)
+            paths = Owl::Tasks::Api.resolve_paths(root: root)
             return paths if paths.err?
 
-            task = Owl::Tasks::Internal::TaskReader.read(
+            task = Owl::Tasks::Api.read_task(
               tasks_root: paths.value[:tasks], task_id: task_id
             )
             return task if task.err?

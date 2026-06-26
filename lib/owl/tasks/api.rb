@@ -5,9 +5,11 @@ require_relative '../internal/backend_resolver'
 require_relative 'backend'
 require_relative 'backends/filesystem'
 require_relative 'internal/dependency_writer'
+require_relative 'internal/paths'
 require_relative 'internal/plan_approval'
 require_relative 'internal/ready_availability_scanner'
 require_relative 'internal/ready_scanner'
+require_relative 'internal/task_reader'
 require_relative 'local'
 
 module Owl
@@ -221,6 +223,20 @@ module Owl
             )
           end
         end
+      end
+
+      # --- Storage-path / task-read facades (cli adapter surface) ----------
+      # Thin pass-throughs over Internal::Paths / Internal::TaskReader so cli
+      # commands depend on Tasks::Api, not the Internal services.
+
+      # Resolve the configured tasks / index / local_state roots for `root`.
+      def resolve_paths(root:)
+        Internal::Paths.resolve(root: root)
+      end
+
+      # Read a single task.yaml payload from a resolved tasks root.
+      def read_task(tasks_root:, task_id:)
+        Internal::TaskReader.read(tasks_root: tasks_root, task_id: task_id)
       end
 
       def with_backend(root)

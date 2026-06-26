@@ -4,9 +4,6 @@ require 'json'
 require 'optparse'
 
 require_relative '../../../steps/api'
-require_relative '../../../steps/internal/active_step_lock'
-require_relative '../../../steps/internal/drift_detector'
-require_relative '../../../steps/internal/drift_policy'
 require_relative '../json_printer'
 require_relative 'drift_warning_printer'
 require_relative 'step_id_resolver'
@@ -39,7 +36,7 @@ module Owl
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
-            Owl::Steps::Internal::ActiveStepLock.clear(root: root, task_id: options[:task_id])
+            Owl::Steps::Api.active_step_lock_clear(root: root, task_id: options[:task_id])
             emit_gate_warnings(stderr: stderr, result: result)
             emit_success(stdout: stdout, result: result, root: root, options: options)
           rescue OptionParser::ParseError => e
@@ -63,7 +60,7 @@ module Owl
           end
 
           def handle_drift(root:, options:, stderr:)
-            events = Owl::Steps::Internal::DriftDetector.call(
+            events = Owl::Steps::Api.detect_drift(
               root: root, task_id: options[:task_id], step_id: options[:step_id]
             )
             policy = resolve_drift_policy(root: root, options: options)
@@ -79,13 +76,13 @@ module Owl
               root: root, task_id: options[:task_id], step_id: options[:step_id]
             )
             step_payload = bundle.ok? ? bundle.value[:step] : nil
-            Owl::Steps::Internal::DriftPolicy.for(step_payload, override_ignore: override)
+            Owl::Steps::Api.drift_policy_for(step_payload, override_ignore: override)
           end
 
           def lock_mismatch_response(root:, options:, stderr:)
-            lock = Owl::Steps::Internal::ActiveStepLock.load(root: root, task_id: options[:task_id])
+            lock = Owl::Steps::Api.active_step_lock_load(root: root, task_id: options[:task_id])
             return nil unless lock.ok? && lock.value
-            return nil if Owl::Steps::Internal::ActiveStepLock.matches?(
+            return nil if Owl::Steps::Api.active_step_lock_matches?(
               lock.value, task_id: options[:task_id], step_id: options[:step_id]
             )
 

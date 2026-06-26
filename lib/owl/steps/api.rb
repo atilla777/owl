@@ -8,9 +8,12 @@ require_relative '../tasks/internal/task_reader'
 require_relative '../verification/api'
 require_relative '../workflows/api'
 require_relative '../workflows/internal/graph_builder'
+require_relative 'internal/active_step_lock'
 require_relative 'internal/archive_finalizer'
 require_relative 'internal/artifact_sha_collector'
 require_relative 'internal/bundle_builder'
+require_relative 'internal/drift_detector'
+require_relative 'internal/drift_policy'
 require_relative 'internal/invocation_builder'
 require_relative 'internal/output_validator'
 require_relative 'internal/statuses'
@@ -337,6 +340,45 @@ module Owl
                       step_id: step_id,
                       attributes: { 'status' => 'running' }
                     ))
+      end
+
+      # --- Active-step lock facades (cli adapter surface) ------------------
+      # Thin pass-throughs over Internal::ActiveStepLock so cli commands depend
+      # on Steps::Api, not the lock class directly. Same arguments, return
+      # values, and semantics as the underlying lock primitives.
+
+      def active_step_lock_load(root:, task_id:)
+        Internal::ActiveStepLock.load(root: root, task_id: task_id)
+      end
+
+      def active_step_lock_load_sole(root:)
+        Internal::ActiveStepLock.load_sole(root: root)
+      end
+
+      def active_step_lock_write(root:, task_id:, step_id:, session_type:, variant: nil)
+        Internal::ActiveStepLock.write(
+          root: root, task_id: task_id, step_id: step_id,
+          session_type: session_type, variant: variant
+        )
+      end
+
+      def active_step_lock_clear(root:, task_id:)
+        Internal::ActiveStepLock.clear(root: root, task_id: task_id)
+      end
+
+      def active_step_lock_matches?(lock, task_id:, step_id:)
+        Internal::ActiveStepLock.matches?(lock, task_id: task_id, step_id: step_id)
+      end
+
+      # --- Drift facades ---------------------------------------------------
+      # Detection (cheap) and policy resolution (per-call) fronted for cli.
+
+      def detect_drift(root:, task_id:, step_id:)
+        Internal::DriftDetector.call(root: root, task_id: task_id, step_id: step_id)
+      end
+
+      def drift_policy_for(step_payload, override_ignore: false, check: nil)
+        Internal::DriftPolicy.for(step_payload, override_ignore: override_ignore, check: check)
       end
 
       def strip_local(result)

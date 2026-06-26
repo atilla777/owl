@@ -4,6 +4,7 @@ require_relative '../result'
 require_relative '../internal/backend_resolver'
 require_relative 'backend'
 require_relative 'backends/filesystem'
+require_relative 'internal/step_context_frontmatter_check'
 require_relative 'local'
 
 module Owl
@@ -92,6 +93,13 @@ module Owl
             )
           end
         end
+      end
+
+      # Check-key sentinel that `StepContextFrontmatterCheck` stamps onto its
+      # failure `details[:source]`. Exposed so cli adapters can classify the
+      # error_class without reaching into Workflows::Internal directly.
+      def step_context_frontmatter_check_key
+        Internal::StepContextFrontmatterCheck::CHECK_KEY
       end
 
       def seeded_sources
