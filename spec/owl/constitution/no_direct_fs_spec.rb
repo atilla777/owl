@@ -67,8 +67,13 @@ module OwlConstitutionFixtures
     validation/internal/schema_resolver.rb
     workflows/backends/filesystem.rb
     workflows/internal/cache.rb
+    workflows/internal/context_io.rb
+    workflows/internal/context_reader.rb
+    workflows/internal/paths.rb
     workflows/internal/registry_loader.rb
     workflows/internal/source_loader.rb
+    workflows/internal/steps_lookup_builder.rb
+    workflows/internal/validation_loader.rb
     internal/backend_resolver.rb
     internal/gem_assets.rb
     internal/yaml_cache.rb
