@@ -4,6 +4,22 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.1.3] - 2026-06-27
+
+### Fixed
+- **`owl publish` accepts a harness-pre-started (`running`) step (TASK-0049).**
+  The orchestrator's execution harness pre-starts every step (`owl step start`)
+  before running its body, advancing a `publishes:`-bearing step (e.g.
+  `merge_docs`) to `running`. `Owl::Publish::Internal::StepGate` previously only
+  accepted `ready`/`done` and rejected the pre-started step with
+  `publish_step_not_ready` — a gate-ordering asymmetry with `commit-push`, which
+  already expects `running`. `StepGate` now accepts `running` in addition to
+  `ready` and `done` (`ACCEPTABLE_STATUSES = %w[ready running done]`), so a
+  publishing step runs end-to-end under the pre-start convention. Genuinely
+  not-runnable steps (`pending`/blocked, not in the ready set) are still
+  rejected, and the error details report the updated `acceptable_statuses`.
+  Additive, back-compat fix — no JSON/schema/template changes.
+
 ## [1.1.2] - 2026-06-27
 
 ### Fixed

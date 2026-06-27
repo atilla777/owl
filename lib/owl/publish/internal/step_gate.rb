@@ -12,7 +12,7 @@ module Owl
         # backward compatibility a step literally named `publish` is still
         # accepted when no step carries the marker.
         FALLBACK_STEP_ID = 'publish'
-        ACCEPTABLE_STATUSES = %w[ready done].freeze
+        ACCEPTABLE_STATUSES = %w[ready running done].freeze
 
         module_function
 
@@ -29,6 +29,11 @@ module Owl
 
           stored = stored_status(task_payload, step_id)
           return Result.ok(status: 'done', step_id: step_id) if stored == 'done'
+          # The orchestrator's execution harness pre-starts every step (`owl step
+          # start`) before running its body, so a `publishes:`-bearing step is
+          # already `running` at publish time. Accept it — consistent with how
+          # `commit-push` treats a pre-started step.
+          return Result.ok(status: 'running', step_id: step_id) if stored == 'running'
 
           ready_result = Owl::Workflows::Api.ready_steps(root: root, task_id: task_id)
           return ready_result if ready_result.err?

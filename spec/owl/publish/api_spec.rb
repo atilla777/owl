@@ -249,6 +249,34 @@ RSpec.describe Owl::Publish::Api do
       end
     end
 
+    it 'accepts publish step when the harness has pre-started it (status running)' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        write("#{root}/tasks/#{task_id}/spec.md", "# spec\n")
+        mark_ready_chain(root, task_id)
+        force_step_status(root, task_id, 'publish', 'running')
+
+        result = described_class.run(root: root, task_id: task_id, dry_run: false)
+        expect(result).to be_ok
+        expect(result.value[:step_status]).to eq('running')
+        expect(result.value[:results].first['action']).to eq('created')
+      end
+    end
+
+    it 'returns publish_step_not_ready when the step is pending and not in the ready set' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        write("#{root}/tasks/#{task_id}/spec.md", "# spec\n")
+        # prerequisites are unmet, so publish is pending and not ready
+
+        result = described_class.run(root: root, task_id: task_id)
+        expect(result).to be_err
+        expect(result.code).to eq(:publish_step_not_ready)
+        expect(result.details[:current_status]).to eq('pending')
+        expect(result.details[:acceptable_statuses]).to eq(%w[ready running done])
+      end
+    end
+
     it 'returns source_missing when the source artifact does not exist' do
       with_tmp_project do |root|
         task_id = setup_project(root)

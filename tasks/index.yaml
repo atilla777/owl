@@ -22,7 +22,7 @@ tasks:
   parent_id:
   priority: 4
   created_at: '2026-06-26T19:06:13Z'
-  status: open
+  status: done
   labels:
   - health-review-2026-06-26
   blocked_by: []
