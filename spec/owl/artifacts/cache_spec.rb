@@ -20,8 +20,14 @@ RSpec.describe Owl::Artifacts::Internal::Cache do
     path.write("kind: spec\n")
     calls = 0
 
-    described_class.fetch_yaml(path) { calls += 1; YAML.safe_load(path.read) }
-    described_class.fetch_yaml(path) { calls += 1; YAML.safe_load(path.read) }
+    described_class.fetch_yaml(path) do
+      calls += 1
+      YAML.safe_load(path.read)
+    end
+    described_class.fetch_yaml(path) do
+      calls += 1
+      YAML.safe_load(path.read)
+    end
 
     expect(calls).to eq(1)
   end
@@ -36,7 +42,10 @@ RSpec.describe Owl::Artifacts::Internal::Cache do
     File.utime(bumped, bumped, path)
 
     calls = 0
-    value = described_class.fetch_yaml(path) { calls += 1; YAML.safe_load(path.read) }
+    value = described_class.fetch_yaml(path) do
+      calls += 1
+      YAML.safe_load(path.read)
+    end
 
     expect(calls).to eq(1)
     expect(value).to eq('k' => 2)
@@ -49,7 +58,10 @@ RSpec.describe Owl::Artifacts::Internal::Cache do
     Owl::Workflows::Internal::Cache.fetch_yaml(path) { YAML.safe_load(path.read) }
 
     calls = 0
-    described_class.fetch_yaml(path) { calls += 1; YAML.safe_load(path.read) }
+    described_class.fetch_yaml(path) do
+      calls += 1
+      YAML.safe_load(path.read)
+    end
 
     expect(calls).to eq(1)
   end

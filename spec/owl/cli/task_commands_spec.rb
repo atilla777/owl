@@ -317,7 +317,8 @@ RSpec.describe 'owl task ... CLI subcommands' do
     it 'physically removes the task directory with --force' do
       with_tmp_project do |root|
         create_task(root)
-        exit_code, stdout, stderr = run(['task', 'delete', 'TASK-0001', '--force', '--root', root.to_s, '--json'], cwd: root)
+        exit_code, stdout, stderr = run(['task', 'delete', 'TASK-0001', '--force', '--root', root.to_s, '--json'],
+                                        cwd: root)
         expect(exit_code).to eq(0)
         body = JSON.parse(stdout)
         expect(body['ok']).to be(true)

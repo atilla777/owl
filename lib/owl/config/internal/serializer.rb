@@ -24,7 +24,7 @@ module Owl
           File.rename(tmp.to_s, target.to_s)
           target
         ensure
-          tmp.delete if tmp && tmp.exist? && tmp != target
+          tmp.delete if tmp&.exist? && tmp != target
         end
       end
     end

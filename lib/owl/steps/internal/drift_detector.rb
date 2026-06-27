@@ -23,18 +23,21 @@ module Owl
           task = Owl::Tasks::Api.inspect(root: root, task_id: task_id)
           return {} if task.err?
 
-          steps = task.value[:payload]['steps'] || task.value[:payload][:steps] || []
-          step = steps.find { |s| s.is_a?(Hash) && (s['id'] || s[:id]).to_s == step_id.to_s }
-          return {} unless step
-
-          recorded = step['content_sha'] || step[:content_sha]
+          recorded = recorded_content_sha(task.value[:payload], step_id)
           return {} if recorded.nil?
 
           return normalize_single_sha(root, task_id, step_id, recorded) if recorded.is_a?(String)
-
           return recorded.transform_keys(&:to_s) if recorded.is_a?(Hash)
 
           {}
+        end
+
+        def recorded_content_sha(payload, step_id)
+          steps = payload['steps'] || payload[:steps] || []
+          step = steps.find { |s| s.is_a?(Hash) && (s['id'] || s[:id]).to_s == step_id.to_s }
+          return nil unless step
+
+          step['content_sha'] || step[:content_sha]
         end
 
         def normalize_single_sha(root, task_id, step_id, sha)

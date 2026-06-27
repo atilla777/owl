@@ -233,7 +233,8 @@ RSpec.describe Owl::Config::Api do
 
     it 'accepts a settings block with only required language.communication' do
       with_tmp_project do |root|
-        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  language:\n    communication: ru\n")
+        write("#{root}/.owl/config.yaml",
+              "#{base_config_without_settings}settings:\n  language:\n    communication: ru\n")
         result = described_class.validate(root: root)
         expect(result).to be_ok
       end
@@ -251,7 +252,8 @@ RSpec.describe Owl::Config::Api do
 
     it 'reports invalid optional language values (non-string or empty)' do
       with_tmp_project do |root|
-        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  language:\n    communication: en\n    artifacts: ''\n")
+        write("#{root}/.owl/config.yaml",
+              "#{base_config_without_settings}settings:\n  language:\n    communication: en\n    artifacts: ''\n")
         result = described_class.validate(root: root)
         expect(result).to be_err
         codes = result.details[:errors].map { |e| e[:code] }
@@ -261,7 +263,9 @@ RSpec.describe Owl::Config::Api do
 
     it 'reports unsupported storage backend' do
       with_tmp_project do |root|
-        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  language:\n    communication: en\n  storage:\n    backend: s3\n")
+        write("#{root}/.owl/config.yaml",
+              "#{base_config_without_settings}settings:\n  language:\n    communication: en\n  " \
+              "storage:\n    backend: s3\n")
         result = described_class.validate(root: root)
         expect(result).to be_err
         codes = result.details[:errors].map { |e| e[:code] }
@@ -271,7 +275,9 @@ RSpec.describe Owl::Config::Api do
 
     it 'reports invalid settings.storage.roles path' do
       with_tmp_project do |root|
-        write("#{root}/.owl/config.yaml", "#{base_config_without_settings}settings:\n  language:\n    communication: en\n  storage:\n    roles:\n      tasks: ''\n")
+        write("#{root}/.owl/config.yaml",
+              "#{base_config_without_settings}settings:\n  language:\n    communication: en\n  " \
+              "storage:\n    roles:\n      tasks: ''\n")
         result = described_class.validate(root: root)
         expect(result).to be_err
         codes = result.details[:errors].map { |e| e[:code] }

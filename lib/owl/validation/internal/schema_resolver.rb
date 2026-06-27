@@ -24,8 +24,7 @@ module Owl
         def parse_override(path)
           JSON.parse(path.read)
         rescue JSON::ParserError, SystemCallError => e
-          raise RuntimeError,
-                "Owl::Validation::Internal::SchemaResolver: invalid local override at #{path}: #{e.class}: #{e.message}"
+          raise "Owl::Validation::Internal::SchemaResolver: invalid local override at #{path}: #{e.class}: #{e.message}"
         end
       end
     end

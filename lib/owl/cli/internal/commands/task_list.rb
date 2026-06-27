@@ -38,7 +38,9 @@ module Owl
             options = { root: nil, include_abandoned: false }
             parser = OptionParser.new do |opts|
               opts.banner = 'Usage: owl task list [--include-abandoned] [--root PATH] [--json]'
-              opts.on('--include-abandoned', 'Include tasks with status: abandoned') { options[:include_abandoned] = true }
+              opts.on('--include-abandoned', 'Include tasks with status: abandoned') do
+                options[:include_abandoned] = true
+              end
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

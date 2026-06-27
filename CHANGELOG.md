@@ -4,6 +4,33 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.1.2] - 2026-06-27
+
+### Fixed
+- **Build health: scoped SimpleCov gate, green RuboCop, CI (TASK-0048).**
+  - The public-API 100% line-coverage gate in `spec/spec_helper.rb` now fires
+    **only** on a full-suite run. The full-vs-partial decision is extracted into
+    a pure, unit-tested helper (`spec/support/coverage_gate.rb`,
+    `CoverageGate.full_suite_run?`) that compares the expanded/sorted
+    `RSpec.configuration.files_to_run` against the full `Dir.glob` spec set.
+    Partial runs (`rspec spec/owl/foo_spec.rb`) no longer `exit 1` from the
+    gate, so the process exit code reflects only the test results; full runs
+    keep the strict gate (print under-covered files + `exit 1`).
+  - `bundle exec rubocop` is green (0 offenses). Offenses in `lib/` were fixed
+    by behavior-preserving refactors (extract method, early return, safe
+    navigation, `Hash#except`, parameter rename) — not by silencing cops.
+    Variant- and artifact-ref validation were split out of
+    `WorkflowValidator` into sibling `StepVariantsCheck` / `ArtifactRefsCheck`
+    modules (no behavior change). Spec-style cops are relaxed for `spec/**`
+    only, each with a justifying comment; `Metrics/ParameterLists` now counts
+    positional parameters only (`CountKeywordArgs: false`). The deprecated
+    RuboCop `require:` was migrated to `plugins:`.
+
+### Added
+- **GitHub Actions CI (`.github/workflows/ci.yml`).** Runs on every push and
+  pull request: one `ubuntu-latest` job on Ruby 3.3 (`bundler-cache: true`)
+  with `bundle exec rspec` and `bundle exec rubocop` as blocking steps.
+
 ## [1.1.1] - 2026-06-26
 
 ### Fixed

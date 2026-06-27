@@ -19,7 +19,7 @@ RSpec.describe Owl::Workflows::Internal::StepContextFrontmatterCheck do
         @files = files
       end
 
-      def read_step_context(source_dir:, step_id:, relative_path:) # rubocop:disable Lint/UnusedMethodArgument
+      def read_step_context(source_dir:, step_id:, relative_path:)
         entry = @files[relative_path]
         return entry if entry.is_a?(Owl::Result::Err)
         return Owl::Result.err(code: :step_context_file_not_found, message: 'missing') if entry.nil?
@@ -28,7 +28,7 @@ RSpec.describe Owl::Workflows::Internal::StepContextFrontmatterCheck do
         Owl::Result.ok(entry.fetch(:body, ''))
       end
 
-      def read_step_context_frontmatter(source_dir:, step_id:, relative_path:) # rubocop:disable Lint/UnusedMethodArgument
+      def read_step_context_frontmatter(source_dir:, step_id:, relative_path:)
         entry = @files[relative_path]
         return entry if entry.is_a?(Owl::Result::Err)
         return Owl::Result.err(code: :step_context_file_not_found, message: 'missing') if entry.nil?

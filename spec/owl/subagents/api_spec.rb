@@ -110,7 +110,7 @@ RSpec.describe Owl::Subagents::Api do
       with_tmp_project do |root|
         captured = nil
         fake_backend = Class.new do
-          define_method(:run) do |task_id:, step_id:, input_bundle:, output_spec:| # rubocop:disable Lint/UnusedBlockArgument
+          define_method(:run) do |task_id:, step_id:, input_bundle:, output_spec:|
             captured = { task_id: task_id, step_id: step_id, bundle: input_bundle, spec: output_spec }
             { final_state: :returned_normally, report_body: 'ok', report_artifacts: [],
               tool_usage_summary: [], error_message: nil }

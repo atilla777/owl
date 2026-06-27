@@ -150,13 +150,13 @@ module Owl
             value = language[key]
             next if value.nil?
 
-            unless value.is_a?(String) && !value.strip.empty?
-              errors << {
-                code: :invalid_settings_language_value,
-                message: "settings.language.#{key} must be a non-empty string when present",
-                details: { key: key }
-              }
-            end
+            next if value.is_a?(String) && !value.strip.empty?
+
+            errors << {
+              code: :invalid_settings_language_value,
+              message: "settings.language.#{key} must be a non-empty string when present",
+              details: { key: key }
+            }
           end
 
           errors
@@ -175,9 +175,10 @@ module Owl
           errors = []
           backend = storage['backend']
           if !backend.nil? && !SUPPORTED_STORAGE_BACKENDS.include?(backend)
+            supported = SUPPORTED_STORAGE_BACKENDS.join(', ')
             errors << {
               code: :unsupported_settings_storage_backend,
-              message: "settings.storage.backend '#{backend}' is not supported; supported: #{SUPPORTED_STORAGE_BACKENDS.join(', ')}",
+              message: "settings.storage.backend '#{backend}' is not supported; supported: #{supported}",
               details: { backend: backend, supported: SUPPORTED_STORAGE_BACKENDS }
             }
           end
@@ -190,13 +191,13 @@ module Owl
             }
           elsif roles.is_a?(Hash)
             roles.each do |role_name, path|
-              unless path.is_a?(String) && !path.strip.empty?
-                errors << {
-                  code: :invalid_settings_storage_role_path,
-                  message: "settings.storage.roles.#{role_name} must be a non-empty string",
-                  details: { role: role_name }
-                }
-              end
+              next if path.is_a?(String) && !path.strip.empty?
+
+              errors << {
+                code: :invalid_settings_storage_role_path,
+                message: "settings.storage.roles.#{role_name} must be a non-empty string",
+                details: { role: role_name }
+              }
             end
           end
 

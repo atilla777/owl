@@ -7,9 +7,11 @@ require_relative '../../result'
 require_relative '../../artifacts/api'
 require_relative '../../validation/internal/schema_check'
 require_relative 'allowed_children_check'
+require_relative 'artifact_refs_check'
 require_relative 'filesystem_refs_check'
 require_relative 'graph_builder'
 require_relative 'step_context_frontmatter_check'
+require_relative 'step_variants_check'
 require_relative 'step_when_check'
 
 module Owl
@@ -106,7 +108,7 @@ module Owl
           end
 
           errors.concat(validate_step_creates(steps, declared_artifacts))
-          errors.concat(validate_artifact_refs(body, root))
+          errors.concat(ArtifactRefsCheck.call(body, root))
           errors.concat(validate_plan_gate(steps))
 
           errors
@@ -158,7 +160,7 @@ module Owl
           if context && !context.is_a?(String)
             errors << error_at("#{path}/context", '`context` must be a string when present.')
           end
-          errors.concat(validate_step_variants(step, path))
+          errors.concat(StepVariantsCheck.call(step, path))
           errors
         end
 
@@ -180,55 +182,6 @@ module Owl
             errors << error_at("#{path}/tier",
                                "Step `tier` must be one of #{ALLOWED_TIERS.inspect} when present " \
                                "(got #{tier.inspect}). See RFC #1 §3.")
-          end
-
-          errors
-        end
-
-        def validate_step_variants(step, path)
-          variants = step['variants']
-          default_variant = step['default_variant']
-
-          if default_variant && variants.nil?
-            return [error_at("#{path}/default_variant",
-                             '`default_variant` requires a `variants:` block on the step.')]
-          end
-          return [] if variants.nil?
-
-          errors = []
-          unless variants.is_a?(Hash) && !variants.empty?
-            return [error_at("#{path}/variants",
-                             '`variants` must be a non-empty mapping of variant keys to variant bodies.')]
-          end
-
-          if step['context'] || step['context_file']
-            errors << error_at(path,
-                               '`variants` is mutually exclusive with the step-level `context` / `context_file`.')
-          end
-
-          variants.each do |name, body|
-            vpath = "#{path}/variants/#{name}"
-            unless body.is_a?(Hash)
-              errors << error_at(vpath, 'Each variant must be a mapping.')
-              next
-            end
-            cf = body['context_file']
-            unless cf.is_a?(String) && !cf.strip.empty?
-              errors << error_at("#{vpath}/context_file",
-                                 '`context_file` is required on each variant and must be a non-empty string.')
-            end
-          end
-
-          unless default_variant.is_a?(String) && !default_variant.strip.empty?
-            errors << error_at("#{path}/default_variant",
-                               '`default_variant` is required when `variants:` is set and must be a non-empty string.')
-            return errors
-          end
-
-          unless variants.key?(default_variant)
-            errors << error_at("#{path}/default_variant",
-                               "`default_variant: #{default_variant}` is not a key in `variants` " \
-                               "(available: #{variants.keys.sort.inspect}).")
           end
 
           errors
@@ -256,38 +209,6 @@ module Owl
             end
           end
           errors
-        end
-
-        def validate_artifact_refs(body, root)
-          declared = body['artifacts']
-          return [] unless declared.is_a?(Hash) && root
-
-          available = registry_artifact_keys(root)
-          errors = []
-          declared.each do |key, descriptor|
-            next unless descriptor.is_a?(Hash)
-
-            type_key = descriptor['type']
-            next if type_key.nil?
-
-            next if available.include?(type_key.to_s)
-
-            errors << error_at(
-              "/artifacts/#{key}/type",
-              "Artifact '#{key}' references type '#{type_key}' but that type " \
-              'is not declared in the project artifact registry.'
-            )
-          end
-          errors
-        end
-
-        def registry_artifact_keys(root)
-          listing = Owl::Artifacts::Api.list(root: root)
-          return [] if listing.err?
-
-          listing.value.map { |entry| entry[:key].to_s }
-        rescue StandardError
-          []
         end
 
         def error_at(path, message, code: nil, details: nil)

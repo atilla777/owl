@@ -36,7 +36,7 @@ module Owl
             # an error. A required rule still fails loudly.
             if rule['optional'] == true
               return build_result(rule: rule, action: 'skipped_missing_source',
-                                   backup_path: nil, dry_run: dry_run)
+                                  backup_path: nil, dry_run: dry_run)
             end
 
             return Result.err(

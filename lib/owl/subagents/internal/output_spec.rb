@@ -115,11 +115,11 @@ module Owl
             )
           end
 
-          yaml_segment = body[4..end_idx - 1]
+          yaml_segment = body[4..(end_idx - 1)]
           markdown_segment = body[(end_idx + 5)..] || ''
 
-          frontmatter = begin
-            YAML.safe_load(yaml_segment) || {}
+          begin
+            frontmatter = YAML.safe_load(yaml_segment) || {}
           rescue Psych::SyntaxError => e
             return Result.err(
               code: :invalid_frontmatter_yaml,

@@ -117,39 +117,56 @@ module Owl
           def build_step_views(task_steps:, workflow_steps:, ready_ids:, step_variants: {})
             workflow_by_id = workflow_steps.to_h { |ws| [ws['id'].to_s, ws] }
             order = workflow_steps.map { |ws| ws['id'].to_s }
-            task_by_id = task_steps.each_with_object({}) do |ts, h|
-              id = (ts['id'] || ts[:id]).to_s
-              h[id] = ts
-            end
+            task_by_id = index_task_steps(task_steps)
 
             order.map do |id|
-              ws = workflow_by_id[id] || {}
-              ts = task_by_id[id] || {}
-              status = (ts['status'] || ts[:status] || 'pending').to_s
-              chosen = (step_variants[id] || ws['default_variant'])&.to_s
-              chosen = nil if chosen.nil? || chosen.empty? || !ws['variants'].is_a?(Hash)
-              base_step_view(ws).merge(
-                status: status,
-                ready: ready_ids.include?(id),
-                current: false,
-                chosen_variant: chosen
+              step_view(
+                id: id,
+                workflow_step: workflow_by_id[id] || {},
+                task_step: task_by_id[id] || {},
+                ready_ids: ready_ids,
+                step_variants: step_variants
               )
             end
           end
 
-          def base_step_view(ws)
+          def index_task_steps(task_steps)
+            task_steps.each_with_object({}) do |ts, acc|
+              id = (ts['id'] || ts[:id]).to_s
+              acc[id] = ts
+            end
+          end
+
+          def step_view(id:, workflow_step:, task_step:, ready_ids:, step_variants:)
+            status = (task_step['status'] || task_step[:status] || 'pending').to_s
+            base_step_view(workflow_step).merge(
+              status: status,
+              ready: ready_ids.include?(id),
+              current: false,
+              chosen_variant: chosen_variant(workflow_step, step_variants[id])
+            )
+          end
+
+          def chosen_variant(workflow_step, requested)
+            chosen = (requested || workflow_step['default_variant'])&.to_s
+            return nil if chosen.nil? || chosen.empty? || !workflow_step['variants'].is_a?(Hash)
+
+            chosen
+          end
+
+          def base_step_view(workflow_step)
             {
-              id: ws['id'].to_s,
-              optional: ws['optional'] == true,
-              requires: Array(ws['requires']).map(&:to_s),
-              creates: Array(ws['creates']).map(&:to_s),
-              variants: variant_keys(ws),
-              default_variant: ws['default_variant']
+              id: workflow_step['id'].to_s,
+              optional: workflow_step['optional'] == true,
+              requires: Array(workflow_step['requires']).map(&:to_s),
+              creates: Array(workflow_step['creates']).map(&:to_s),
+              variants: variant_keys(workflow_step),
+              default_variant: workflow_step['default_variant']
             }
           end
 
-          def variant_keys(ws)
-            variants = ws['variants']
+          def variant_keys(workflow_step)
+            variants = workflow_step['variants']
             return [] unless variants.is_a?(Hash)
 
             variants.keys.map(&:to_s)

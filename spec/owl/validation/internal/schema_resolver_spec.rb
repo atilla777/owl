@@ -40,9 +40,9 @@ RSpec.describe Owl::Validation::Internal::SchemaResolver do
       with_tmp_project do |dir|
         path = write((dir + '.owl' + 'schemas' + 'workflow.json').to_s, '{ not json')
 
-        expect {
+        expect do
           described_class.local_override('workflow.json', cwd: dir.to_s)
-        }.to raise_error(RuntimeError, /invalid local override at #{Regexp.escape(path.to_s)}.*JSON::ParserError/)
+        end.to raise_error(RuntimeError, /invalid local override at #{Regexp.escape(path.to_s)}.*JSON::ParserError/)
       end
     end
 
@@ -50,9 +50,9 @@ RSpec.describe Owl::Validation::Internal::SchemaResolver do
       with_tmp_project do |dir|
         path = write((dir + '.owl' + 'schemas' + 'workflow.json').to_s, '')
 
-        expect {
+        expect do
           described_class.local_override('workflow.json', cwd: dir.to_s)
-        }.to raise_error(RuntimeError, /invalid local override at #{Regexp.escape(path.to_s)}.*JSON::ParserError/)
+        end.to raise_error(RuntimeError, /invalid local override at #{Regexp.escape(path.to_s)}.*JSON::ParserError/)
       end
     end
 
@@ -63,9 +63,9 @@ RSpec.describe Owl::Validation::Internal::SchemaResolver do
         path = write((dir + '.owl' + 'schemas' + 'workflow.json').to_s, '{}')
         File.chmod(0, path.to_s)
         begin
-          expect {
+          expect do
             described_class.local_override('workflow.json', cwd: dir.to_s)
-          }.to raise_error(RuntimeError, /invalid local override at #{Regexp.escape(path.to_s)}.*Errno::/)
+          end.to raise_error(RuntimeError, /invalid local override at #{Regexp.escape(path.to_s)}.*Errno::/)
         ensure
           File.chmod(0o600, path.to_s)
         end

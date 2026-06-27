@@ -4,8 +4,11 @@ module Owl
   module Config
     module Internal
       module PathAccessor
-        MissingKeyError = Class.new(StandardError)
-        InvalidPathError = Class.new(StandardError)
+        class MissingKeyError < StandardError
+        end
+
+        class InvalidPathError < StandardError
+        end
 
         module_function
 
@@ -23,9 +26,7 @@ module Owl
 
           node = raw_hash
           segments.each do |segment|
-            unless node.is_a?(Hash) && node.key?(segment)
-              raise MissingKeyError, "Key not present: #{dot_path}"
-            end
+            raise MissingKeyError, "Key not present: #{dot_path}" unless node.is_a?(Hash) && node.key?(segment)
 
             node = node[segment]
           end

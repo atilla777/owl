@@ -29,7 +29,8 @@ module Owl
             if result.ok?
               JsonPrinter.success(stdout, ok: true, key: result.value[:key], value: result.value[:value])
             else
-              JsonPrinter.failure(stderr, code: result.code, message: result.message, details: sanitize_details(result.details))
+              JsonPrinter.failure(stderr, code: result.code, message: result.message,
+                                          details: sanitize_details(result.details))
             end
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
@@ -65,7 +66,7 @@ module Owl
           def sanitize_details(details)
             return details unless details.is_a?(Hash)
 
-            details.reject { |k, _| k == :document || k == 'document' }
+            details.except(:document, 'document')
           end
         end
       end

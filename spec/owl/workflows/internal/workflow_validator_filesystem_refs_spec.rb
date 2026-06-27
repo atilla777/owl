@@ -7,14 +7,14 @@ require 'owl/workflows/internal/workflow_validator'
 
 RSpec.describe Owl::Workflows::Internal::WorkflowValidator, '.validate_filesystem_refs' do
   ok_backend = Class.new do
-    def read_step_context(source_dir:, step_id:, relative_path:) # rubocop:disable Lint/UnusedMethodArgument
+    def read_step_context(source_dir:, step_id:, relative_path:)
       Owl::Result.ok(content: 'ok')
     end
 
     # KOS-156: the wired-in StepContextFrontmatterCheck calls this method on
     # the backend after KOS-155 passes; treat empty frontmatter as no-op
     # because legacy KOS-155 tests do not care about frontmatter behavior.
-    def read_step_context_frontmatter(source_dir:, step_id:, relative_path:) # rubocop:disable Lint/UnusedMethodArgument
+    def read_step_context_frontmatter(source_dir:, step_id:, relative_path:)
       Owl::Result.ok(frontmatter: {}, body: '')
     end
   end
@@ -157,7 +157,7 @@ RSpec.describe Owl::Workflows::Internal::WorkflowValidator, '.validate_filesyste
         Owl::Result.ok(content: 'ok')
       end
 
-      def read_step_context_frontmatter(source_dir:, step_id:, relative_path:) # rubocop:disable Lint/UnusedMethodArgument
+      def read_step_context_frontmatter(source_dir:, step_id:, relative_path:)
         Owl::Result.ok(frontmatter: {}, body: '')
       end
     end.new

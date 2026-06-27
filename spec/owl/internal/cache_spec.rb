@@ -6,7 +6,10 @@ RSpec.describe Owl::Internal::Cache do
   describe '.fetch' do
     it 'invokes the block once for the same key and version token' do
       calls = 0
-      block = -> { calls += 1; :value }
+      block = lambda {
+        calls += 1
+        :value
+      }
 
       described_class.fetch('k', version_token: 't', &block)
       described_class.fetch('k', version_token: 't', &block)
@@ -16,7 +19,10 @@ RSpec.describe Owl::Internal::Cache do
 
     it 're-invokes the block when the version token changes' do
       calls = 0
-      block = -> { calls += 1; :value }
+      block = lambda {
+        calls += 1
+        :value
+      }
 
       described_class.fetch('k', version_token: 't1', &block)
       described_class.fetch('k', version_token: 't2', &block)
@@ -63,7 +69,10 @@ RSpec.describe Owl::Internal::Cache do
   describe '.clear!' do
     it 'wipes all entries so subsequent fetch re-invokes the block' do
       calls = 0
-      block = -> { calls += 1; :value }
+      block = lambda {
+        calls += 1
+        :value
+      }
 
       described_class.fetch('k', version_token: 't', &block)
       described_class.clear!

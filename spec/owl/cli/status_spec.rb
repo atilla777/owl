@@ -69,7 +69,7 @@ RSpec.describe 'owl status CLI subcommand' do
   end
 
   describe 'happy path' do
-    it 'returns task header, steps with ready flag, progress and empty blockers' do # rubocop:disable RSpec/MultipleExpectations
+    it 'returns task header, steps with ready flag, progress and empty blockers' do
       with_tmp_project do |root|
         init_project(root)
         seed_two_step_feature(root)

@@ -58,8 +58,6 @@ module Owl
         # The flip + re-stage happen under the lock so the flip still rides in
         # the same commit. (Staging + the empty-delivery guard already ran
         # before the lock in `stage_and_guard`.)
-        # rubocop:disable Metrics/ParameterLists -- threads the same facade +
-        # task-coordinate kwargs the rest of the transaction passes around.
         def publish(git:, locks:, steps:, root:, task_id:, step_id:, message:, retrying:, exclude:)
           lock = locks.acquire(root: root, name: LOCK_NAME)
           return lock if lock.err?
@@ -80,7 +78,6 @@ module Owl
         ensure
           locks.release(root: root, name: LOCK_NAME, token: token) if token
         end
-        # rubocop:enable Metrics/ParameterLists
 
         # Under the lock: flip the step to `done` and re-stage so the flip rides
         # in the same commit. The re-stage is scoped the same way as the first

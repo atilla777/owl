@@ -21,8 +21,14 @@ RSpec.describe Owl::Workflows::Internal::Cache do
       path.write("kind: feature\nsteps: []\n")
       calls = 0
 
-      first = described_class.fetch_yaml(path) { calls += 1; YAML.safe_load(path.read) }
-      second = described_class.fetch_yaml(path) { calls += 1; YAML.safe_load(path.read) }
+      first = described_class.fetch_yaml(path) do
+        calls += 1
+        YAML.safe_load(path.read)
+      end
+      second = described_class.fetch_yaml(path) do
+        calls += 1
+        YAML.safe_load(path.read)
+      end
 
       expect(calls).to eq(1)
       expect(first).to eq('kind' => 'feature', 'steps' => [])
@@ -40,7 +46,10 @@ RSpec.describe Owl::Workflows::Internal::Cache do
       File.utime(bumped, bumped, path)
 
       calls = 0
-      value = described_class.fetch_yaml(path) { calls += 1; YAML.safe_load(path.read) }
+      value = described_class.fetch_yaml(path) do
+        calls += 1
+        YAML.safe_load(path.read)
+      end
 
       expect(calls).to eq(1)
       expect(value).to eq('a' => 2)
@@ -56,7 +65,10 @@ RSpec.describe Owl::Workflows::Internal::Cache do
       File.utime(first_stat.mtime, first_stat.mtime, path)
 
       calls = 0
-      value = described_class.fetch_yaml(path) { calls += 1; YAML.safe_load(path.read) }
+      value = described_class.fetch_yaml(path) do
+        calls += 1
+        YAML.safe_load(path.read)
+      end
 
       expect(calls).to eq(1)
       expect(value).to eq('a' => 1, 'b' => 2)
@@ -78,7 +90,10 @@ RSpec.describe Owl::Workflows::Internal::Cache do
       stat = File.stat(absolute)
       token = [stat.mtime.to_r, stat.size]
       foreign_calls = 0
-      Owl::Internal::Cache.fetch("artifact:#{absolute}", version_token: token) { foreign_calls += 1; :foreign }
+      Owl::Internal::Cache.fetch("artifact:#{absolute}", version_token: token) do
+        foreign_calls += 1
+        :foreign
+      end
 
       expect(foreign_calls).to eq(1)
     end

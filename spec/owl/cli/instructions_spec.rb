@@ -47,7 +47,7 @@ RSpec.describe 'owl instructions CLI subcommand' do
   end
 
   describe 'happy path' do
-    it 'returns task, step, skill, invocation and summary as JSON' do # rubocop:disable RSpec/MultipleExpectations
+    it 'returns task, step, skill, invocation and summary as JSON' do
       with_tmp_project do |root|
         init_project(root)
         seed_two_step_workflow(root)

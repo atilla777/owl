@@ -4,6 +4,8 @@ $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 
 require 'simplecov'
 
+require_relative 'support/coverage_gate'
+
 SimpleCov.start do
   enable_coverage :branch
   add_filter '/spec/'
@@ -16,6 +18,13 @@ end
 
 SimpleCov.at_exit do
   SimpleCov.result.format!
+
+  # The 100% public-API gate is only meaningful on a full-suite run; a partial
+  # run loads only some api.rb/result.rb files and would falsely trip it.
+  next unless CoverageGate.full_suite_run?(
+    RSpec.configuration.files_to_run,
+    Dir.glob('spec/**/*_spec.rb')
+  )
 
   public_api_pattern = %r{/lib/owl/(.+/)?(api|result)\.rb\z}
   api_files = SimpleCov.result.files.select { |file| file.filename =~ public_api_pattern }
@@ -51,5 +60,5 @@ RSpec.configure do |config|
   config.order = :random
   Kernel.srand config.seed
 
-  config.before(:each) { Owl::Internal::Cache.clear! }
+  config.before { Owl::Internal::Cache.clear! }
 end

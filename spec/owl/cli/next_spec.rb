@@ -85,7 +85,7 @@ RSpec.describe 'owl next CLI subcommand' do
   end
 
   describe 'task resolution ladder' do
-    it 'auto-selects the top runnable task as a dispatch_step (source auto_select, no mutation)' do # rubocop:disable RSpec/MultipleExpectations
+    it 'auto-selects the top runnable task as a dispatch_step (source auto_select, no mutation)' do
       with_tmp_project do |root|
         init_project(root)
         seed_two_step_feature(root)

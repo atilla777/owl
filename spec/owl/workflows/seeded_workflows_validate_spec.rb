@@ -15,9 +15,7 @@ RSpec.describe 'seeded workflows pass validate including filesystem refs' do
 
       backend = Owl::Workflows::Backends::Filesystem.new(root: nil)
       result = backend.validate(id_or_path: source_path.to_s)
-      if result.err?
-        raise "expected ok, got errors: #{result.details[:errors].inspect}"
-      end
+      raise "expected ok, got errors: #{result.details[:errors].inspect}" if result.err?
 
       expect(result).to be_ok
     end
