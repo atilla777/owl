@@ -18,6 +18,7 @@ require_relative 'internal/commands/config_set'
 require_relative 'internal/commands/config_show'
 require_relative 'internal/commands/config_validate'
 require_relative 'internal/commands/commit_push'
+require_relative 'internal/commands/doctor'
 require_relative 'internal/commands/git_lock'
 require_relative 'internal/commands/git_unlock'
 require_relative 'internal/commands/init'
@@ -102,7 +103,8 @@ module Owl
         'upgrade' => Internal::Commands::Upgrade,
         'verify' => Internal::Commands::Verify,
         'version' => Internal::Commands::Version,
-        'self-update' => Internal::Commands::SelfUpdate
+        'self-update' => Internal::Commands::SelfUpdate,
+        'doctor' => Internal::Commands::Doctor
       }.freeze
 
       module_function

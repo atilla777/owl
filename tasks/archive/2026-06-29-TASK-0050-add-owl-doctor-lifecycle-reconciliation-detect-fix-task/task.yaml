@@ -1,0 +1,108 @@
+---
+id: TASK-0050
+title: 'Add ''owl doctor'' lifecycle reconciliation: detect & fix task status/step
+  drift (e.g. TASK-0041 all-steps-done but status:open)'
+workflow:
+  key: feature
+  version: '1.0'
+  source: workflows/feature/workflow.yaml
+kind: task
+parent_id:
+priority: 6
+created_at: '2026-06-29T07:26:05Z'
+status: archived
+labels:
+- health-review-2026-06-29
+blocked_by: []
+steps:
+- id: brief
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  creates:
+  - brief
+  default_variant: feature
+  variants:
+    feature:
+      context_file: brief.feature.context.md
+      title: Collect feature requirements
+    root_cause:
+      context_file: brief.root_cause.context.md
+      title: Find bug root cause
+    problem_inventory:
+      context_file: brief.problem_inventory.context.md
+      title: Inventory refactor problems
+  status: done
+  content_sha: 84bb3d51f7d07d60499f72a149a6c6e85be79be149ec7ec5c227fed22b7c38e0
+- id: design
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: design.context.md
+  requires:
+  - brief
+  creates:
+  - design
+  status: done
+  content_sha: 4e583b7be3ff296f175a3cc6e52f509b3d40a6f11ecdb51fc9a7743db8d148f3
+- id: plan
+  skill: owl-step-discussion
+  session_type: discussion
+  tier: advanced
+  context_file: plan.context.md
+  requires:
+  - brief
+  creates:
+  - plan
+  status: done
+  content_sha: b5174162cf85c271255c0a774dc9273139bd1efec89f9f7deded7935231bdd68
+- id: implement
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  context_file: implement.context.md
+  requires:
+  - plan
+  status: done
+- id: review_code
+  skill: owl-step-execution
+  session_type: execution
+  tier: advanced
+  verify: true
+  context_file: review_code.context.md
+  requires:
+  - implement
+  creates:
+  - review
+  - verification
+  status: done
+  content_sha:
+    review: 03166a7ec71e9e645f64f5c1c8bd5eb24313524ceebaa666cc6ad59d6b60edf2
+    verification: 877780af909829ccafbb5c38aece621f220a86fbb336fa0106da1f8c8f89ed8a
+- id: merge_docs
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  publishes: true
+  context_file: merge_docs.context.md
+  requires:
+  - review_code
+  status: done
+- id: archive
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: archive.context.md
+  requires:
+  - merge_docs
+  status: done
+- id: commit_push
+  skill: owl-step-execution
+  session_type: execution
+  tier: standard
+  context_file: commit_push.context.md
+  requires:
+  - archive
+  status: done
+artifacts: []
+archived_at: '2026-06-29T08:06:38Z'

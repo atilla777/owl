@@ -5,6 +5,7 @@ require_relative '../internal/backend_resolver'
 require_relative 'backend'
 require_relative 'backends/filesystem'
 require_relative 'internal/dependency_writer'
+require_relative 'internal/drift_scanner'
 require_relative 'internal/paths'
 require_relative 'internal/plan_approval'
 require_relative 'internal/ready_availability_scanner'
@@ -142,6 +143,17 @@ module Owl
 
       def list(root:)
         strip_local(with_backend(root, &:list))
+      end
+
+      # Read-only lifecycle-drift detector. Returns the set of tasks whose
+      # workflow is terminally complete (every step `done`/`skipped`) but whose
+      # explicit `status` is still a safely-promotable non-terminal value
+      # (`open`/`in_progress`). Does NOT mutate `task.yaml` or `index.yaml` — the
+      # `owl doctor --fix` path reconciles via `set_status`. Returns
+      # `Result.ok(drifted: [{task_id, status, workflow, terminal_step_id,
+      # suggested_status: 'done'}])`.
+      def lifecycle_drift(root:)
+        Internal::DriftScanner.scan(root: root)
       end
 
       def inspect(root:, task_id:)

@@ -4,6 +4,35 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.2.0] - 2026-06-29
+
+### Added
+- **`owl doctor [--fix]` — lifecycle status-drift reconciler (TASK-0050).**
+  Task-level `status` is orthogonal to step progress (per `schemas/task.json`,
+  "never derived from steps") and is only moved to a terminal state by heavy
+  operations (`owl archive` → `archived`, `owl task abandon` → `abandoned`). A
+  task can therefore run its whole workflow to the terminal step yet stay
+  `open`/`in_progress` forever — the canonical case is a `quick`-workflow task
+  with no `archive` step (e.g. TASK-0041: all steps `done`, `status: open`).
+  - `owl doctor` (report-only, default): lists tasks whose workflow is
+    terminally complete (every step `done`/`skipped`, via
+    `Internal::TerminalStatus.workflow_complete?`) yet whose `status` is a
+    safely-promotable `open`/`in_progress`. Read-only — no `task.yaml`/
+    `index.yaml` writes. Output:
+    `{ ok, drifted: [{ task_id, status, workflow, terminal_step_id,
+    suggested_status: "done" }], fixed: [] }`. Exit 0.
+  - `owl doctor --fix`: reconciles each drifted task to `status: done` by
+    reusing the existing `Tasks::Api.set_status` writer (per-task mutation lock
+    + schema validation + index rebuild — no new mutation path). Idempotent (a
+    fixed task leaves the `{open, in_progress}` candidate set). Output adds
+    `fixed: [{ task_id, from, to: "done" }]`. Explicit human states
+    (`blocked`/`on_hold`), already-terminal states, and workflows with a pending
+    step are never touched; status is never downgraded and step statuses are
+    never altered.
+  - New read-only public surface `Owl::Tasks::Api.lifecycle_drift(root:)` backed
+    by `Owl::Tasks::Internal::DriftScanner` (Tasks-domain internal). Additive
+    only — no existing contract changes.
+
 ## [1.1.3] - 2026-06-27
 
 ### Fixed
