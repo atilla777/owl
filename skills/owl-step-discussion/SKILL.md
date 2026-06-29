@@ -96,12 +96,15 @@ tokenization, or archive reading in the skill.
    `brief` body, run `owl recall "<task.title>" --json` using `task.title`
    from the bundle as the query.
 2. If the call returns `{ ok: true, matches: [...] }` with a non-empty
-   `matches`, show the author a **«Похожие архивные задачи»** block listing
-   the top entries — each as `task_id` · `title` · `snippet`. Keep it to a
-   handful (top-N, e.g. 3–5).
+   `matches`, show the author a **"similar archived tasks"** heading and
+   block listing the top entries — each as `task_id` · `title` · `snippet`.
+   Keep it to a handful (top-N, e.g. 3–5). Emit the heading in the language
+   resolved from `settings.language.communication` (English fallback), per
+   `_owl_conventions.md` §7 (Language Clause) — never hardcode a literal.
 3. If `matches` is empty, the command errors, or it is otherwise
-   unavailable, print exactly one line —
-   «похожих архивных задач не найдено» — and continue.
+   unavailable, print exactly one line — a "no similar archived tasks
+   found" notice, again emitted in `settings.language.communication`
+   (English fallback) per `_owl_conventions.md` §7 — and continue.
 4. `owl recall` is advisory only: a non-empty, empty, or failed result
    MUST NOT block, gate, or alter the `brief` step. Never treat a recall
    failure as a step error; proceed to author the brief regardless.

@@ -11,7 +11,7 @@ kind: task
 parent_id:
 priority: 5
 created_at: '2026-06-29T07:26:06Z'
-status: open
+status: archived
 labels:
 - health-review-2026-06-29
 blocked_by: []
@@ -33,7 +33,8 @@ steps:
     problem_inventory:
       context_file: brief.problem_inventory.context.md
       title: Inventory refactor problems
-  status: pending
+  status: done
+  content_sha: 65d34eba027bd8913fc3bde4e77a32fe14ee10bb2445e440595f284824b4c7cc
 - id: design
   skill: owl-step-discussion
   session_type: discussion
@@ -43,7 +44,10 @@ steps:
   - brief
   creates:
   - design
-  status: pending
+  status: skipped
+  skip_reason: Single design decision (placement in owl-cli; heartbeat as concrete
+    SHOULD) settled in brief; obvious path, docs-only skills change, no public API
+    to publish.
 - id: plan
   skill: owl-step-discussion
   session_type: discussion
@@ -53,7 +57,8 @@ steps:
   - brief
   creates:
   - plan
-  status: pending
+  status: done
+  content_sha: a4040e381b9e35dcd25b3b8f6e21930a86eab81714541b337b2dd13a47b16e8a
 - id: implement
   skill: owl-step-execution
   session_type: execution
@@ -61,7 +66,7 @@ steps:
   context_file: implement.context.md
   requires:
   - plan
-  status: pending
+  status: done
 - id: review_code
   skill: owl-step-execution
   session_type: execution
@@ -73,7 +78,10 @@ steps:
   creates:
   - review
   - verification
-  status: pending
+  status: done
+  content_sha:
+    review: 4100547e280e5ef39e55c4cf81cc83bd5d8243a7c7ae2f19cbbedf0b0fb23af4
+    verification: 5eecd35d6ab37c268b7b62657a42c6ebcee6f9f2af0c668ed3f8df008f3c8c9f
 - id: merge_docs
   skill: owl-step-execution
   session_type: execution
@@ -82,7 +90,7 @@ steps:
   context_file: merge_docs.context.md
   requires:
   - review_code
-  status: pending
+  status: done
 - id: archive
   skill: owl-step-execution
   session_type: execution
@@ -90,7 +98,7 @@ steps:
   context_file: archive.context.md
   requires:
   - merge_docs
-  status: pending
+  status: done
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
@@ -98,5 +106,6 @@ steps:
   context_file: commit_push.context.md
   requires:
   - archive
-  status: pending
+  status: done
 artifacts: []
+archived_at: '2026-06-29T14:36:11Z'

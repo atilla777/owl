@@ -4,6 +4,28 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.3.1] - 2026-06-29
+
+### Changed
+- **`owl-*` skills hardening (TASK-0052).** Documentation/skills-content only —
+  no `bin/owl` behaviour, exit code, JSON shape, schema, or artifact
+  `required_sections` change.
+  - `owl-step-discussion`: removed the last hardcoded Russian literals from the
+    `owl recall` brief-memory block (the "similar archived tasks" heading and
+    the "no similar archived tasks found" line). The skill now instructs the
+    agent to emit those labels in `settings.language.communication` with an
+    English fallback, citing `_owl_conventions.md` §7 (Language Clause). The
+    advisory contract (recall never blocks/gates the brief) is preserved.
+  - `owl-cli`: added a **structured-error codebook** (recurring,
+    agent-actionable codes → meaning → recovery → `error_class`/exit, with the
+    exit-code legend from `lib/owl/cli/internal/json_printer.rb`), a
+    **command-selection decision tree** (situation → command, with the explicit
+    "do not use `owl task list` order as a readiness ranking" warning), and a
+    **variant-selection + heartbeat-cadence** subsection (heartbeat at ~50% of
+    `settings.concurrency.claim_ttl_seconds`; `lease_lost` → stop and re-resolve
+    via `owl next`). Corrected the phantom `composite_with_unready_children`
+    references to `workflow_incomplete` + the `blocked_by_children` status.
+
 ## [1.3.0] - 2026-06-29
 
 ### Added

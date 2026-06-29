@@ -115,8 +115,49 @@ A few endpoints return shapes that have surprised agents in the past — always 
 - `owl status TASK-ID --json` returns an agent-friendly summary: `steps` (each with a `ready` flag), `progress {done, total, pct}`, `blockers`, and `children` (for composite tasks).
 - `owl next [TASK-ID] --json` is the read-only next-action advisor. It returns `{ok, action, task_resolution}`; **all** outcomes exit 0 (a terminal outcome is a valid result, not an error). `action.kind` is one of `dispatch_step` (carries `task_id, step_id, session_type, skill, variant`), `handoff_composite` (carries `task_id, children` aggregate-status), `done` (carries `task_id`), `stop_blocked` (carries `task_id, blocker`), or `no_available_task`. Every `action` object carries the full key set with `null` for inapplicable fields. `task_resolution.source ∈ {explicit, current_pointer, auto_select, none}` with a `reason`, plus `needs_adopt: true` when the chosen task has an expired lease over a stuck `running` step. The command never mutates state (no claim, no step start) — claim/adopt remain explicit follow-up calls.
 - `owl task tree --json` and `owl task children PARENT-ID --json` return recursive `{children: [...]}` shapes; walk via recursive descent, not just the top level.
-- `owl archive TASK-ID --json` for a composite parent that has unready children returns `composite_with_unready_children` and lists missing children steps — handle this branch before treating the call as a failure.
+- `owl archive TASK-ID --json` for a composite parent that has unready children is rejected with the `workflow_incomplete` error (there is no dedicated composite-unready-children code); the children-wait condition itself surfaces as the step **status** `blocked_by_children` in `owl status`/`owl next`. Handle this branch before treating the call as a failure.
 - `owl artifact validate` returns `{ok: bool, errors: [...]}` — even when the exit code is zero, inspect `ok` before assuming success.
+
+### Structured-error codebook
+
+When `bin/owl` rejects an operation it returns a structured error `{ok: false, code, message, details, error_class}` and a non-zero exit code. **Exit-code legend** (from `error_class`, defined in `lib/owl/cli/internal/json_printer.rb`): `validation` = **1** (workflow/artifact/argument schema or shape error), `recoverable` = **2** (drift, lock, retryable runtime condition), `fatal` = **3** (unrecoverable runtime), `step_context_frontmatter` = **4** (`.context.md` frontmatter contract violation).
+
+The recurring, agent-actionable codes — surface the structured error and apply the recovery rather than guessing:
+
+| code | meaning | recovery | error_class / exit |
+| --- | --- | --- | --- |
+| `lease_held` | another live session already owns the task | stop driving this task; only take it if the user asks to `owl task claim TASK --steal` | recoverable / 2 |
+| `lease_lost` | the held lease is gone or was taken by another session | stop driving; re-resolve with `owl next`; `owl task adopt TASK` / `owl task claim TASK` to take over | recoverable / 2 |
+| `active_step_locked` | this task already has a `running` step | complete/reopen the running step, or `owl step reset TASK STEP` for a reviewer-left `running` step (e.g. after `changes_required`) | recoverable / 2 |
+| `step_not_running` | a `complete`/`reopen`/`reset` target is not `running` | usually a safe no-op confirming the executor already completed it — re-check with `owl status TASK` | validation / 1 |
+| `step_not_ready` | the step's `requires:` are unmet | run the step `owl next` returns instead | validation / 1 |
+| `step_already_done` | the step is in a terminal state | nothing to do | validation / 1 |
+| `no_available_task` | nothing runnable right now | stop and report; do not guess a task | validation / 1 |
+| `no_current_task` | no current-task pointer is set | `owl task use TASK` or pass an explicit `TASK-ID`; otherwise stop and report | validation / 1 |
+| `workflow_incomplete` | `owl archive` rejected: steps are not all done/skipped | finish/skip the remaining steps; **this is also what a composite parent with unready children surfaces** — there is no dedicated composite-unready-children error code; the children-wait condition is the step **status** `blocked_by_children`, not an error | validation / 1 |
+| `publish_required` | `owl archive` blocked because the `publish`/`merge_docs` step must be `done` first | run the publish/merge_docs step, then archive | validation / 1 |
+| `confirmation_required` | a destructive op needs explicit confirmation | re-run with `--force` (only if intended) | validation / 1 |
+| `missing_reason` | an optional/destructive op needs a reason | re-run with `--reason "..."` | validation / 1 |
+| `drift_block` | workspace drift detected under a `block` policy | reconcile first (`owl doctor [--fix]`), then retry | recoverable / 2 |
+
+### Command-selection decision tree
+
+Given a situation, call the mapped command:
+
+- **"what should I work on next?"** → `owl next --json` (the canonical advisor; uses the intersection of dispatchability + dependency-readiness). **Do NOT** treat the first row of `owl task list` as a work-readiness ranking — `task list` is index order, not a readiness queue.
+- **"take / claim the task"** → `owl task claim TASK --json` (specific task) or `owl task claim --next --json` (claim whatever `owl next` would pick).
+- **"a prior session crashed and a step is stuck `running`"** → `owl task adopt TASK --json` (steals the lease and resets the task's `running` steps to pending).
+- **"my lease is about to expire mid-step"** → `owl task heartbeat TASK --token T [--ttl N]` (extend before it lapses).
+- **"a reviewer left `review_code` running with changes_required"** → `owl step reset TASK review_code` (return the stuck `running` step to `pending` for a re-run).
+- **"this is an optional step and the path is obvious"** → `owl step skip TASK STEP --reason "..."`.
+- **"a `when:`-conditioned step whose condition is unmet"** → it auto-skips; no manual action — `owl next` advances past it.
+- **"validate an artifact before completing the step"** → `owl artifact validate TASK ARTIFACT-TYPE --json`, and inspect `ok` (exit 0 alone is not success).
+
+### Variant selection & heartbeat cadence
+
+**Variant selection (end-to-end).** A step that declares `variants:` resolves its `default_variant` automatically. To run a non-default variant, pass `--variant NAME` on `owl step start` (or pre-select at task-create time with `--variant STEP=NAME` on `owl task create`). The chosen variant's `context_file` and the overlay `<step>/<variant>.md` are then loaded automatically — no extra wiring. Inspect the available `variants:` / `default_variant:` / resolved `variant:` via `owl step show TASK STEP --json`.
+
+**Heartbeat cadence (concrete, normative).** While holding a lease the agent **SHOULD** send `owl task heartbeat TASK --token T` at roughly **50% of `settings.concurrency.claim_ttl_seconds`** (default 600s → about every ~300s), and **MUST** heartbeat before dispatching any execution step that may outlast the remaining TTL — long steps risk silent lease loss otherwise. A `lease_lost` (exit 2) response means another session took the task: **stop driving it** and re-resolve via `owl next`.
 
 ## Canonical Operations
 
@@ -162,7 +203,7 @@ A few endpoints return shapes that have surprised agents in the past — always 
 ### Publishing and archiving
 
 - `owl publish TASK-ID --json` — copy approved artifacts to `docs/<...>` per the workflow's `publishes` rules; writes `.backup-<ts>` siblings when overwriting.
-- `owl archive TASK-ID --json` — move `tasks/TASK-ID/` into `tasks/archive/<date>-<TASK-ID>-<slug>/`, update `tasks/index.yaml`, set the task `status: archived`. For composite parents, archives the full subtree atomically; if any child is not ready it returns `composite_with_unready_children`.
+- `owl archive TASK-ID --json` — move `tasks/TASK-ID/` into `tasks/archive/<date>-<TASK-ID>-<slug>/`, update `tasks/index.yaml`, set the task `status: archived`. For composite parents, archives the full subtree atomically; if any child still has incomplete steps the archive is rejected with `workflow_incomplete` (the underlying wait shows as the `blocked_by_children` step status).
 
 ### Status reporting
 
@@ -174,7 +215,7 @@ Stop and return control to the calling skill when:
 
 - `.owl/config.yaml` is missing (`owl init` has not been run)
 - the CLI rejects the operation with a structured error that requires human judgment (e.g. invalid workflow key, schema mismatch)
-- a composite operation returns `composite_with_unready_children` and the caller did not ask for partial handling
+- a composite archive is rejected with `workflow_incomplete` because children are unready (step status `blocked_by_children`) and the caller did not ask for partial handling
 - an artifact validation fails (`ok: false`) and the calling skill cannot fix the body without scope or product input
 - the requested operation is documented neither here nor in `owl --help` — do not invent a flag (a command reachable via `owl --help` is **not** a stop; use it)
 
