@@ -32,7 +32,8 @@ For composite parents, archive runs atomically across all children.
 
 Autonomous. Drive this step with `owl archive TASK-ID --json`.
 Composite parents archive atomically together with all ready children;
-if any child is not ready, the command returns
-`composite_with_unready_children` and lists the missing steps. Closing
+if any prerequisite step is not ready, the command returns
+`workflow_incomplete` and lists the missing steps (via
+`details.incomplete_steps`) rather than performing a partial archive. Closing
 this step (`owl step complete TASK-ID archive`) is a separate signal
 from running `owl archive`.

@@ -4,6 +4,25 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.4.1] - 2026-06-29
+
+### Fixed
+- **Purged the phantom error code `composite_with_unready_children` from
+  agent-facing source content (TASK-0053).** That code exists nowhere in `lib/`;
+  it misled the orchestrator into catching a non-existent code and mis-reading
+  the real archive-gate behaviour. Replaced every reference with the actual
+  contract: the archive completion gate returns `workflow_incomplete` (with
+  `details.incomplete_steps`) for a premature `owl archive` whose gated
+  `archive`/`commit_push` steps are not yet `done`, while a composite parent
+  waiting on children surfaces as the `blocked_by_children` status (and
+  `owl next` → `action.kind: handoff_composite`). Docs-only edit; no CLI/code
+  behaviour change. SemVer: patch (back-compat documentation fix touching
+  consumer-materialised `skills/**` + `workflows/**` + `README.md`).
+  - `skills/owl-orchestrator/SKILL.md` — 3 occurrences (two Stop Conditions, one
+    Notes).
+  - `workflows/{feature,hotfix,refactor}/archive.context.md` — 1 each (`## Mode`).
+  - `README.md` — 1 occurrence (composite-archive note).
+
 ## [1.4.0] - 2026-06-29
 
 ### Changed

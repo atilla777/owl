@@ -656,8 +656,8 @@ decisions the wizard / first-task creation actually require.
 - **Settings are edited through `owl config set settings.<path>`**,
   not by editing `.owl/config.yaml` by hand.
 - **Composite archives are atomic.** When `owl archive PARENT-ID`
-  returns `composite_with_unready_children`, do not "force" anything
-  — surface the missing child steps to the user.
+  returns `workflow_incomplete`, do not "force" anything
+  — surface the missing steps (`details.incomplete_steps`) to the user.
 - **Skills follow Owl skill conventions** (see
   `skills/_owl_conventions.md` in this repo): numbered Q&A prompts,
   autonomous-by-default execution, stop conditions surfaced as a

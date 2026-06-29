@@ -27,16 +27,3 @@ tasks:
   - health-review-2026-06-26
   blocked_by: []
   archived_at:
-- id: TASK-0053
-  title: 'Docs: purge phantom ''composite_with_unready_children'' error code from
-    owl-orchestrator skill — real code is workflow_incomplete + blocked_by_children
-    status'
-  workflow: feature
-  kind: task
-  parent_id:
-  priority: 4
-  created_at: '2026-06-29T14:46:05Z'
-  status: open
-  labels: []
-  blocked_by: []
-  archived_at:
