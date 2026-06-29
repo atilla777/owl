@@ -589,6 +589,8 @@ RSpec.describe Owl::Cli::Api do
         expect(exit_code).to eq(0)
         body = JSON.parse(stdout)
         expect(body).to include('ok' => true, 'gem' => Owl::VERSION, 'project' => Owl::VERSION, 'up_to_date' => true)
+        expect(body).to have_key('self_hosted')
+        expect(body['self_hosted']).to be(false)
       end
     end
 

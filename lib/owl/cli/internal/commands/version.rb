@@ -25,7 +25,8 @@ module Owl
             result = Owl::Version::Api.info(root: root_result)
             if result.ok?
               JsonPrinter.success(stdout, ok: true, gem: result.value[:gem],
-                                          project: result.value[:project], up_to_date: result.value[:up_to_date])
+                                          project: result.value[:project], self_hosted: result.value[:self_hosted],
+                                          up_to_date: result.value[:up_to_date])
             else
               JsonPrinter.failure(stderr, code: result.code, message: result.message, details: result.details)
             end

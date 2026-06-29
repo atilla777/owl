@@ -4,6 +4,31 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.3.0] - 2026-06-29
+
+### Added
+- **`owl version` self-hosted detection (TASK-0051).** In the Owl self-hosted
+  source repository, `owl version` no longer reports false drift. Previously it
+  compared the running gem (`Owl::VERSION`, read from the working tree in a
+  source checkout) against the `owl.version` stamp in `.owl/config.yaml`, which
+  is only refreshed by `owl init` / `owl upgrade`. In the source repo that stamp
+  legitimately lags `Owl::VERSION` (bumped on every delivery), so `owl version`
+  chronically showed `up_to_date: false` — a meaningless signal, since
+  `Owl::VERSION` *is* the authoritative version of the gem being developed.
+  - New internal detector `Owl::Version::Internal::SelfHosted.detect(root:)`
+    returns `true` only when both `owl-cli.gemspec` and `lib/owl/version.rb`
+    exist under the resolved project `root` — specific to the source tree and
+    absent from consumer installs (which materialize only `.owl/` / `tasks/` /
+    `docs/`). Detection keys off the resolved `root`, so running from a
+    subdirectory works.
+  - `Owl::Version::Api.info(root:)` branches on the detector: when self-hosted
+    it returns `{ gem: Owl::VERSION, project: Owl::VERSION, self_hosted: true,
+    up_to_date: true }`; otherwise it keeps the existing gem-vs-stamp comparison
+    and now also emits `self_hosted: false`. `info` remains strictly read-only —
+    it never writes to `.owl/config.yaml`.
+  - `owl version --json` gains an additive `self_hosted` boolean alongside the
+    existing `gem` / `project` / `up_to_date` keys (no rename/removal).
+
 ## [1.2.0] - 2026-06-29
 
 ### Added

@@ -27,19 +27,6 @@ tasks:
   - health-review-2026-06-26
   blocked_by: []
   archived_at:
-- id: TASK-0051
-  title: 'Fix ''owl version'' drift in self-hosted source repo: compare gem against
-    Owl::VERSION constant (not stale config owl.version) / auto-sync'
-  workflow: feature
-  kind: task
-  parent_id:
-  priority: 5
-  created_at: '2026-06-29T07:26:05Z'
-  status: open
-  labels:
-  - health-review-2026-06-29
-  blocked_by: []
-  archived_at:
 - id: TASK-0052
   title: 'owl-* skills hardening: drop hardcoded RU strings (owl-step-discussion),
     add CLI error codebook, command-selection decision tree, document variants & heartbeat

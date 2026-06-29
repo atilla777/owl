@@ -65,6 +65,7 @@ module OwlConstitutionFixtures
     tasks/internal/task_reader.rb
     validation/internal/schema_check.rb
     validation/internal/schema_resolver.rb
+    version/internal/self_hosted.rb
     workflows/backends/filesystem.rb
     workflows/internal/cache.rb
     workflows/internal/context_io.rb
