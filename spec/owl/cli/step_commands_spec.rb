@@ -284,6 +284,105 @@ RSpec.describe 'owl step ... and owl task ready-steps CLI subcommands' do
     end
   end
 
+  describe 'active-step lock release on skip / reset recovery (TASK-0054)' do
+    it 'skip of the running owner step clears the active-step lock' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        lock = Pathname.new("#{root}/.owl/local/active_steps/#{task_id}.yaml")
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(lock).to exist
+
+        skip_code, = run(['step', 'skip', task_id, 'a', '--reason', 'x', '--root', root.to_s, '--json'], cwd: root)
+        expect(skip_code).to eq(0)
+        expect(lock).not_to exist
+
+        # The task is no longer wedged: a fresh `step start` on the next step succeeds.
+        start_code, out, = run(['step', 'start', task_id, 'b', '--root', root.to_s, '--json'], cwd: root)
+        expect(start_code).to eq(0)
+        expect(JSON.parse(out).dig('step', 'status')).to eq('running')
+      end
+    end
+
+    it 'skip of a non-owner step leaves another step\'s lock untouched' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        lock = Pathname.new("#{root}/.owl/local/active_steps/#{task_id}.yaml")
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        # Lock points at running step 'a'; skip the *other* step 'b' (pending).
+        skip_code, = run(['step', 'skip', task_id, 'b', '--reason', 'x', '--root', root.to_s, '--json'], cwd: root)
+        expect(skip_code).to eq(0)
+        expect(lock).to exist
+        expect(YAML.safe_load(lock.read)['step_id']).to eq('a')
+      end
+    end
+
+    it 'reset of a non-running step WITH a stale matching lock returns ok and clears it' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        lock = Pathname.new("#{root}/.owl/local/active_steps/#{task_id}.yaml")
+        # Drive 'a' to skipped while a stale lock for 'a' lingers.
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        write(lock.to_s, <<~YAML)
+          ---
+          schema_version: 1
+          task_id: #{task_id}
+          step_id: a
+          session_type: execution
+          declared_at: '2026-06-25T00:00:00Z'
+        YAML
+        run(['step', 'skip', task_id, 'a', '--reason', 'x', '--root', root.to_s, '--json'], cwd: root)
+        # Reinstate the stale lock (skip cleared it) to exercise the recovery path.
+        write(lock.to_s, <<~YAML)
+          ---
+          schema_version: 1
+          task_id: #{task_id}
+          step_id: a
+          session_type: execution
+          declared_at: '2026-06-25T00:00:00Z'
+        YAML
+        expect(lock).to exist
+
+        reset_code, out, = run(['step', 'reset', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(reset_code).to eq(0)
+        body = JSON.parse(out)
+        expect(body['ok']).to be(true)
+        expect(body['recovered_stale_lock']).to be(true)
+        expect(body['step_status']).to eq('skipped')
+        expect(lock).not_to exist
+      end
+    end
+
+    it 'reset of a non-running step WITHOUT a lock still returns step_not_running' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        lock = Pathname.new("#{root}/.owl/local/active_steps/#{task_id}.yaml")
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        run(['step', 'skip', task_id, 'a', '--reason', 'x', '--root', root.to_s, '--json'], cwd: root)
+        expect(lock).not_to exist # skip cleared the owner lock
+
+        reset_code, _out, stderr = run(['step', 'reset', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(reset_code).to eq(1)
+        expect(JSON.parse(stderr).dig('error', 'code')).to eq('step_not_running')
+      end
+    end
+
+    it 'reset of a running step keeps prior behaviour (pending + lock cleared)' do
+      with_tmp_project do |root|
+        task_id = setup_project(root)
+        lock = Pathname.new("#{root}/.owl/local/active_steps/#{task_id}.yaml")
+        run(['step', 'start', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(lock).to exist
+
+        reset_code, out, = run(['step', 'reset', task_id, 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(reset_code).to eq(0)
+        body = JSON.parse(out)
+        expect(body.dig('step', 'status')).to eq('pending')
+        expect(body['recovered_stale_lock']).to be_nil
+        expect(lock).not_to exist
+      end
+    end
+  end
+
   describe 'unknown step subcommand' do
     it 'reports unknown_command' do
       with_tmp_project do |root|

@@ -4,6 +4,32 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.4.0] - 2026-06-29
+
+### Changed
+- **Active-step lock no longer orphaned by `skip`/`abandon`; `reset` recovers
+  stale locks (TASK-0054).** The per-task active-step lock
+  (`.owl/local/active_steps/<TASK-ID>.yaml`) was written by `owl step start` and
+  cleared only by `owl step complete`/`owl step reset`, so three paths left it
+  orphaned. JSON response shapes of existing commands are unchanged; lock
+  management stays in the CLI adapter layer over the `Steps::Api.active_step_lock_*`
+  facades (no raw FS access, no change to `Steps::Api.skip`/`reset` status
+  semantics). SemVer: minor (new behaviour, no on-disk/contract break).
+  - `owl step skip` now clears the active-step lock when it skips the step that
+    holds the lock — match-scoped (`active_step_lock_matches?`), so a lock for a
+    different step is left untouched; a no-op when no lock exists. A subsequent
+    `owl step start` for the task no longer fails with `active_step_locked`.
+  - `owl task abandon` now clears the task's active-step lock unconditionally
+    (the task is reset wholesale, so any in-flight step is moot); a no-op when no
+    lock exists.
+  - `owl step reset` now recovers a stale lock: when `Steps::Api.reset` returns
+    `step_not_running` and a matching active-step lock is present, the lock is
+    cleared and the command returns `ok: true` (`recovered_stale_lock: true`,
+    step status unchanged) instead of a dead-end error — no `owl step start
+    --force` needed. With no matching lock, the original `step_not_running` error
+    is returned unchanged. Reset of a running step keeps its prior behaviour
+    (back to `pending` + lock cleared).
+
 ## [1.3.1] - 2026-06-29
 
 ### Changed

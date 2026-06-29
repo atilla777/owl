@@ -31,6 +31,8 @@ module Owl
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
+            clear_active_step_lock(root: root, options: options)
+
             payload = {
               ok: true,
               task_id: options[:task_id],
@@ -43,6 +45,21 @@ module Owl
             JsonPrinter.success(stdout, payload)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
+          end
+
+          # Release the per-task active-step lock when skipping the step that
+          # holds it. Mirrors `step reset`/`step complete`, which clear the lock
+          # after a successful state change. Match-scoped: only clears when the
+          # lock refers to the step just skipped, so a lock for a different step
+          # is left untouched; a no-op when no lock exists.
+          def clear_active_step_lock(root:, options:)
+            lock = Owl::Steps::Api.active_step_lock_load(root: root, task_id: options[:task_id])
+            return unless lock.ok? && lock.value
+            return unless Owl::Steps::Api.active_step_lock_matches?(
+              lock.value, task_id: options[:task_id], step_id: options[:step_id]
+            )
+
+            Owl::Steps::Api.active_step_lock_clear(root: root, task_id: options[:task_id])
           end
 
           def parse_options(argv)

@@ -2,6 +2,7 @@
 
 require 'optparse'
 
+require_relative '../../../steps/api'
 require_relative '../../../tasks/api'
 require_relative '../json_printer'
 require_relative 'task_support'
@@ -32,6 +33,11 @@ module Owl
               reason: options[:reason]
             )
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
+
+            # Release any per-task active-step lock left by a running step: the
+            # task is being reset wholesale, so any in-flight step is moot.
+            # Unconditional (task-scoped); a no-op when no lock exists.
+            Owl::Steps::Api.active_step_lock_clear(root: root, task_id: options[:task_id])
 
             payload = {
               ok: true,

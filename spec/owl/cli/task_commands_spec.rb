@@ -277,6 +277,34 @@ RSpec.describe 'owl task ... CLI subcommands' do
       end
     end
 
+    it 'clears the active-step lock when abandoning a task with a running step' do
+      with_tmp_project do |root|
+        init_project(root)
+        write("#{root}/.owl/workflows.yaml", <<~YAML)
+          schema_version: 1
+          workflows:
+            feature:
+              enabled: true
+              source: "workflows/feature/workflow.yaml"
+        YAML
+        write("#{root}/.owl/workflows/feature/workflow.yaml", <<~YAML)
+          id: feature
+          kind: feature
+          steps:
+            - id: a
+          artifacts: []
+        YAML
+        run(['task', 'create', '--workflow', 'feature', '--title', 'one', '--root', root.to_s, '--json'], cwd: root)
+        lock = Pathname.new("#{root}/.owl/local/active_steps/TASK-0001.yaml")
+        run(['step', 'start', 'TASK-0001', 'a', '--root', root.to_s, '--json'], cwd: root)
+        expect(lock).to exist
+
+        exit_code, _stdout, = run(['task', 'abandon', 'TASK-0001', '--root', root.to_s, '--json'], cwd: root)
+        expect(exit_code).to eq(0)
+        expect(lock).not_to exist
+      end
+    end
+
     it 'fails with invalid_arguments when TASK-ID is missing' do
       with_tmp_project do |root|
         init_project(root)
