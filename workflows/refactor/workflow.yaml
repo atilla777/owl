@@ -48,7 +48,7 @@ steps:
   tier: advanced
   creates:
   - brief
-  default_variant: feature
+  default_variant: problem_inventory
   variants:
     feature:
       context_file: brief.feature.context.md

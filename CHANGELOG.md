@@ -4,6 +4,38 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.4.2] - 2026-07-01
+
+### Fixed
+- **CLI-layering regression straightened + guarded (health-review 2026-07-01).**
+  `lib/owl/cli/internal/commands/step_complete.rb` reached directly into the
+  private `Owl::Tasks::Internal::TaskStatuses::TERMINAL` constant — the single
+  remaining violation of the architecture §4/§148 rule the docs claimed was at
+  zero. Exposed an additive facade predicate `Owl::Tasks::Api.terminal_status?`
+  and routed the CLI through it. Added `spec/owl/architecture/cli_layering_spec.rb`
+  turning the doc's manual "enforced by grep" into a standing CI gate so the
+  debt cannot silently regrow.
+- **`hotfix` / `refactor` seed workflows now default to the correct `brief`
+  variant (health-review 2026-07-01).** Both shipped with `default_variant:
+  feature` (a leftover from being scaffolded off `feature`), so a `hotfix`
+  brief opened the "Collect feature requirements" context instead of "Find bug
+  root cause", and `refactor` likewise instead of "Inventory refactor
+  problems". Set `hotfix` → `root_cause` and `refactor` → `problem_inventory`
+  (both variants were already declared; only the default was wrong).
+
+### Changed
+- **`owl-task-create` command doc corrected.** It claimed the "legacy `hotfix`
+  and `research` workflows have been folded into `brief` variants" — but
+  `hotfix` and `refactor` are live, enabled workflows and no `research`
+  workflow exists. Replaced the stale/contradictory sentence with an accurate
+  per-workflow list and an explicit note that `feature` also carries the
+  `root_cause`/`problem_inventory` brief variants.
+
+SemVer: patch — a layering fix plus a back-compat additive facade method, a
+seed-default correction (only new `hotfix`/`refactor` tasks are affected;
+already-created tasks keep their resolved variant), and a docs fix. No CLI/JSON
+contract or on-disk format change.
+
 ## [1.4.1] - 2026-06-29
 
 ### Fixed

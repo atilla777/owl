@@ -183,6 +183,14 @@ module Owl
         Owl::Result.ok(Internal::TerminalStatus.orchestration_terminal?(result.value[:payload]))
       end
 
+      # Pure classification: is `status` one of the TASK-level terminal states
+      # (`archived`/`abandoned`/`done`)? No IO — a small predicate exposed so
+      # callers (notably the CLI layer) never have to reach into the private
+      # `Internal::TaskStatuses` constant (architecture §4 layering rule).
+      def terminal_status?(status)
+        Internal::TaskStatuses::TERMINAL.include?(status.to_s)
+      end
+
       # Current-task pointer projected down to just its id. Shared primitive
       # for the orchestration selection ladder (Instructions / Status /
       # Orchestration) so each does not carry its own copy. Returns

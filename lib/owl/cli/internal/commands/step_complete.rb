@@ -5,7 +5,6 @@ require 'optparse'
 
 require_relative '../../../steps/api'
 require_relative '../../../tasks/api'
-require_relative '../../../tasks/internal/task_statuses'
 require_relative '../json_printer'
 require_relative 'drift_warning_printer'
 require_relative 'step_id_resolver'
@@ -72,7 +71,7 @@ module Owl
             return nil unless inspected.ok?
 
             status = inspected.value[:payload]['status'].to_s
-            return nil unless Owl::Tasks::Internal::TaskStatuses::TERMINAL.include?(status)
+            return nil unless Owl::Tasks::Api.terminal_status?(status)
 
             status
           end
