@@ -2,7 +2,11 @@
 id: hotfix
 kind: task
 title: Hotfix
-description: Workflow for an urgent fix — issue → patch-plan → tasks → apply → verify → archive.
+description: >-
+  Lean workflow for an urgent fix: brief (root cause) -> implement -> review ->
+  commit_push. No design/plan/merge_docs/archive — the brief's root-cause
+  findings are the spec and the fix ships straight after a self-review. Use
+  `feature` when the change needs design, planning, or doc publishing.
 execution_mode: autonomous_after_brief
 artifacts:
   brief:
@@ -10,17 +14,6 @@ artifacts:
     storage:
       role: tasks
       path: "{{task.id}}/brief.md"
-  design:
-    type: design
-    optional: true
-    storage:
-      role: tasks
-      path: "{{task.id}}/design.md"
-  plan:
-    type: plan
-    storage:
-      role: tasks
-      path: "{{task.id}}/plan.md"
   review:
     type: review
     storage:
@@ -31,16 +24,6 @@ artifacts:
     storage:
       role: tasks
       path: "{{task.id}}/verification.md"
-  spec_delta:
-    type: spec_delta
-    optional: true
-    storage:
-      role: tasks
-      path: "{{task.id}}/spec_delta.md"
-publishes:
-- from: "{{task.id}}/design.md"
-  to: "{{task.id}}/design.md"
-  optional: true
 steps:
 - id: brief
   skill: owl-step-discussion
@@ -59,31 +42,13 @@ steps:
     problem_inventory:
       context_file: brief.problem_inventory.context.md
       title: Inventory refactor problems
-- id: design
-  skill: owl-step-discussion
-  session_type: discussion
-  tier: advanced
-  context_file: design.context.md
-  requires:
-  - brief
-  creates:
-  - design
-- id: plan
-  skill: owl-step-discussion
-  session_type: discussion
-  tier: advanced
-  context_file: plan.context.md
-  requires:
-  - brief
-  creates:
-  - plan
 - id: implement
   skill: owl-step-execution
   session_type: execution
   tier: advanced
   context_file: implement.context.md
   requires:
-  - plan
+  - brief
   creates:
   - verification
 - id: review_code
@@ -95,25 +60,10 @@ steps:
   - implement
   creates:
   - review
-- id: merge_docs
-  skill: owl-step-execution
-  session_type: execution
-  tier: standard
-  publishes: true
-  context_file: merge_docs.context.md
-  requires:
-  - review_code
-- id: archive
-  skill: owl-step-execution
-  session_type: execution
-  tier: standard
-  context_file: archive.context.md
-  requires:
-  - merge_docs
 - id: commit_push
   skill: owl-step-execution
   session_type: execution
   tier: standard
   context_file: commit_push.context.md
   requires:
-  - archive
+  - review_code

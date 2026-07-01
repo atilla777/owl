@@ -4,6 +4,37 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.6.0] - 2026-07-01
+
+### Fixed
+- **`owl init --force` no longer destroys user state (data-loss bug).** Under
+  `--force` the scaffolder overwrote every non-overlay file with its default
+  template — including `.owl/config.yaml` (reset settings like
+  `settings.language.communication`), the `.owl/workflows.yaml` /
+  `.owl/artifacts.yaml` registries (dropping project-owned, non-managed
+  registrations), and `tasks/index.yaml` (wiped to `tasks: []`). Since
+  `init --force` exists to refresh the materialised skills/commands, these
+  files are now flagged `preserve_if_exists`: created on a first init, never
+  clobbered on a re-run. Only seed bodies (skills, commands, workflow/artifact
+  sources) are refreshed by `--force`; the post-scaffold `owl.version` /
+  `settings.agent_targets` stamping still applies as targeted key writes.
+
+### Changed
+- **`hotfix` is now a lean 4-step workflow.** It shipped as a full clone of
+  `feature` (brief → design → plan → implement → review_code → merge_docs →
+  archive → commit_push), so an "urgent fix" carried the same ceremony as a
+  feature. Trimmed to `brief` (root-cause) → `implement` → `review_code` →
+  `commit_push`, dropping the design/plan/merge_docs/archive steps and the
+  design/plan/spec_delta artifacts; `implement` now `requires: [brief]`. Its
+  `implement`/`commit_push` context files were retargeted (brief-as-spec, no
+  archive). Existing hotfix tasks keep their snapshotted graph; only new tasks
+  get the lean flow. `refactor` still carries the full ceremony (tailor via
+  `/owl-author`).
+
+SemVer: minor — a destructive-default fix (`init --force`) plus a seed-workflow
+behavior change (lean `hotfix`, affecting only newly created tasks). No CLI/JSON
+contract or on-disk format removed.
+
 ## [1.5.0] - 2026-07-01
 
 ### Added

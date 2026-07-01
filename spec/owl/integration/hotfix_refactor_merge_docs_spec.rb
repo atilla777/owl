@@ -8,11 +8,11 @@ require 'yaml'
 
 require 'owl/cli/api'
 
-# TASK-0009: the hotfix and refactor merge_docs steps now run `owl spec merge`
-# alongside `owl publish`. A spec-less hotfix/refactor task must see ZERO
-# behavioural change — `owl spec merge` is a clean no-op that writes nothing
-# under specs/.
-RSpec.describe 'hotfix/refactor merge_docs spec merge is a no-op without a spec_delta' do
+# TASK-0009: the refactor merge_docs step runs `owl spec merge` alongside
+# `owl publish`. A spec-less refactor task must see ZERO behavioural change —
+# `owl spec merge` is a clean no-op that writes nothing under specs/. (The
+# `hotfix` workflow no longer has a merge_docs step — it is a lean flow.)
+RSpec.describe 'refactor merge_docs spec merge is a no-op without a spec_delta' do
   def repo_root
     Pathname.new(File.expand_path('../../..', __dir__))
   end
@@ -51,7 +51,7 @@ RSpec.describe 'hotfix/refactor merge_docs spec merge is a no-op without a spec_
     JSON.parse(stdout).dig('task', 'id')
   end
 
-  %w[hotfix refactor].each do |workflow|
+  %w[refactor].each do |workflow|
     it "is a clean no-op for a spec-less #{workflow} task (writes nothing under specs/)" do
       with_tmp_project do |root|
         init_project(root)

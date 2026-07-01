@@ -23,24 +23,34 @@ module Owl
         module_function
 
         def call(root:, project_id:, agent_targets: Owl::Skills::Internal::SeededSources::DEFAULT_TARGETS)
+          # `preserve_if_exists` marks user/project STATE that a forced re-run
+          # (`owl init --force`, used to refresh materialised skills/commands)
+          # must never clobber: the config (settings like language), the two
+          # registries (which carry project-owned, non-managed workflow/artifact
+          # registrations), and the task index. On a first init these files do
+          # not exist yet and are created normally; only the *seed bodies*
+          # (skills, commands, workflow/artifact source files below) are
+          # refreshable and get overwritten by `--force`.
           base = [
             { path: "#{root}/.owl/config.yaml",
-              contents: Owl::Config::Api.default_template(project_id: project_id) },
+              contents: Owl::Config::Api.default_template(project_id: project_id),
+              preserve_if_exists: true },
             { path: "#{root}/.owl/workflows.yaml",
-              contents: Owl::Workflows::Api.default_template },
+              contents: Owl::Workflows::Api.default_template,
+              preserve_if_exists: true },
             { path: "#{root}/.owl/artifacts.yaml",
-              contents: Owl::Artifacts::Api.default_template },
+              contents: Owl::Artifacts::Api.default_template,
+              preserve_if_exists: true },
             { path: "#{root}/tasks/index.yaml",
-              contents: tasks_index_template },
+              contents: tasks_index_template,
+              preserve_if_exists: true },
             { path: "#{root}/docs/.keep",
               contents: '' }
           ]
 
-          # `preserve_if_exists` keeps project-authored overlay content across a
-          # forced re-run (`owl init --force`): overlays are scaffolded with a
-          # default template on first init, but a re-run must NOT clobber any
-          # customizations the project added. Other layout files are still
-          # overwritten by `--force`.
+          # Project-authored overlay content is likewise preserved across a
+          # forced re-run: overlays are scaffolded with a default template on
+          # first init, but a re-run must NOT clobber project customizations.
           overlays = (OVERLAY_STEPS + SESSION_OVERLAYS).map do |step|
             { path: "#{root}/.owl/overlays/#{step}.md",
               contents: OverlayTemplate.for_step(step_id: step),

@@ -184,18 +184,19 @@ RSpec.describe Owl::Cli::Api do
       end
     end
 
-    it 'overwrites existing files with --force' do
+    it 'refreshes seed bodies but preserves user state with --force' do
       with_tmp_project do |root|
         run(['init', '--root', root.to_s], cwd: root)
-        config_path = Pathname.new("#{root}/.owl/config.yaml")
-        config_path.write('tampered: true')
+        skill_path = Pathname.new("#{root}/.claude/skills/owl-orchestrator/SKILL.md")
+        skill_path.write("# mutated\n")
 
         exit_code, stdout, _stderr = run(['init', '--root', root.to_s, '--force'], cwd: root)
         expect(exit_code).to eq(0)
         body = JSON.parse(stdout)
-        # project overlays are preserved on --force; everything else is overwritten
-        expect(body['skipped']).to all(include('/.owl/overlays/'))
-        expect(config_path.read).to include('schema_version: 1')
+        # User state (config, registries, index) is preserved; seed bodies refresh.
+        expect(body['skipped']).to include(a_string_ending_with('/.owl/config.yaml'))
+        expect(body['created']).to include(skill_path.to_s)
+        expect(skill_path.read).not_to eq("# mutated\n")
       end
     end
 

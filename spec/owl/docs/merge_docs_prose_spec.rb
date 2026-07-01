@@ -17,7 +17,6 @@ RSpec.describe 'merge_docs.context.md honest prose' do
   context_files = [
     'workflows/feature/merge_docs.context.md',
     '.owl/workflows/feature/merge_docs.context.md',
-    '.owl/workflows/hotfix/merge_docs.context.md',
     '.owl/workflows/refactor/merge_docs.context.md'
   ]
 

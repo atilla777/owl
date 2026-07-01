@@ -56,7 +56,7 @@ Registered in `.owl/workflows.yaml`:
 - `hotfix` — urgent fix.
 - `refactor` — refactoring with explicit impact analysis.
 
-`hotfix` and `refactor` were scaffolded from `feature`; tailor them via `/owl-author` before serious use.
+`hotfix` is a lean urgent-fix flow (brief → implement → review_code → commit_push; no design/plan/archive). `refactor` was scaffolded from `feature` and still carries the full ceremony; tailor it via `/owl-author` before serious use.
 
 ## Source-Of-Truth Rule
 

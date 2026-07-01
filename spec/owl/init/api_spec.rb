@@ -58,19 +58,50 @@ RSpec.describe Owl::Init::Api do
       end
     end
 
-    it 'overwrites existing files when force: true' do
+    it 'refreshes seed bodies but preserves user config settings on force: true' do
       with_tmp_project do |root|
         described_class.scaffold(root: root)
-        Pathname.new("#{root}/.owl/config.yaml").write('# tampered')
+        # A real user customization (not garbage) so the config stays valid for
+        # the version/agent-target stamping that follows the scaffold.
+        Owl::Config::Api.write_key(root: root.to_s, key: 'settings.language.communication', value: 'ru')
+        skill = Pathname.new("#{root}/.claude/skills/owl-orchestrator/SKILL.md")
+        skill.write('# tampered skill')
 
         result = described_class.scaffold(root: root, force: true)
 
         expect(result).to be_ok
         value = result.value
-        # only the preserve-on-force overlays are skipped; everything else is overwritten
-        expect(value[:skipped]).to all(include('/.owl/overlays/'))
-        expect(value[:created]).to include("#{root}/.owl/config.yaml")
-        expect(Pathname.new("#{root}/.owl/config.yaml").read).not_to eq('# tampered')
+        # Config is preserved by the scaffolder (skipped), so the user setting
+        # survives; the materialised skill body is refreshed.
+        expect(value[:skipped]).to include("#{root}/.owl/config.yaml")
+        expect(value[:created]).not_to include("#{root}/.owl/config.yaml")
+        expect(
+          Owl::Config::Api.read_key(root: root.to_s, key: 'settings.language.communication').value[:value]
+        ).to eq('ru')
+        expect(value[:created]).to include(skill.to_s)
+        expect(skill.read).not_to eq('# tampered skill')
+      end
+    end
+
+    it 'preserves the registries and the task index verbatim on a forced re-run' do
+      with_tmp_project do |root|
+        described_class.scaffold(root: root)
+        # These files are never touched by the post-scaffold version/target
+        # stamping, so they stay byte-identical across a forced re-run.
+        state = {
+          "#{root}/.owl/workflows.yaml" => "# my workflows registry\n",
+          "#{root}/.owl/artifacts.yaml" => "# my artifacts registry\n",
+          "#{root}/tasks/index.yaml" => "# my index\n"
+        }
+        state.each { |path, body| Pathname.new(path).write(body) }
+
+        result = described_class.scaffold(root: root, force: true)
+
+        expect(result).to be_ok
+        state.each do |path, body|
+          expect(result.value[:skipped]).to include(path)
+          expect(Pathname.new(path).read).to eq(body)
+        end
       end
     end
 
@@ -87,8 +118,6 @@ RSpec.describe Owl::Init::Api do
         expect(value[:skipped]).to include(overlay.to_s)
         expect(value[:created]).not_to include(overlay.to_s)
         expect(overlay.read).to eq('# project-authored overlay content')
-        # non-overlay files are still overwritten by --force
-        expect(value[:created]).to include("#{root}/.owl/config.yaml")
       end
     end
 

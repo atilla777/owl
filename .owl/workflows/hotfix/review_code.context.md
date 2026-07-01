@@ -2,7 +2,7 @@
 step_id: "review_code"
 applies_to_session_type: "execution"
 intended_audience: "subagent"
-summary: "Review the implementation against plan and brief."
+summary: "Review the implementation against the root-cause brief."
 ---
 
 # Purpose

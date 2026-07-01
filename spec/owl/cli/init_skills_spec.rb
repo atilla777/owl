@@ -125,9 +125,10 @@ RSpec.describe 'owl init — Owl::Skills integration' do
       expect(context_files).not_to be_empty
       # 5 workflows: feature(7 non-brief steps + 3 brief variants = 10) +
       #   composite_feature(5 non-brief steps + 3 brief variants = 8) +
-      #   hotfix(10) + refactor(10) + quick(brief + implement + commit_push = 3)
-      #   = 41 step contexts.
-      expect(context_files.size).to eq(41)
+      #   hotfix(lean: implement + review_code + commit_push + 3 brief variants = 6) +
+      #   refactor(10) + quick(brief + implement + commit_push = 3)
+      #   = 37 step contexts.
+      expect(context_files.size).to eq(37)
     end
   end
 
@@ -175,8 +176,9 @@ RSpec.describe 'owl init — Owl::Skills integration' do
 
       body = JSON.parse(stdout)
       expect(body['created']).to include(target.to_s)
-      # project overlays are preserved on --force; nothing else is skipped
-      expect(body['skipped']).to all(include('/.owl/overlays/'))
+      # Seed bodies (.claude/*) are refreshed by --force; user state (config,
+      # registries, index) and project overlays are preserved (skipped).
+      expect(body['skipped']).to include(a_string_ending_with('/.owl/config.yaml'))
       expect(target.read).not_to eq("# mutated by the test\n")
     end
   end
