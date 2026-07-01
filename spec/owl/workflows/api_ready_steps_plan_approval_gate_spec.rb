@@ -150,6 +150,93 @@ RSpec.describe Owl::Workflows::Api, '.ready_steps plan-approval gate' do
     end
   end
 
+  context 'with the per-task require_plan_approval opt-in (no YAML gate)' do
+    def seed_ungated(root)
+      run_cli(['init'], root)
+      write("#{root}/.owl/workflows.yaml", <<~YAML)
+        schema_version: 1
+        workflows:
+          feat:
+            enabled: true
+            source: "workflows/feat/workflow.yaml"
+      YAML
+      write_plan_artifact_registry(root)
+      write("#{root}/.owl/workflows/feat/workflow.yaml", <<~YAML)
+        id: feat
+        kind: task
+        #{plan_artifact_block}
+        steps:
+          - id: plan
+            session_type: discussion
+            creates: [plan]
+          - id: implement
+            session_type: execution
+            requires: [plan]
+      YAML
+    end
+
+    it 'holds implement when the task opted in, even without a YAML gate' do
+      with_tmp_project do |root|
+        seed_ungated(root)
+        run_cli(['task', 'create', '--workflow', 'feat', '--title', 't', '--require-plan-approval'], root)
+        complete_plan(root, 'TASK-0001')
+
+        result = described_class.ready_steps(root: root, task_id: 'TASK-0001')
+        expect(result.value[:ready].map { |s| s[:id] }).not_to include('implement')
+        expect(result.value[:awaiting_plan_approval]).to eq(['implement'])
+      end
+    end
+
+    it 'releases implement once the opted-in plan is approved' do
+      with_tmp_project do |root|
+        seed_ungated(root)
+        run_cli(['task', 'create', '--workflow', 'feat', '--title', 't', '--require-plan-approval'], root)
+        complete_plan(root, 'TASK-0001')
+        Owl::Tasks::Api.approve_plan(root: root, task_id: 'TASK-0001')
+
+        result = described_class.ready_steps(root: root, task_id: 'TASK-0001')
+        expect(result.value[:ready].map { |s| s[:id] }).to eq(['implement'])
+        expect(result.value[:awaiting_plan_approval]).to eq([])
+      end
+    end
+
+    it 'does not hold implement when the task did not opt in' do
+      with_tmp_project do |root|
+        seed_ungated(root)
+        run_cli(['task', 'create', '--workflow', 'feat', '--title', 't'], root)
+        complete_plan(root, 'TASK-0001')
+
+        result = described_class.ready_steps(root: root, task_id: 'TASK-0001')
+        expect(result.value[:ready].map { |s| s[:id] }).to eq(['implement'])
+        expect(result.value[:awaiting_plan_approval]).to eq([])
+      end
+    end
+
+    it 'honours the settings.plan_approval.required config default' do
+      with_tmp_project do |root|
+        seed_ungated(root)
+        run_cli(['config', 'set', 'settings.plan_approval.required', 'true'], root)
+        run_cli(['task', 'create', '--workflow', 'feat', '--title', 't'], root)
+        complete_plan(root, 'TASK-0001')
+
+        result = described_class.ready_steps(root: root, task_id: 'TASK-0001')
+        expect(result.value[:awaiting_plan_approval]).to eq(['implement'])
+      end
+    end
+
+    it 'lets --no-require-plan-approval override the config default' do
+      with_tmp_project do |root|
+        seed_ungated(root)
+        run_cli(['config', 'set', 'settings.plan_approval.required', 'true'], root)
+        run_cli(['task', 'create', '--workflow', 'feat', '--title', 't', '--no-require-plan-approval'], root)
+        complete_plan(root, 'TASK-0001')
+
+        result = described_class.ready_steps(root: root, task_id: 'TASK-0001')
+        expect(result.value[:awaiting_plan_approval]).to eq([])
+      end
+    end
+  end
+
   context 'with both plan_approved and children_complete on a composite' do
     def seed_composite(root)
       run_cli(['init'], root)

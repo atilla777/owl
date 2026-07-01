@@ -4,6 +4,43 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.5.0] - 2026-07-01
+
+### Added
+- **Per-task plan-approval checkpoint (`--require-plan-approval`).** The
+  plan-approval gate is no longer reachable only by editing a workflow YAML.
+  `owl task create … --require-plan-approval` stamps `require_plan_approval:
+  true` on the task, and the readiness engine then holds every step that
+  `requires: [plan]` under `awaiting_plan_approval` until `owl plan approve`
+  runs — on any plan-bearing workflow (`feature`/`hotfix`/`refactor`) without a
+  duplicate workflow. `settings.plan_approval.required: true` makes it the
+  default for new tasks (surfaced as a `/owl-init` question); `--no-require-plan-approval`
+  overrides that default for a one-off autonomous run. Reuses the existing
+  `plan approve`/`plan status`/`await_plan_approval` machinery end to end
+  (`owl next`, orchestrator, `step reopen` reset). Config gains a validated
+  `settings.plan_approval` block.
+- **`owl doctor` broadened from one drift class to three.** Alongside the
+  existing lifecycle status-drift, `doctor` now reports `index_drift`
+  (`tasks/index.yaml` diverged from the per-task files — missing / stale /
+  field mismatch, via a read-only projection of what `rebuild_index` would
+  write) and `stale_steps` (a `running` step orphaned by a dead session,
+  detected by an expired claim lease — the `needs_adopt` condition, surfaced
+  repo-wide). `--fix` now also rebuilds a drifted index (`index_rebuilt`);
+  stale steps stay report-only (recover with `owl task adopt`, never
+  auto-mutated). New facade methods `Tasks::Api.index_drift` /
+  `Tasks::Api.stale_steps` and a read-only `IndexRebuilder.project`.
+
+### Changed
+- **`owl-orchestrator` skill: added an action-kind quick-reference table** and
+  refreshed the plan-approval prose (skill + `_owl_conventions.md` §9) to
+  describe the new per-task opt-in — the old "off in every seeded workflow"
+  wording was accurate only for the YAML gate.
+
+SemVer: minor — two additive features (per-task plan-approval opt-in; broader
+`doctor` detectors) plus doc/skill updates. Back-compat: `doctor` keeps its
+`drifted`/`fixed` keys and adds new ones; tasks without `require_plan_approval`
+behave exactly as before; no on-disk or CLI/JSON contract removed.
+
 ## [1.4.2] - 2026-07-01
 
 ### Fixed

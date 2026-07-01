@@ -19,7 +19,7 @@ module Owl
         end
 
         def build_payload(task_id:, title:, snapshot:, parent_id: nil, kind: nil, step_variants: nil,
-                          priority: 0, now: Time.now.utc)
+                          priority: 0, require_plan_approval: false, now: Time.now.utc)
           payload = {
             'id' => task_id,
             'title' => title,
@@ -36,6 +36,9 @@ module Owl
           }
           normalized = normalize_step_variants(step_variants)
           payload['step_variants'] = normalized unless normalized.empty?
+          # Only stamp the opt-in when set, keeping default task payloads clean;
+          # the plan-approval gate reads a missing key as "not required".
+          payload['require_plan_approval'] = true if require_plan_approval
           payload
         end
 

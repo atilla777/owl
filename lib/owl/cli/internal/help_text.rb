@@ -82,7 +82,7 @@ module Owl
             status                  Show workflow progress for a task (steps, progress, blockers, children).
             upgrade                 Refresh this project's copied Owl seed files (skills, managed workflow/artifact files, registry merge) after a gem update; preserves project-owned content. --dry-run to preview.
             self-update             Update the owl-cli gem itself from github main (clone→build→install). --check to compare versions only.
-            doctor                  Reconcile lifecycle status-drift: report tasks whose workflow is complete but status is still open/in_progress; --fix promotes them to done (JSON).
+            doctor                  Repo health reconciler (JSON): reports lifecycle status-drift, tasks/index.yaml drift, and orphaned running steps (expired lease). --fix promotes complete-but-open tasks to done and rebuilds a drifted index; stale steps stay report-only (recover with `owl task adopt`).
 
           Global options:
             --help, -h              Show this help message.

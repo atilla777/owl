@@ -10,12 +10,21 @@ module Owl
   module Cli
     module Internal
       module Commands
-        # `owl doctor [--fix]` — lifecycle-drift reconciler. Report-only by
-        # default: lists tasks whose workflow is terminally complete but whose
-        # `status` is still `open`/`in_progress` (detected read-only via
-        # `Tasks::Api.lifecycle_drift`). With `--fix`, promotes each such task to
-        # `done` through the existing `Tasks::Api.set_status` writer (per-task
-        # lock + schema + index rebuild), idempotently.
+        # `owl doctor [--fix]` — repo health reconciler. Report-only by default;
+        # scans three independent drift classes and returns them side by side:
+        #
+        # - `drifted`      lifecycle: workflow terminally complete but task
+        #                  `status` still `open`/`in_progress`.
+        # - `index_drift`  `tasks/index.yaml` diverged from the per-task
+        #                  `task.yaml` files (missing / stale / field mismatch).
+        # - `stale_steps`  a `running` step orphaned by a dead session (task
+        #                  holds an expired claim lease). Report-only — recovery
+        #                  is `owl task adopt`, never auto-mutated here.
+        #
+        # With `--fix`, the two safe/deterministic classes are reconciled:
+        # lifecycle via `Tasks::Api.set_status` (→ `fixed`) and index via
+        # `Tasks::Api.rebuild_index` (→ `index_rebuilt`). `stale_steps` is always
+        # report-only.
         module Doctor
           module_function
 
@@ -25,38 +34,74 @@ module Owl
             root = TaskSupport.resolve_root(options[:root], cwd, stderr: stderr)
             return root if root.is_a?(Integer)
 
-            drift_result = Owl::Tasks::Api.lifecycle_drift(root: root)
-            return JsonPrinter.failure(stderr, **TaskSupport.error_payload(drift_result)) if drift_result.err?
+            scan = collect(root: root)
+            return JsonPrinter.failure(stderr, **TaskSupport.error_payload(scan[:error])) if scan[:error]
 
-            drifted = Array(drift_result.value[:drifted])
-            return report(stdout, drifted) unless options[:fix]
+            return report(stdout, scan) unless options[:fix]
 
-            fix(stdout: stdout, stderr: stderr, root: root, drifted: drifted)
+            fix(stdout: stdout, stderr: stderr, root: root, scan: scan)
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end
 
-          def report(stdout, drifted)
-            JsonPrinter.success(stdout, { ok: true, drifted: drifted, fixed: [] })
+          # Run all three read-only scanners, short-circuiting on the first Err.
+          def collect(root:)
+            lifecycle = Owl::Tasks::Api.lifecycle_drift(root: root)
+            return { error: lifecycle } if lifecycle.err?
+
+            index = Owl::Tasks::Api.index_drift(root: root)
+            return { error: index } if index.err?
+
+            stale = Owl::Tasks::Api.stale_steps(root: root)
+            return { error: stale } if stale.err?
+
+            {
+              drifted: Array(lifecycle.value[:drifted]),
+              index_drift: Array(index.value[:index_drift]),
+              stale_steps: Array(stale.value[:stale_steps])
+            }
           end
 
-          def fix(stdout:, stderr:, root:, drifted:)
+          def report(stdout, scan)
+            JsonPrinter.success(stdout, base_payload(scan).merge(fixed: [], index_rebuilt: false))
+          end
+
+          def fix(stdout:, stderr:, root:, scan:)
             fixed = []
-            drifted.each do |entry|
+            scan[:drifted].each do |entry|
               result = Owl::Tasks::Api.set_status(root: root, task_id: entry[:task_id], status: 'done')
               return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
               fixed << { task_id: entry[:task_id], from: entry[:status], to: 'done' }
             end
 
-            JsonPrinter.success(stdout, { ok: true, drifted: drifted, fixed: fixed })
+            index_rebuilt = false
+            unless scan[:index_drift].empty?
+              rebuilt = Owl::Tasks::Api.rebuild_index(root: root)
+              return JsonPrinter.failure(stderr, **TaskSupport.error_payload(rebuilt)) if rebuilt.err?
+
+              index_rebuilt = true
+            end
+
+            JsonPrinter.success(stdout, base_payload(scan).merge(fixed: fixed, index_rebuilt: index_rebuilt))
+          end
+
+          def base_payload(scan)
+            {
+              ok: true,
+              drifted: scan[:drifted],
+              index_drift: scan[:index_drift],
+              stale_steps: scan[:stale_steps]
+            }
           end
 
           def parse_options(argv)
             options = { root: nil, fix: false }
             parser = OptionParser.new do |opts|
               opts.banner = 'Usage: owl doctor [--fix] [--root PATH] [--json]'
-              opts.on('--fix', 'Reconcile detected drift (open|in_progress -> done)') { options[:fix] = true }
+              opts.on('--fix', 'Reconcile lifecycle + index drift (stale steps stay report-only)') do
+                options[:fix] = true
+              end
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

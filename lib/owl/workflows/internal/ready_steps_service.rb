@@ -117,15 +117,25 @@ module Owl
           predicate.is_a?(Hash) ? predicate : nil
         end
 
-        # Steps flagged `gate: plan_approved` (typically `implement`) are held
-        # out of the ready set — and surfaced under `awaiting_plan_approval` —
-        # until the task's plan approval is recorded and still matches the plan
-        # artifact's current content_sha. Unlike children_complete this applies
-        # to any task kind. Returns [remaining_ready, awaiting_ids].
+        # Steps held out of the ready set — and surfaced under
+        # `awaiting_plan_approval` — until the task's plan approval is recorded
+        # and still matches the plan artifact's current content_sha. A step is
+        # gated when EITHER the workflow definition flags it `gate: plan_approved`
+        # OR the task opted into plan approval (`require_plan_approval: true`,
+        # set at create time or via the `settings.plan_approval.required`
+        # default) and the step consumes the `plan` artifact — the per-task
+        # opt-in makes the checkpoint available on any plan-bearing workflow
+        # (feature/hotfix/refactor) without shipping a duplicate workflow. Unlike
+        # children_complete this applies to any task kind. Returns
+        # [remaining_ready, awaiting_ids].
         def apply_plan_approval_gate(root:, task_id:, payload:, ready:, definition_steps:)
+          opt_in = plan_approval_opt_in?(payload)
           gated_ids = ready.map { |entry| entry[:id].to_s }.select do |id|
             definition = definition_steps[id]
-            definition.is_a?(Hash) && definition['gate'].to_s == GATE_PLAN_APPROVED
+            next false unless definition.is_a?(Hash)
+
+            definition['gate'].to_s == GATE_PLAN_APPROVED ||
+              (opt_in && requires_plan_artifact?(definition))
           end
           return [ready, []] if gated_ids.empty?
 
@@ -135,6 +145,14 @@ module Owl
 
           remaining = ready.reject { |entry| gated_ids.include?(entry[:id].to_s) }
           [remaining, gated_ids]
+        end
+
+        def plan_approval_opt_in?(payload)
+          payload.is_a?(Hash) && payload['require_plan_approval'] == true
+        end
+
+        def requires_plan_artifact?(definition)
+          Array(definition['requires'] || definition[:requires]).map(&:to_s).include?('plan')
         end
 
         # For a composite parent, steps flagged `gate: children_complete` in the

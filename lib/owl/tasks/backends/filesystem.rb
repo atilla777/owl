@@ -87,7 +87,8 @@ module Owl
                     ))
         end
 
-        def create(workflow:, title:, parent_id: nil, kind: nil, step_variants: nil, priority: 0)
+        def create(workflow:, title:, parent_id: nil, kind: nil, step_variants: nil, priority: 0,
+                   require_plan_approval: false)
           paths_result = Internal::Paths.resolve(root: @root)
           return paths_result if paths_result.err?
 
@@ -113,6 +114,7 @@ module Owl
             kind: kind,
             step_variants: step_variants,
             priority: normalize_priority(priority),
+            require_plan_approval: require_plan_approval,
             snapshot: snapshot_result.value
           )
           task_path = Internal::TaskWriter.write(

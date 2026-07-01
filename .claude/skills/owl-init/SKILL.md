@@ -51,7 +51,7 @@ Do not use this skill to:
 ## Inputs
 
 - Repository root with a `.owl/config.yaml` produced by `owl init` (or the wizard runs `owl init` first when the file is missing).
-- User answers through harness Q&A (`AskUserQuestion`) — six questions total, several with sensible defaults so the user can accept the whole flow with just confirmations.
+- User answers through harness Q&A (`AskUserQuestion`) — seven questions total, several with sensible defaults so the user can accept the whole flow with just confirmations.
 
 ## Outputs
 
@@ -62,6 +62,7 @@ Do not use this skill to:
   - `settings.storage.backend` (`filesystem` in v1)
   - `settings.storage.roles.tasks|docs|archive` (defaults shown; per-role override on opt-in)
   - `settings.workflows.enabled` (optional list)
+  - `settings.plan_approval.required` (optional boolean, default absent/`false`; when `true`, every new plan-bearing task holds `implement` at `await_plan_approval` until `owl plan approve`)
   - `settings.ui.auto_render_diagram` (optional boolean, default `false`; when `true`, `owl-orchestrator` prints a workflow diagram once per loop iteration via `bin/owl workflow show TASK-ID`)
 - A short user-facing summary report in `settings.language.communication` describing what was recorded.
 
@@ -98,7 +99,12 @@ Do not use this skill to:
    - On selection: `owl config set settings.workflows.enabled '["..."]'` (JSON array literal).
    - Empty selection: `owl config set settings.workflows.enabled '[]'` (explicit empty list).
 
-8. **Final validation**:
+8. **Q7 — plan-approval checkpoint (optional, default off)**:
+   - Ask: "Require human plan approval before the implement step by default? Owl will pause each plan-bearing task (`feature`/`hotfix`/`refactor`) at `await_plan_approval` until you run `owl plan approve`. [y/N]"
+   - On Y: `owl config set settings.plan_approval.required true`.
+   - On N (default): record nothing (an absent key means not required); mention that any single task can still opt in per-run with `owl task create ... --require-plan-approval`.
+
+9. **Final validation**:
    - Run `owl config validate --root . --json`.
    - On `ok: true`: print a localized summary of the recorded settings.
    - On `ok: false`: report the validation errors and stop; the user must fix manually via `owl config set` or restart the wizard.

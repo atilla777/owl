@@ -2,6 +2,7 @@
 
 require 'optparse'
 
+require_relative '../../../config/api'
 require_relative '../../../tasks/api'
 require_relative '../json_printer'
 require_relative 'task_support'
@@ -33,7 +34,8 @@ module Owl
               parent_id: options[:parent_id],
               kind: options[:kind],
               step_variants: options[:step_variants],
-              priority: options[:priority]
+              priority: options[:priority],
+              require_plan_approval: resolve_require_plan_approval(root: root, options: options)
             )
 
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
@@ -41,6 +43,15 @@ module Owl
             JsonPrinter.success(stdout, success_payload(root: root, result: result))
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
+          end
+
+          # Explicit `--[no-]require-plan-approval` wins; otherwise fall back to
+          # the `settings.plan_approval.required` config default (absent → false).
+          def resolve_require_plan_approval(root:, options:)
+            return options[:require_plan_approval] unless options[:require_plan_approval].nil?
+
+            read = Owl::Config::Api.read_key(root: root, key: 'settings.plan_approval.required')
+            read.ok? && read.value[:value] == true
           end
 
           def success_payload(root:, result:)
@@ -55,17 +66,21 @@ module Owl
 
           def parse_options(argv)
             options = { root: nil, workflow: nil, title: nil, parent_id: nil, kind: nil, step_variants: {},
-                        priority: 0 }
+                        priority: 0, require_plan_approval: nil }
             parser = OptionParser.new do |opts|
               opts.banner = 'Usage: owl task create --workflow KEY --title TITLE ' \
                             '[--parent TASK-ID] [--kind KIND] [--variant STEP=NAME] [--priority N] ' \
-                            '[--root PATH] [--json]'
+                            '[--[no-]require-plan-approval] [--root PATH] [--json]'
               opts.on('--workflow KEY', String) { |v| options[:workflow] = v }
               opts.on('--title TITLE', String) { |v| options[:title] = v }
               opts.on('--parent TASK-ID', String) { |v| options[:parent_id] = v }
               opts.on('--kind KIND', String) { |v| options[:kind] = v }
               opts.on('--priority N', Integer) { |v| options[:priority] = v }
               opts.on('--variant STEP=NAME', String) { |v| add_variant(options, v) }
+              opts.on('--[no-]require-plan-approval',
+                      'Hold implement until `owl plan approve` (overrides config default)') do |v|
+                options[:require_plan_approval] = v
+              end
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

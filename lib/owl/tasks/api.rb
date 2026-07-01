@@ -6,10 +6,12 @@ require_relative 'backend'
 require_relative 'backends/filesystem'
 require_relative 'internal/dependency_writer'
 require_relative 'internal/drift_scanner'
+require_relative 'internal/index_drift_scanner'
 require_relative 'internal/paths'
 require_relative 'internal/plan_approval'
 require_relative 'internal/ready_availability_scanner'
 require_relative 'internal/ready_scanner'
+require_relative 'internal/stale_step_scanner'
 require_relative 'internal/task_reader'
 require_relative 'internal/task_statuses'
 require_relative 'internal/terminal_status'
@@ -26,7 +28,8 @@ module Owl
 
       module_function
 
-      def create(root:, workflow:, title:, parent_id: nil, kind: nil, step_variants: nil, priority: 0)
+      def create(root:, workflow:, title:, parent_id: nil, kind: nil, step_variants: nil, priority: 0,
+                 require_plan_approval: false)
         strip_local(with_backend(root) do |backend|
           backend.create(
             workflow: workflow,
@@ -34,7 +37,8 @@ module Owl
             parent_id: parent_id,
             kind: kind,
             step_variants: step_variants,
-            priority: priority
+            priority: priority,
+            require_plan_approval: require_plan_approval
           )
         end)
       end
@@ -154,6 +158,19 @@ module Owl
       # suggested_status: 'done'}])`.
       def lifecycle_drift(root:)
         Internal::DriftScanner.scan(root: root)
+      end
+
+      # Read-only `tasks/index.yaml` ↔ per-task drift: entries the index is
+      # missing, stale entries whose task dir is gone, and per-field mismatches.
+      # Reconciled by `rebuild_index`.
+      def index_drift(root:)
+        Internal::IndexDriftScanner.scan(root: root)
+      end
+
+      # Read-only detector for orphaned `running` steps (task holds an expired
+      # claim lease). Report-only signal; recovery is `adopt`.
+      def stale_steps(root:, now: Time.now.utc)
+        Internal::StaleStepScanner.scan(root: root, now: now)
       end
 
       def inspect(root:, task_id:)

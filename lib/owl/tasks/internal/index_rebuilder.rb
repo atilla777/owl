@@ -17,6 +17,20 @@ module Owl
         module_function
 
         def rebuild(tasks_root:, index_path:)
+          projection = project(tasks_root: tasks_root)
+
+          payload = { 'schema_version' => SCHEMA_VERSION, 'tasks' => projection[:tasks] }
+          AtomicYamlWriter.write(path: index_path, payload: payload)
+
+          Result.ok(index_path: index_path.to_s, tasks: projection[:tasks], errors: projection[:errors])
+        end
+
+        # Read-only projection of the canonical index straight from the
+        # on-disk task directories — the exact entry set `rebuild` would write,
+        # but without touching the file. Shared by `rebuild` and the
+        # index-drift detector so "what the index should contain" has a single
+        # definition.
+        def project(tasks_root:)
           dir = Pathname.new(tasks_root.to_s)
           entries = []
           errors = []
@@ -30,10 +44,7 @@ module Owl
 
           entries.sort_by! { |entry| IdGenerator.parse(entry['id']) || -1 }
 
-          payload = { 'schema_version' => SCHEMA_VERSION, 'tasks' => entries }
-          AtomicYamlWriter.write(path: index_path, payload: payload)
-
-          Result.ok(index_path: index_path.to_s, tasks: entries, errors: errors)
+          { tasks: entries, errors: errors }
         end
 
         def task_dirs(dir)

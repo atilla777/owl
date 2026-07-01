@@ -234,10 +234,22 @@ task state (works headless and across parallel sessions):
   stale plan can never pass the gate.
 
 The approval is bound to the plan artifact's `content_sha`, so editing the plan
-also invalidates a prior approval. The gate is **off in every seeded
-workflow** and `owl upgrade` never adds it — enabling it is an explicit,
-per-workflow opt-in. `children_complete` (composite-parent wait) is a separate,
-unrelated gate and is unaffected.
+also invalidates a prior approval.
+
+Two ways to enable the checkpoint, both opt-in (default autonomy is unchanged
+and `owl upgrade` never turns it on):
+
+- **Per-workflow** — put `gate: plan_approved` on a step in the workflow YAML
+  (shown above). No seeded workflow declares it.
+- **Per-task** — `owl task create … --require-plan-approval` stamps
+  `require_plan_approval: true` on the task, which holds every step that
+  `requires: [plan]` on any plan-bearing workflow (`feature`/`hotfix`/
+  `refactor`) without editing YAML. Set `settings.plan_approval.required: true`
+  (via `/owl-init` or `owl config set`) to make it the default for new tasks;
+  `--no-require-plan-approval` overrides that default for one autonomous run.
+
+`children_complete` (composite-parent wait) is a separate, unrelated gate and is
+unaffected.
 
 ## 10. Run dependent owl commands sequentially (no parallel mutator→reader)
 

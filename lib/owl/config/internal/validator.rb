@@ -67,7 +67,27 @@ module Owl
           errors.concat(validate_settings_storage(settings['storage']))
           errors.concat(validate_settings_agent_targets(settings['agent_targets']))
           errors.concat(validate_settings_verification(settings['verification']))
+          errors.concat(validate_settings_plan_approval(settings['plan_approval']))
           errors
+        end
+
+        def validate_settings_plan_approval(plan_approval)
+          return [] if plan_approval.nil?
+
+          unless plan_approval.is_a?(Hash)
+            return [{
+              code: :invalid_settings_plan_approval_shape,
+              message: 'settings.plan_approval must be a mapping when present'
+            }]
+          end
+
+          required = plan_approval['required']
+          return [] if required.nil? || [true, false].include?(required)
+
+          [{
+            code: :invalid_settings_plan_approval_required,
+            message: 'settings.plan_approval.required must be a boolean when present'
+          }]
         end
 
         def validate_settings_verification(verification)
