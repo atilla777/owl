@@ -62,6 +62,7 @@ module OwlConstitutionFixtures
     tasks/internal/id_generator.rb
     tasks/internal/index_reader.rb
     tasks/internal/index_rebuilder.rb
+    tasks/internal/integrity_scanner.rb
     tasks/internal/task_reader.rb
     validation/internal/schema_check.rb
     validation/internal/schema_resolver.rb

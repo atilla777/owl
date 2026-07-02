@@ -16,7 +16,10 @@ module Owl
 
           def run(argv:, stdout:, stderr:, cwd:, env: ENV.to_h) # rubocop:disable Lint/UnusedMethodArgument
             options, positional = parse_options(argv)
-            parent_id = positional.first
+            # Parent id is a positional argument; `--parent PARENT-ID` is accepted
+            # as a back-compat alias (older skill/README docs taught that form).
+            # The positional wins when both are given.
+            parent_id = positional.first || options[:parent]
             unless parent_id && options[:workflow] && options[:title]
               return JsonPrinter.failure(
                 stderr,
@@ -95,10 +98,14 @@ module Owl
           end
 
           def parse_options(argv)
-            options = { root: nil, workflow: nil, title: nil, brief_path: nil, brief_body: nil }
+            options = { root: nil, workflow: nil, title: nil, brief_path: nil, brief_body: nil, parent: nil }
             parser = OptionParser.new do |opts|
               opts.banner = 'Usage: owl task child create TASK-ID --workflow KEY --title TITLE ' \
                             '[--brief PATH | --brief-body -] [--root PATH] [--json]'
+              opts.on('--parent PARENT-ID', String,
+                      'Back-compat alias for the positional parent id') do |v|
+                options[:parent] = v
+              end
               opts.on('--workflow KEY', String) { |v| options[:workflow] = v }
               opts.on('--title TITLE', String) { |v| options[:title] = v }
               opts.on('--brief PATH', String, 'Pre-author child brief.md from PATH; marks brief step done') do |v|

@@ -325,7 +325,47 @@ module Owl
         end
       end
 
+      # Subcommand verbs for the nested `task <group>` routers, used to make
+      # `owl task <group>` (bare) and `owl task <group> --help` reachable —
+      # otherwise both fell through to `unknown_command`, which reads as "this
+      # command does not exist" even though `owl task --help` advertises it.
+      TASK_SUBGROUP_SUBCOMMANDS = {
+        'child' => %w[create],
+        'index' => %w[rebuild],
+        'label' => %w[add rm],
+        'dep' => %w[add rm remove list]
+      }.freeze
+
+      # Intercept a nested `task <group>` invocation that carries no real verb:
+      # `--help`/`-h` (or a lone `--json`) prints the subcommand listing (exit
+      # 0), a bare group returns a structured `missing_subcommand` error (exit
+      # 1). Returns an Integer exit code when handled, or nil to fall through to
+      # the group's real dispatch.
+      def task_subgroup_intercept(group, args, stdout:, stderr:)
+        subs = TASK_SUBGROUP_SUBCOMMANDS.fetch(group)
+        label = "task #{group}"
+        if args.empty?
+          return Internal::JsonPrinter.failure(
+            stderr,
+            code: :missing_subcommand,
+            message: "Missing subcommand for '#{label}'. Expected one of: #{subs.join(', ')}.",
+            details: { group: label, subcommands: subs }
+          )
+        end
+        return nil unless args.all? { |arg| HELP_FLAGS.include?(arg) || arg == '--json' }
+
+        if args.include?('--json')
+          return Internal::JsonPrinter.success(stdout, { ok: true, command: label, subcommands: subs })
+        end
+
+        stderr.puts(Internal::HelpText.group_help_text(label, subs))
+        0
+      end
+
       def dispatch_task_child(args, stdout:, stderr:, cwd:, env:)
+        intercepted = task_subgroup_intercept('child', args, stdout: stdout, stderr: stderr)
+        return intercepted if intercepted
+
         subcommand = args.shift
         case subcommand
         when 'create'
@@ -364,6 +404,9 @@ module Owl
       end
 
       def dispatch_task_label(args, stdout:, stderr:, cwd:, env:)
+        intercepted = task_subgroup_intercept('label', args, stdout: stdout, stderr: stderr)
+        return intercepted if intercepted
+
         subcommand = args.shift
         kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case subcommand
@@ -375,18 +418,24 @@ module Owl
       end
 
       def dispatch_task_dep(args, stdout:, stderr:, cwd:, env:)
+        intercepted = task_subgroup_intercept('dep', args, stdout: stdout, stderr: stderr)
+        return intercepted if intercepted
+
         subcommand = args.shift
         kwargs = { argv: args, stdout: stdout, stderr: stderr, cwd: cwd, env: env }
         case subcommand
-        when 'add'  then Internal::Commands::TaskDep.add(**kwargs)
-        when 'rm'   then Internal::Commands::TaskDep.rm(**kwargs)
-        when 'list' then Internal::Commands::TaskDep.list(**kwargs)
+        when 'add'           then Internal::Commands::TaskDep.add(**kwargs)
+        when 'rm', 'remove'  then Internal::Commands::TaskDep.rm(**kwargs)
+        when 'list'          then Internal::Commands::TaskDep.list(**kwargs)
         else
           unknown_command(stderr, "task dep #{subcommand}".strip)
         end
       end
 
       def dispatch_task_index(args, stdout:, stderr:, cwd:, env:)
+        intercepted = task_subgroup_intercept('index', args, stdout: stdout, stderr: stderr)
+        return intercepted if intercepted
+
         subcommand = args.shift
         case subcommand
         when 'rebuild'

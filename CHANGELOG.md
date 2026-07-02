@@ -4,6 +4,53 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.7.0] - 2026-07-02
+
+Composite-planning hardening: warts surfaced while decomposing a real consumer
+feature into a parent + 9 children over `owl … --json` only, where non-atomic
+and non-recursive operations left inconsistent state an agent then had to hand-clean.
+
+### Fixed
+- **`owl task child create --brief-body` is now atomic.** An invalid inline
+  brief returned `brief_invalid` but left the just-created child task directory,
+  its invalid `brief.md`, and its `tasks/index.yaml` entry on disk — a failed
+  operation with durable side effects, dangerous for autonomous agents. The
+  child is now rolled back on any brief-seed failure (no task, no files, no
+  index entry survive); the error carries `details.rolled_back: true`. This
+  supersedes the need for `side_effects_applied` error metadata.
+- **`owl task delete` no longer silently orphans children.** Deleting a
+  composite parent removed only its directory, leaving every child with a
+  `parent_id` pointing at a now-missing task. Delete now returns
+  `task_has_children` (with the child + descendant lists) unless `--recursive`
+  is passed; `--recursive` removes the whole subtree and reports every removed
+  id in `removed_task_ids`. `blocked_by` edges to any deleted id are scrubbed.
+- **Nested `task` group help is reachable.** `owl task dep`, `owl task label`,
+  `owl task child`, and `owl task index` returned `unknown_command` for a bare
+  group or `--help`, even though `owl task --help` advertised them. A bare group
+  now returns a structured `missing_subcommand`; `--help` / `--json` list the
+  subcommands.
+- **`owl task tree TASK-ID` returns only that task's subtree.** It previously
+  ignored the id and returned the entire forest, forcing callers to filter
+  unrelated top-level tasks; omitting TASK-ID still returns the full forest, and
+  an unknown id returns `task_not_found`. (The `[TASK-ID]` form the docs already
+  promised now works.)
+
+### Added
+- **`owl task dep remove TASK-ID --on DEP-ID`** as an alias for `dep rm`, so the
+  reverse of `dep add` is discoverable (both accepted). `dep list` / `dep rm`
+  idempotency documented: `add` de-dupes, `remove` of an absent edge is a clean
+  no-op.
+- **`owl task child create` accepts `--parent PARENT-ID`** as a back-compat
+  alias for the positional parent id (older skill/README docs taught that form,
+  which errored with `invalid option: --parent`). Docs corrected to the
+  positional form.
+- **`owl doctor` gains referential-integrity scans.** It now reports `orphans`
+  (a task whose `parent_id` names a missing task) and `dangling_deps` (a task
+  whose `blocked_by` references missing tasks) alongside the existing lifecycle
+  / index / stale-step drift. Both are report-only (a human decides re-parent
+  vs delete, keep vs drop the edge); `Owl::Tasks::Api.integrity_drift` exposes
+  the same scan.
+
 ## [1.6.0] - 2026-07-01
 
 ### Fixed

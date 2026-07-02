@@ -37,23 +37,27 @@ module Owl
 
             stderr.puts("WARNING: physical task deletion is irreversible: #{options[:task_id]}")
 
-            result = Owl::Tasks::Api.delete(root: root, task_id: options[:task_id])
+            result = Owl::Tasks::Api.delete(root: root, task_id: options[:task_id], recursive: options[:recursive])
             return JsonPrinter.failure(stderr, **TaskSupport.error_payload(result)) if result.err?
 
             JsonPrinter.success(stdout, {
                                   ok: true,
                                   task_id: result.value[:task_id],
-                                  removed: result.value[:removed] == true
+                                  removed: result.value[:removed] == true,
+                                  removed_task_ids: Array(result.value[:removed_task_ids])
                                 })
           rescue OptionParser::ParseError => e
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end
 
           def parse_options(argv)
-            options = { root: nil, task_id: nil, force: false }
+            options = { root: nil, task_id: nil, force: false, recursive: false }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl task delete TASK-ID --force [--root PATH] [--json]'
+              opts.banner = 'Usage: owl task delete TASK-ID --force [--recursive] [--root PATH] [--json]'
               opts.on('--force', 'Required: confirms irreversible physical deletion') { options[:force] = true }
+              opts.on('--recursive', 'Delete the whole subtree (composite parent + all descendants)') do
+                options[:recursive] = true
+              end
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }
             end

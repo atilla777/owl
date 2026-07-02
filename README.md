@@ -353,7 +353,7 @@ owl status TASK-ID --json
 # 6. For composite tasks, walk the subtree
 owl task tree TASK-ID --json
 owl task aggregate-status PARENT-ID --json
-owl task child create --parent PARENT-ID --workflow feature \
+owl task child create PARENT-ID --workflow feature \
   --title "Slice 1: enforce tenant_id in repository layer"
 
 # 7. Publish approved artifacts into docs/

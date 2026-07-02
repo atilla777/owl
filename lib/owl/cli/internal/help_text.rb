@@ -33,13 +33,13 @@ module Owl
             task create             Create a new task from a registered workflow.
             task list               List tasks from tasks/index.yaml.
             task abandon            Mark a task as abandoned (soft, reversible by editing task.yaml).
-            task delete             Physically remove a task directory (requires --force).
+            task delete             Physically remove a task directory (requires --force; --recursive for a composite subtree).
             task inspect            Show full task.yaml payload for a TASK-ID.
             task use                Set the current task pointer (.owl/local/current.yaml).
             task current            Show the current task payload.
             task ready-steps        Compute ready steps for a TASK-ID (workflow graph).
             task index rebuild      Rebuild tasks/index.yaml from task.yaml files.
-            task tree               Print the full parent → child task tree (JSON).
+            task tree               Print a task subtree by TASK-ID, or the full parent → child forest when omitted (JSON).
             task children           List child tasks of a composite parent (JSON).
             task parent             Show parent task (or null) for a TASK-ID.
             task aggregate-status   Aggregate state for a composite task (JSON).
@@ -50,7 +50,7 @@ module Owl
             task claims             List active claim leases across the repo (JSON).
             task available          List runnable, unclaimed tasks ranked best-first (JSON).
             task ready              List dependency-ready tasks (all blocked_by deps complete, unclaimed, non-terminal), ranked best-first (JSON).
-            task dep                Manage cross-task dependencies: dep <add|rm> TASK --on DEP | dep list TASK (blocked_by + computed blocks).
+            task dep                Manage cross-task dependencies: dep <add|rm|remove> TASK --on DEP | dep list TASK (blocked_by + computed blocks).
             task set-priority       Set a task's integer priority: set-priority TASK-ID N.
             task set-status         Set a task's explicit lifecycle status: set-status TASK-ID <open|in_progress|blocked|on_hold|done|archived>.
             task label              Add or remove a label: label <add|rm> TASK-ID LABEL (add idempotent, rm of absent is a no-op).
@@ -82,7 +82,7 @@ module Owl
             status                  Show workflow progress for a task (steps, progress, blockers, children).
             upgrade                 Refresh this project's copied Owl seed files (skills, managed workflow/artifact files, registry merge) after a gem update; preserves project-owned content. --dry-run to preview.
             self-update             Update the owl-cli gem itself from github main (clone→build→install). --check to compare versions only.
-            doctor                  Repo health reconciler (JSON): reports lifecycle status-drift, tasks/index.yaml drift, and orphaned running steps (expired lease). --fix promotes complete-but-open tasks to done and rebuilds a drifted index; stale steps stay report-only (recover with `owl task adopt`).
+            doctor                  Repo health reconciler (JSON): reports lifecycle status-drift, tasks/index.yaml drift, orphaned running steps (expired lease), orphan tasks (parent_id → missing task), and dangling blocked_by refs. --fix promotes complete-but-open tasks to done and rebuilds a drifted index; stale steps / orphans / dangling deps stay report-only.
 
           Global options:
             --help, -h              Show this help message.

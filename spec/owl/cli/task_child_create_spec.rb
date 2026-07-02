@@ -200,7 +200,7 @@ RSpec.describe 'owl task child create + owl task create --parent allowed_childre
     end
   end
 
-  it 'child create --brief-body - rejects an invalid brief body with a validation error (TASK-0024 FF5)' do
+  it 'child create --brief-body - rejects an invalid brief body atomically (rolls back the task)' do
     with_tmp_project do |root|
       init_strict_composite(root)
       run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
@@ -215,11 +215,11 @@ RSpec.describe 'owl task child create + owl task create --parent allowed_childre
       payload = JSON.parse(stderr)
       expect(payload['ok']).to be(false)
       expect(payload.dig('error', 'code')).to eq('brief_invalid')
-      # The brief step is NOT silently marked done.
-      brief_path = root + 'tasks/TASK-0002/task.yaml'
-      payload_yaml = YAML.safe_load(brief_path.read, aliases: false, permitted_classes: [Time])
-      brief_step = payload_yaml['steps'].find { |s| s['id'] == 'brief' }
-      expect(brief_step['status']).to eq('pending')
+      # Atomic: the failed op leaves NO task dir, NO brief.md, NO index entry.
+      expect(payload.dig('error', 'details', 'rolled_back')).to be(true)
+      expect((root + 'tasks/TASK-0002').exist?).to be(false)
+      index = YAML.safe_load((root + 'tasks/index.yaml').read, aliases: false, permitted_classes: [Time])
+      expect(Array(index['tasks']).map { |t| t['id'] }).not_to include('TASK-0002')
     end
   end
 

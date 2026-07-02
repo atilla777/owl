@@ -87,7 +87,7 @@ module Owl
           def parse_options(argv)
             options = { root: nil, on: nil }
             parser = OptionParser.new do |opts|
-              opts.banner = 'Usage: owl task dep <add|rm|list> TASK-ID [--on DEP] [--root PATH] [--json]'
+              opts.banner = 'Usage: owl task dep <add|rm|remove|list> TASK-ID [--on DEP] [--root PATH] [--json]'
               opts.on('--on DEP', String) { |v| options[:on] = v }
               opts.on('--root PATH', String) { |v| options[:root] = v }
               opts.on('--json', 'Force JSON output (default)') { options[:json] = true }

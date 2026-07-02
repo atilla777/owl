@@ -20,11 +20,18 @@ module Owl
         # - `stale_steps`  a `running` step orphaned by a dead session (task
         #                  holds an expired claim lease). Report-only — recovery
         #                  is `owl task adopt`, never auto-mutated here.
+        # - `orphans`      a task whose `parent_id` names a missing task (a
+        #                  parent deleted before delete grew its recursive
+        #                  guard). Report-only — a human re-parents or deletes.
+        # - `dangling_deps` a task whose `blocked_by` references missing tasks.
+        #                  Report-only — scrub with `owl task dep remove`.
         #
         # With `--fix`, the two safe/deterministic classes are reconciled:
         # lifecycle via `Tasks::Api.set_status` (→ `fixed`) and index via
-        # `Tasks::Api.rebuild_index` (→ `index_rebuilt`). `stale_steps` is always
-        # report-only.
+        # `Tasks::Api.rebuild_index` (→ `index_rebuilt`). `stale_steps`,
+        # `orphans`, and `dangling_deps` stay report-only — each needs human
+        # judgement (re-parent vs delete, keep vs drop) that a mechanical fix
+        # cannot safely make.
         module Doctor
           module_function
 
@@ -44,7 +51,7 @@ module Owl
             JsonPrinter.failure(stderr, code: :invalid_arguments, message: e.message)
           end
 
-          # Run all three read-only scanners, short-circuiting on the first Err.
+          # Run all read-only scanners, short-circuiting on the first Err.
           def collect(root:)
             lifecycle = Owl::Tasks::Api.lifecycle_drift(root: root)
             return { error: lifecycle } if lifecycle.err?
@@ -55,10 +62,15 @@ module Owl
             stale = Owl::Tasks::Api.stale_steps(root: root)
             return { error: stale } if stale.err?
 
+            integrity = Owl::Tasks::Api.integrity_drift(root: root)
+            return { error: integrity } if integrity.err?
+
             {
               drifted: Array(lifecycle.value[:drifted]),
               index_drift: Array(index.value[:index_drift]),
-              stale_steps: Array(stale.value[:stale_steps])
+              stale_steps: Array(stale.value[:stale_steps]),
+              orphans: Array(integrity.value[:orphans]),
+              dangling_deps: Array(integrity.value[:dangling_deps])
             }
           end
 
@@ -91,7 +103,9 @@ module Owl
               ok: true,
               drifted: scan[:drifted],
               index_drift: scan[:index_drift],
-              stale_steps: scan[:stale_steps]
+              stale_steps: scan[:stale_steps],
+              orphans: scan[:orphans],
+              dangling_deps: scan[:dangling_deps]
             }
           end
 

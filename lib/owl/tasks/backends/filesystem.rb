@@ -194,8 +194,8 @@ module Owl
           Internal::AbandonWriter.call(root: @root, task_id: task_id, reason: reason, now: now)
         end
 
-        def delete_task(task_id:)
-          Internal::Deleter.call(root: @root, task_id: task_id)
+        def delete_task(task_id:, recursive: false)
+          Internal::Deleter.call(root: @root, task_id: task_id, recursive: recursive)
         end
 
         def claim(task_id: nil, next_: false, ttl: nil, label: nil, steal: false)
@@ -258,8 +258,8 @@ module Owl
           Internal::ParentResolver.call(root: @root, task_id: task_id)
         end
 
-        def tree
-          Internal::TreeBuilder.call(root: @root)
+        def tree(root_id: nil)
+          Internal::TreeBuilder.call(root: @root, root_id: root_id)
         end
 
         def aggregate_status(task_id:)

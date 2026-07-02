@@ -12,7 +12,12 @@ module Owl
 
         module_function
 
-        def call(root:)
+        # When `root_id` is nil, return the full forest (every top-level task +
+        # its descendants). When `root_id` names a task, return ONLY that task's
+        # subtree (itself + descendants) as a single-element `tasks` array, so an
+        # agent asking for one composite parent's tree does not have to filter
+        # unrelated top-level tasks out of the response.
+        def call(root:, root_id: nil)
           paths_result = Paths.resolve(root: root)
           return paths_result if paths_result.err?
 
@@ -21,11 +26,29 @@ module Owl
 
           entries = (index_result.value[:tasks] || []).grep(Hash)
           children_by_parent = entries.group_by { |e| e['parent_id'].to_s }
-          roots = entries.select { |e| e['parent_id'].to_s.empty? }
+
+          roots = subtree_roots(entries: entries, root_id: root_id)
+          return roots if roots.is_a?(Owl::Result::Err)
 
           warnings = []
           tree = roots.map { |entry| build_node(entry, children_by_parent, 0, Set.new, [], warnings) }
           Result.ok(tasks: tree, warnings: warnings)
+        end
+
+        # Resolve the set of root entries to expand: the whole forest for a nil
+        # `root_id`, or just the single named entry (its subtree) otherwise.
+        # Returns a `task_not_found` Err when `root_id` is unknown.
+        def subtree_roots(entries:, root_id:)
+          return entries.select { |e| e['parent_id'].to_s.empty? } if root_id.nil?
+
+          entry = entries.find { |e| e['id'].to_s == root_id.to_s }
+          return [entry] if entry
+
+          Result.err(
+            code: :task_not_found,
+            message: "Task '#{root_id}' not found in tasks/index.yaml.",
+            details: { task_id: root_id.to_s }
+          )
         end
 
         def build_node(entry, children_by_parent, depth, seen, ancestor_ids, warnings)

@@ -71,9 +71,9 @@ Representative commands:
 - `owl task children PARENT-ID --json`
 - `owl task parent TASK-ID --json`
 - `owl task aggregate-status PARENT-ID --json`
-- `owl task child create --parent PARENT-ID --workflow KEY --title "..." [--json]`
+- `owl task child create PARENT-ID --workflow KEY --title "..." [--brief-body -] [--json]` (PARENT-ID is positional; `--parent PARENT-ID` is accepted as a back-compat alias). A failed `--brief-body` rolls the child back — no task, files, or index entry survive.
 - `owl task abandon TASK-ID [--reason TEXT]`
-- `owl task delete TASK-ID --force`
+- `owl task delete TASK-ID --force [--recursive]` (a composite parent with children needs `--recursive`, else `task_has_children`)
 - `owl task list [--include-abandoned]`
 - `owl step start TASK-ID STEP-ID [--variant NAME] [--ignore-modification]`
 - `owl step complete TASK-ID STEP-ID [--ignore-modification]`
@@ -173,16 +173,17 @@ Given a situation, call the mapped command:
 ### Task lifecycle
 
 - `owl task create --workflow KEY --title "..." [--json]` — create a top-level task.
-- `owl task child create --parent PARENT-ID --workflow KEY --title "..." [--json]` — create a child task under a composite parent.
+- `owl task child create PARENT-ID --workflow KEY --title "..." [--brief-body -] [--json]` — create a child task under a composite parent (PARENT-ID positional; `--parent PARENT-ID` accepted as a legacy alias). `--brief-body` seeds+validates the child brief; on invalid brief the whole child is rolled back (no task/files/index entry survive) and the error carries `details.rolled_back: true`.
 - `owl task list [--include-abandoned] --json` — read `tasks/index.yaml`. Excludes tasks with `status: abandoned` by default; `--include-abandoned` opts them back in (archived tasks are physically in `archive/` so they never appear here).
 - `owl task inspect TASK-ID --json` — read the full `task.yaml` payload.
 - `owl task use TASK-ID` — set `.owl/local/current.yaml` pointer.
 - `owl task current --json` — read current task pointer.
 - `owl task index rebuild --json` — rebuild `tasks/index.yaml` from on-disk `task.yaml` files.
-- `owl task tree [TASK-ID] --json` / `owl task children PARENT-ID --json` / `owl task parent TASK-ID --json` — traverse parent/child relationships.
+- `owl task tree [TASK-ID] --json` / `owl task children PARENT-ID --json` / `owl task parent TASK-ID --json` — traverse parent/child relationships. `task tree TASK-ID` returns only that task's subtree; omit TASK-ID for the full forest.
+- `owl task dep add|remove|rm TASK-ID --on DEP-ID --json` / `owl task dep list TASK-ID --json` — add / drop / read a `blocked_by` edge without editing task files (`add` de-dupes, `remove` of an absent edge is a clean no-op). `remove` and `rm` are aliases.
 - `owl task aggregate-status PARENT-ID --json` — aggregate state for a composite parent.
 - `owl task abandon TASK-ID [--reason TEXT] --json` — soft-abandon a task. Writes `status: abandoned`, `abandoned_at`, optional `abandon_reason` into `task.yaml`; rebuilds the index. Files stay in place. Idempotent (without `--reason`) on already-abandoned tasks. Returns `task_not_found` for unknown IDs.
-- `owl task delete TASK-ID --force --json` — physically remove `tasks/TASK-ID/` and rebuild `tasks/index.yaml`. Without `--force` returns `confirmation_required` and does not touch files. Prints a stderr warning before deletion. Returns `task_not_found` for unknown IDs. Does NOT remove archived tasks under `archive/`.
+- `owl task delete TASK-ID --force [--recursive] --json` — physically remove `tasks/TASK-ID/` and rebuild `tasks/index.yaml`. Without `--force` returns `confirmation_required` and does not touch files. A composite parent that still has children returns `task_has_children` (with the child list) unless `--recursive` is passed, which deletes the whole subtree (`removed_task_ids` lists every removed id). Prints a stderr warning before deletion. Returns `task_not_found` for unknown IDs. Does NOT remove archived tasks under `archive/`.
 
 ### Step execution
 

@@ -83,7 +83,7 @@ module Owl
         raise NotImplementedError
       end
 
-      def tree
+      def tree(root_id: nil)
         raise NotImplementedError
       end
 

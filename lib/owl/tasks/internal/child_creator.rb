@@ -9,6 +9,7 @@ require_relative '../../steps/internal/status_writer'
 require_relative '../../storage/api'
 require_relative '../../validation/api'
 require_relative 'allowed_children_guard'
+require_relative 'deleter'
 require_relative 'paths'
 require_relative 'task_reader'
 
@@ -59,9 +60,32 @@ module Owl
             brief_body: brief_body,
             validate_brief: validate_brief
           )
-          return seed_result if seed_result.is_a?(Result::Err)
+          if seed_result.is_a?(Result::Err)
+            return rollback_created_child(root: root, task_id: create_result.value[:task_id], error: seed_result)
+          end
 
           refresh_payload(create_result: create_result, tasks_root: tasks_root)
+        end
+
+        # Atomicity guard: when seeding the inline brief fails (most commonly
+        # `brief_invalid`), the child task directory + index entry created a
+        # moment ago are a durable side effect of an operation the caller sees
+        # as failed — dangerous for autonomous agents, which read the error and
+        # assume nothing was written. Delete the just-created child so a failed
+        # `child create --brief-body` leaves no task, no files, and no index
+        # entry, then re-raise the original error annotated with
+        # `rolled_back: true`. Best-effort: if the rollback delete itself fails,
+        # fall back to the un-annotated error rather than masking the root cause.
+        def rollback_created_child(root:, task_id:, error:)
+          delete = Deleter.call(root: root, task_id: task_id)
+          return error if delete.err?
+
+          Result.err(
+            code: error.code,
+            message: error.message,
+            details: (error.details || {}).merge(rolled_back: true),
+            error_class: error.error_class
+          )
         end
 
         # The create result's payload was captured before `seed_brief` flipped

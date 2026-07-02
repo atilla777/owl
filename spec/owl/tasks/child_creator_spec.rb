@@ -216,7 +216,7 @@ RSpec.describe 'Owl::Tasks::Api.child_create' do
     end
   end
 
-  it 'returns brief_invalid and leaves brief pending when validate_brief rejects the body' do
+  it 'returns brief_invalid and rolls the child back when validate_brief rejects the body' do
     with_tmp_project do |root|
       init_with_workflows(root)
       run(['task', 'create', '--workflow', 'composite_feature', '--title', 'P', '--root', root.to_s], cwd: root)
@@ -228,11 +228,11 @@ RSpec.describe 'Owl::Tasks::Api.child_create' do
       expect(result.err?).to be(true)
       expect(result.code).to eq(:brief_invalid)
       expect(result.message).to include('failed validation')
+      expect(result.details[:rolled_back]).to be(true)
 
+      # Atomic: the child directory the failed create touched is gone.
       child_id = result.details[:task_id]
-      payload = YAML.safe_load((root + "tasks/#{child_id}/task.yaml").read, aliases: false, permitted_classes: [Time])
-      brief_step = payload['steps'].find { |s| s['id'] == 'brief' }
-      expect(brief_step['status']).to eq('pending')
+      expect((root + "tasks/#{child_id}").exist?).to be(false)
     end
   end
 

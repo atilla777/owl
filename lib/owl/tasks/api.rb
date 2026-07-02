@@ -7,6 +7,7 @@ require_relative 'backends/filesystem'
 require_relative 'internal/dependency_writer'
 require_relative 'internal/drift_scanner'
 require_relative 'internal/index_drift_scanner'
+require_relative 'internal/integrity_scanner'
 require_relative 'internal/paths'
 require_relative 'internal/plan_approval'
 require_relative 'internal/ready_availability_scanner'
@@ -173,6 +174,14 @@ module Owl
         Internal::StaleStepScanner.scan(root: root, now: now)
       end
 
+      # Read-only referential-integrity scan: `Result.ok(orphans: [...],
+      # dangling_deps: [...])`. `orphans` are tasks whose `parent_id` names a
+      # missing task; `dangling_deps` are tasks whose `blocked_by` references
+      # missing tasks. Report-only — surfaced by `owl doctor`, never auto-fixed.
+      def integrity_drift(root:)
+        Internal::IntegrityScanner.scan(root: root)
+      end
+
       def inspect(root:, task_id:)
         strip_local(with_backend(root) { |backend| backend.inspect_task(task_id: task_id) })
       end
@@ -231,8 +240,8 @@ module Owl
         with_backend(root) { |backend| backend.parent(task_id: task_id) }
       end
 
-      def tree(root:)
-        with_backend(root, &:tree)
+      def tree(root:, root_id: nil)
+        with_backend(root) { |backend| backend.tree(root_id: root_id) }
       end
 
       def aggregate_status(root:, task_id:)
@@ -261,8 +270,8 @@ module Owl
         end)
       end
 
-      def delete(root:, task_id:)
-        with_backend(root) { |backend| backend.delete_task(task_id: task_id) }
+      def delete(root:, task_id:, recursive: false)
+        with_backend(root) { |backend| backend.delete_task(task_id: task_id, recursive: recursive) }
       end
 
       def local_paths(root:, task_id: nil)
