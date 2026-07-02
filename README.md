@@ -24,8 +24,9 @@ gem install ./owl-cli-*.gem
 # in your target project
 cd /path/to/your/project
 owl init               # materialize .owl/, skills, commands, seeded workflows
-                       # → ready to use: workflows `feature` and `composite_feature`
-                       #   are enabled, default language is `en`.
+                       # → ready to use: workflows `feature`, `composite_feature`,
+                       #   `hotfix`, `refactor`, and `quick` are all enabled;
+                       #   default language is `en`.
 
 # Optional — customize language, storage paths, enabled-workflow filter.
 # Inside Claude Code (agent loads the `owl-init` skill, asks via AskUserQuestion):
@@ -46,10 +47,13 @@ for the full install recipe.
 
 ## What Owl gives you
 
-- **Workflow-driven task lifecycle.** Built-in `feature` and
-  `composite_feature` workflows; each is a graph of typed steps. Bug
-  and refactor framings are not separate workflows — they are
-  **variants** of the `brief` step.
+- **Workflow-driven task lifecycle.** Five built-in workflows seeded and
+  enabled by `owl init`: `feature` (default), `composite_feature`, `hotfix`
+  (lean urgent fix — brief → implement → review_code → commit_push), `refactor`
+  (full-ceremony refactoring flow), and `quick` (minimal autonomous
+  brief → implement → commit_push). Each is a graph of typed steps. On top of
+  the workflow choice, the `brief` step also has bug (`root_cause`) and refactor
+  (`problem_inventory`) framing **variants**.
 - **Declarative artifacts.** Every step declares which artifact(s) it
   produces; each artifact type has a Markdown template, a required-
   section list (each section `error` = blocking or `warning` =
@@ -70,7 +74,7 @@ for the full install recipe.
   an approved `design` is flipped to `shipped` (source + copy), and a
   generated `docs/README.md` index of published task docs is refreshed.
 - **Pluggable storage.** Storage roles (`tasks`, `docs`, `archive`,
-  `control`, `local_state`, `index`) live in `.owl/config.yaml`;
+  `control`, `local_state`, `index`, `specs`) live in `.owl/config.yaml`;
   workflow YAML never hard-codes physical paths.
 - **Upgrade-safe customization.** Owl-shipped workflows and artifact
   types are `managed: true` (read-only from the project side); you
@@ -114,8 +118,9 @@ for the full install recipe.
 
 The loop is always the same:
 
-1. **Create a task** with a workflow key (`feature`, `composite_feature`)
-   and a title — optionally choosing a `brief` variant.
+1. **Create a task** with a workflow key (`feature`, `composite_feature`,
+   `hotfix`, `refactor`, `quick`) and a title — optionally choosing a
+   `brief` variant.
 2. **Ask the orchestrator** for the next ready step
    (`owl task ready-steps`).
 3. **Execute the step.** `owl step show TASK-ID STEP-ID --json` returns
@@ -235,7 +240,14 @@ steps:
     tier: advanced
     context_file: implement.context.md
     requires: [plan]
-    creates: [verification]
+  - id: review_code
+    skill: owl-step-execution
+    session_type: execution
+    tier: advanced
+    verify: true
+    context_file: review_code.context.md
+    requires: [implement]
+    creates: [review, verification]
 ```
 
 `owl step show TASK-ID brief --json` returns a merged bundle (step
@@ -404,7 +416,7 @@ the `owl` executable plus all seed files for `owl init`).
 gem build owl-cli.gemspec          # produces owl-cli-<version>.gem
 gem install ./owl-cli-*.gem        # puts `owl` on PATH
 
-owl --version                      # → owl 0.1.0
+owl --version                      # → owl <version>, e.g. owl 1.7.1
 ```
 
 **Alternative — Bundler in the target project:**
@@ -443,15 +455,17 @@ alone. Pass `--force` only if the user explicitly asks to overwrite.
 `owl init` materializes (from the repo-root seeds in this repository):
 
 - `.owl/config.yaml` with default storage roles
-- `.owl/workflows.yaml` — workflow registry (`feature`, `composite_feature` enabled by default)
+- `.owl/workflows.yaml` — workflow registry (`feature`, `composite_feature`,
+  `hotfix`, `refactor`, `quick` — all enabled by default)
 - `.owl/artifacts.yaml` — artifact-type registry
-- `.owl/workflows/feature/` and `.owl/workflows/composite_feature/`
+- `.owl/workflows/{feature,composite_feature,hotfix,refactor,quick}/`
   (workflow YAML + per-step `.context.md` files + brief variants)
 - `.owl/artifacts/<type>/` for `brief`, `design`, `plan`, `review`,
   `verification`, `decomposition`, `spec`, `spec_delta` (each with
   `artifact.yaml` and default Markdown templates)
 - `.owl/overlays/<step>.md` — one overlay per step id (`brief`, `design`,
-  `plan`, `implement`, `review_code`, `merge_docs`, `archive`, `commit_push`)
+  `plan`, `implement`, `review_code`, `merge_docs`, `archive`, `commit_push`,
+  plus `orchestrator` for coordinator-level guidance)
 - `tasks/index.yaml` — empty task index
 - `docs/.keep` — placeholder so the storage role exists
 - `.claude/skills/owl-cli/SKILL.md`
@@ -603,7 +617,7 @@ in `.owl/workflows.yaml` (seeded by `owl init`); `owl workflow list
 
 ```bash
 owl config validate --json     # → {ok: true, errors: []}
-owl workflow list --json       # → at least `feature` and `composite_feature`
+owl workflow list --json       # → feature, composite_feature, hotfix, refactor, quick
 owl artifact-type list --json  # → brief, design, plan, review, verification, decomposition, spec, spec_delta
 ```
 

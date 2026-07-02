@@ -55,8 +55,9 @@ Registered in `.owl/workflows.yaml`:
 - `composite_feature` — large feature decomposed into child tasks.
 - `hotfix` — urgent fix.
 - `refactor` — refactoring with explicit impact analysis.
+- `quick` — minimal autonomous single-prompt change (brief → implement → commit_push).
 
-`hotfix` is a lean urgent-fix flow (brief → implement → review_code → commit_push; no design/plan/archive). `refactor` was scaffolded from `feature` and still carries the full ceremony; tailor it via `/owl-author` before serious use.
+`hotfix` is a lean urgent-fix flow (brief → implement → review_code → commit_push; no design/plan/archive). `refactor` was scaffolded from `feature` and still carries the full ceremony; tailor it via `/owl-author` before serious use. `quick` is autonomous (`execution_mode: autonomous`) — even its `brief` step proceeds without prompting, synthesising the brief from the task request; no design/plan/review/archive.
 
 ## Source-Of-Truth Rule
 

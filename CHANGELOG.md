@@ -4,6 +4,28 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.7.1] - 2026-07-02
+
+Documentation-only sync: a hands-on test install of a fresh project surfaced
+README drift against what `owl init` actually materializes. No behavior change.
+
+### Fixed
+- **README under-reported seeded workflows.** `owl init` seeds and enables
+  five workflows (`feature`, `composite_feature`, `hotfix`, `refactor`,
+  `quick`), but the README named only `feature` + `composite_feature` in the
+  Quick start, "What Owl gives you", the `owl init` materialization list, and
+  the §7 validation step; `quick` was undocumented entirely. All four spots now
+  list the full set.
+- **README storage-role list was missing `specs`.** The role backing the
+  `spec` / `spec_delta` artifacts is now included alongside the other six.
+- **README `owl init` overlay list was missing `orchestrator`.** `owl init`
+  writes nine step overlays, not eight.
+- **README session-typed-step YAML excerpt was inaccurate.** It showed
+  `implement` producing `creates: [verification]`; in the real `feature`
+  workflow `implement` creates nothing and `review_code` creates
+  `[review, verification]`. The excerpt now shows both steps as shipped.
+- **README `owl --version` example was stale** (`owl 0.1.0`).
+
 ## [1.7.0] - 2026-07-02
 
 Composite-planning hardening: warts surfaced while decomposing a real consumer
