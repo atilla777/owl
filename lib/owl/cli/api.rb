@@ -25,6 +25,7 @@ require_relative 'internal/commands/init'
 require_relative 'internal/commands/instructions'
 require_relative 'internal/commands/next'
 require_relative 'internal/commands/overlay'
+require_relative 'internal/commands/overview'
 require_relative 'internal/commands/plan_approve'
 require_relative 'internal/commands/plan_status'
 require_relative 'internal/commands/publish'
@@ -99,6 +100,7 @@ module Owl
         'publish' => Internal::Commands::Publish,
         'instructions' => Internal::Commands::Instructions,
         'next' => Internal::Commands::Next,
+        'overview' => Internal::Commands::Overview,
         'status' => Internal::Commands::Status,
         'upgrade' => Internal::Commands::Upgrade,
         'verify' => Internal::Commands::Verify,

@@ -3,6 +3,7 @@
 require 'time'
 
 require_relative '../../result'
+require_relative '../../step_status'
 require_relative '../../tasks/api'
 require_relative '../../workflows/api'
 require_relative 'task_resolver'
@@ -15,8 +16,11 @@ module Owl
       # single discriminated `action.kind`. Never mutates state: no claim, no
       # step start, no writes to `.owl/` or `tasks/`.
       module NextActionResolver
-        DONE_STATUSES = %w[done skipped].freeze
-        BLOCKING_STEP_STATUSES = %w[running blocked failed].freeze
+        DONE_STATUSES = Owl::StepStatus::DONE_STATUSES
+        # A `running` step blocks the same way a `blocked`/`failed` one does when
+        # describing why no step is dispatchable, so `running` is layered on top
+        # of the shared blocking set. Value is unchanged: %w[running blocked failed].
+        BLOCKING_STEP_STATUSES = (%w[running] + Owl::StepStatus::BLOCKING_STATUSES).freeze
 
         # Stable action shape: every discriminated field is always present
         # (null when not applicable) so consumers can parse without probing.

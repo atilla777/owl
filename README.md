@@ -387,6 +387,7 @@ owl artifact resolve TASK-ID TYPE --json
 owl artifact validate TASK-ID TYPE --json
 owl config show --json
 owl workflow show ID --json                 # rendered ASCII / legacy JSON
+owl overview [TASK-ID] --json               # ASCII task tree (hierarchy, status, deps, current)
 owl workflow source show ID --json          # raw workflow.yaml body (round-trip edit)
 owl workflow context show ID STEP --json    # a step's context-file body
 owl artifact-type template show ID --json   # an artifact template body

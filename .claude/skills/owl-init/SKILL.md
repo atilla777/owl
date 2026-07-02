@@ -64,6 +64,7 @@ Do not use this skill to:
   - `settings.workflows.enabled` (optional list)
   - `settings.plan_approval.required` (optional boolean, default absent/`false`; when `true`, every new plan-bearing task holds `implement` at `await_plan_approval` until `owl plan approve`)
   - `settings.ui.auto_render_diagram` (optional boolean, default `false`; when `true`, `owl-orchestrator` prints a workflow diagram once per loop iteration via `bin/owl workflow show TASK-ID`)
+  - `settings.ui.auto_render_tree` (optional boolean, default `false`; when `true`, `owl-orchestrator` prints a task-tree overview via `bin/owl overview` once at the start of a drive and on each composite handoff)
 - A short user-facing summary report in `settings.language.communication` describing what was recorded.
 
 ## Workflow

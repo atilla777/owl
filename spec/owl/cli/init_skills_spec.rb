@@ -132,7 +132,7 @@ RSpec.describe 'owl init — Owl::Skills integration' do
     end
   end
 
-  it 'materializes the ten universal owl-* slash-commands (6 skills + 3 owl-task-* + owl-workflow-show)' do
+  it 'materializes the eleven universal owl-* slash-commands (6 skills + 3 owl-task-* + owl-workflow-show + owl-overview)' do
     with_tmp_project do |root|
       run(['init', '--root', root.to_s], cwd: root)
 
@@ -147,7 +147,8 @@ RSpec.describe 'owl init — Owl::Skills integration' do
         'owl-task-create',
         'owl-task-status',
         'owl-task-next',
-        'owl-workflow-show'
+        'owl-workflow-show',
+        'owl-overview'
       )
     end
   end

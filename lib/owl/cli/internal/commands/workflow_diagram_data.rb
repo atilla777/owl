@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../../result'
+require_relative '../../../step_status'
 require_relative '../../../tasks/api'
 require_relative '../../../workflows/api'
 
@@ -9,8 +10,8 @@ module Owl
     module Internal
       module Commands
         module WorkflowDiagramData
-          DONE_STATUSES = %w[done skipped].freeze
-          BLOCKED_STATUSES = %w[blocked failed].freeze
+          DONE_STATUSES = Owl::StepStatus::DONE_STATUSES
+          BLOCKED_STATUSES = Owl::StepStatus::BLOCKING_STATUSES
 
           module_function
 

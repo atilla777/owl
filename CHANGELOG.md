@@ -4,6 +4,35 @@ All notable changes to `owl-cli` are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); this project uses
 semantic versioning.
 
+## [1.8.0] - 2026-07-02
+
+Task-tree overview renderer: a new `owl overview` command draws an ASCII tree of
+the task forest (hierarchy, status, dependencies, current task), with optional
+auto-render in the orchestrator behind a config flag.
+
+### Added
+- **`owl overview [TASK-ID] [--all] [--compact] [--json]`.** Renders an ASCII
+  parent → child task tree: per-node status marker + id + title, and (rich mode)
+  workflow key, progress bar and `done/total` step count. Inline unmet
+  dependencies show as `⛔ ждёт TASK-XXXX` and the current task is marked
+  `◀ текущая`. `TASK-ID` scopes to one subtree; `--all` includes
+  archived/abandoned tasks; `--compact` drops the bar/workflow; `--json` returns
+  `{ok, tree, current_task_id, warnings}` (a superset of `owl task tree`). Reads
+  only through the existing Api layer (`Tasks::Api.tree`/`.list`/
+  `.current_task_id`, `Status::Api.show`); no direct FS access.
+- **`settings.ui.auto_render_tree` (optional boolean, default `false`).** When
+  `true`, `owl-orchestrator` prints `bin/owl overview` once at the start of a
+  drive and on each composite handoff (mirrors `settings.ui.auto_render_diagram`).
+- **`/owl-overview` seed command** — a thin wrapper over `owl overview`,
+  materialized by `owl init`.
+
+### Changed
+- **Extracted the duplicated step-status vocabulary into `Owl::StepStatus`.** The
+  done/blocking status sets, ASCII markers and progress-bar glyphs previously
+  copied across `Status::Internal::Constants`, the two `workflow_diagram_*` CLI
+  commands and `Orchestration::Internal::NextActionResolver` now share one
+  module. Strictly behaviour-preserving — the values are unchanged.
+
 ## [1.7.1] - 2026-07-02
 
 Documentation-only sync: a hands-on test install of a fresh project surfaced

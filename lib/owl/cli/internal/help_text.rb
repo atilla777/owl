@@ -80,6 +80,7 @@ module Owl
             instructions            Show the next ready step packaged with its SKILL.md summary (JSON).
             next                    Read-only next-action advisor: resolves the task + classifies action.kind (dispatch_step|handoff_composite|stop_blocked|done|no_available_task) (JSON).
             status                  Show workflow progress for a task (steps, progress, blockers, children).
+            overview                Render an ASCII task tree (hierarchy, status, deps, current) for the whole forest or one TASK-ID subtree: overview [TASK-ID] [--all] [--compact] [--json].
             upgrade                 Refresh this project's copied Owl seed files (skills, managed workflow/artifact files, registry merge) after a gem update; preserves project-owned content. --dry-run to preview.
             self-update             Update the owl-cli gem itself from github main (clone→build→install). --check to compare versions only.
             doctor                  Repo health reconciler (JSON): reports lifecycle status-drift, tasks/index.yaml drift, orphaned running steps (expired lease), orphan tasks (parent_id → missing task), and dangling blocked_by refs. --fix promotes complete-but-open tasks to done and rebuilds a drifted index; stale steps / orphans / dangling deps stay report-only.

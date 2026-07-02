@@ -1,23 +1,27 @@
 # frozen_string_literal: true
 
+require_relative '../../../step_status'
+
 module Owl
   module Cli
     module Internal
       module Commands
         module WorkflowDiagramRenderer
-          MARK_DONE = '[✓]'
-          MARK_CURRENT = '[▶]'
-          MARK_PENDING = '[ ]'
-          MARK_SKIPPED = '[~]'
-          MARK_BLOCKED = '[!]'
+          MARK_DONE = Owl::StepStatus::MARK_DONE
+          MARK_CURRENT = Owl::StepStatus::MARK_CURRENT
+          MARK_PENDING = Owl::StepStatus::MARK_PENDING
+          MARK_SKIPPED = Owl::StepStatus::MARK_SKIPPED
+          MARK_BLOCKED = Owl::StepStatus::MARK_BLOCKED
 
+          # Step-marker classification splits `done` from `skipped` (unlike the
+          # shared progress-complete set), so these two stay local by design.
           DONE_STATUSES = %w[done].freeze
           SKIPPED_STATUSES = %w[skipped].freeze
-          BLOCKED_STATUSES = %w[blocked failed].freeze
+          BLOCKED_STATUSES = Owl::StepStatus::BLOCKING_STATUSES
 
-          PROGRESS_WIDTH = 10
-          PROGRESS_FILLED = '━'
-          PROGRESS_EMPTY = '·'
+          PROGRESS_WIDTH = Owl::StepStatus::PROGRESS_WIDTH
+          PROGRESS_FILLED = Owl::StepStatus::PROGRESS_FILLED
+          PROGRESS_EMPTY = Owl::StepStatus::PROGRESS_EMPTY
 
           STEP_ID_COLUMN = 12
 
