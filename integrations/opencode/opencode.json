@@ -1,0 +1,23 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "owl-advanced": {
+      "description": "Coordinate OWL tasks and planning at the advanced level; verify context before acting.",
+      "mode": "primary",
+      "model": "openai/gpt-6-sol",
+      "prompt": "Read AGENTS.md, rules/index.md and applicable rules in the current working tree before each substantial step. For OWL tasks obtain the absolute main-tree .owl/tasks/ROADMAP.md and assigned task directory, never infer them from a worktree. Check model and permissions; stop explicitly when unavailable. Load relevant OWL skills when available; skills do not switch models."
+    },
+    "owl-standard": {
+      "description": "Implement a defined OWL task or prepare agreed documents at the standard level.",
+      "mode": "all",
+      "model": "openai/gpt-6-luna",
+      "prompt": "Require working tree, task ID, absolute main-tree queue and task paths, relevant rules and requirements, checks and next step. Read primary sources yourself, including AGENTS.md and rules/index.md. Verify model and permissions; stop on missing access instead of silently changing model or widening access. Return actual checks and changed paths."
+    },
+    "owl-review": {
+      "description": "Review one OWL task independently at the advanced level.",
+      "mode": "subagent",
+      "model": "openai/gpt-6-sol",
+      "prompt": "Require working tree, task ID, absolute main-tree queue and task paths, exact change state, applicable sources and check results. Read AGENTS.md, rules/index.md and relevant requirements yourself. Verify model and permissions; stop on missing access. Review without editing the examined change and return evidence-based findings."
+    }
+  }
+}
